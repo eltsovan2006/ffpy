@@ -22,6 +22,8 @@ class Log:
                     sys.stdout.write(line.encode("ascii", "replace").decode() + "\n")
         if self._fh:
             self._fh.flush()
+        if self.echo:
+            sys.stdout.flush()
 
     __call__ = write
 

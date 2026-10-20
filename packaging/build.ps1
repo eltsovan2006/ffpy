@@ -1,4 +1,4 @@
-# Builds dist\ffpy\ffpy.exe and dist\ffpy-<version>-win64.zip.
+# Builds dist\ffpy\ffpy.exe, dist\ffpy\ffpy-gui.exe and dist\ffpy-<version>-win64.zip.
 # Usage (from the repository root):
 #   powershell -ExecutionPolicy Bypass -File packaging\build.ps1 [-EnvPath C:\path\to\conda\env]
 param(
@@ -36,13 +36,26 @@ try {
             if ($LASTEXITCODE -ne 0) { throw "frozen ffpy.exe failed on $($inp.Name) (code $LASTEXITCODE)" }
             Write-Host ("{0,-24} {1}" -f $inp.Name, (Get-Content (Join-Path $tmp ($inp.BaseName + ".out")) -Tail 1))
         }
+        # the GUI must start, build its window and quit by itself
+        $env:QT_QPA_PLATFORM = "offscreen"
+        $p = Start-Process "$dist\ffpy-gui.exe" -ArgumentList "--smoke-test" -PassThru
+        Remove-Item Env:QT_QPA_PLATFORM
+        # a crash shows a modal error box instead of exiting; do not wait for it forever
+        if (-not $p.WaitForExit(60000)) {
+            $p.Kill()
+            throw "frozen ffpy-gui.exe did not quit within 60 s (crashed with an error box?)"
+        }
+        if ($p.ExitCode -ne 0) { throw "frozen ffpy-gui.exe smoke test failed (code $($p.ExitCode))" }
+        Write-Host "ffpy-gui.exe             starts and quits normally"
     } finally {
         $env:PATH = $savedPath
     }
 
+    # .NET zip writes "/" separators (Compress-Archive in PowerShell 5.1 writes "\")
     $zip = "$root\dist\ffpy-$version-win64.zip"
     if (Test-Path $zip) { Remove-Item $zip }
-    Compress-Archive -Path $dist -DestinationPath $zip
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory($dist, $zip, [IO.Compression.CompressionLevel]::Optimal, $true)
     Write-Host "built $zip"
 } finally {
     Pop-Location

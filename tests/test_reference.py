@@ -11,7 +11,7 @@ import os
 import pytest
 
 from ffpy.cli import main
-from outparse import parse_out
+from ffpy.outparse import parse_out
 
 HERE = os.path.dirname(__file__)
 REF = json.load(open(os.path.join(HERE, "reference.json"), encoding="utf-8"))

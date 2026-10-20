@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
 from ffpy.cli import main  # noqa: E402
-from outparse import parse_out  # noqa: E402
+from ffpy.outparse import parse_out  # noqa: E402
 
 TOLERANCES = {"energy_hf_mp2": 1e-6, "energy_dft": 1e-4, "bond": 1e-3, "angle": 0.1,
               "freq": 5.0, "mulliken": 0.01}

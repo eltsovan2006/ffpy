@@ -83,9 +83,14 @@ def main(argv=None):
     ap.add_argument("-q", "--quiet", action="store_true", help="do not echo the log to the console")
     ap.add_argument("--keywords", action="store_true", help="list supported groups and keys")
     ap.add_argument("--version", action="version", version="%s %s" % (PROGRAM, __version__))
+    # used by ffpy-gui: UTF-8 log on stdout, flushed line by line, never pause
+    ap.add_argument("--pipe", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
 
-    explorer = _launched_from_explorer()
+    if args.pipe:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+    explorer = _launched_from_explorer() and not args.pipe
     if args.keywords:
         print_keywords()
         if explorer:

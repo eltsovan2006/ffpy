@@ -5,33 +5,40 @@ not in the table stops the run with an error; methods are never swapped
 silently.
 """
 
+import importlib
+
 from ffpy.errors import UnsupportedError
-from ffpy.runners import energy, gradient, hessian, optimize
 
 
-def energy_hf(job, ctx): return energy.run(job, ctx)
-def energy_dft(job, ctx): return energy.run(job, ctx)
-def energy_mp2(job, ctx): return energy.run(job, ctx)
-def energy_casscf(job, ctx): return energy.run(job, ctx)
-def energy_tdhf(job, ctx): return energy.run(job, ctx)
-def energy_tddft(job, ctx): return energy.run(job, ctx)
+def _run(module, job, ctx):
+    # Runners pull in PySCF; importing them only when a job actually runs
+    # keeps select() cheap for input checking (the GUI validates as you type).
+    return importlib.import_module("ffpy.runners." + module).run(job, ctx)
 
-def gradient_hf(job, ctx): return gradient.run(job, ctx)
-def gradient_dft(job, ctx): return gradient.run(job, ctx)
-def gradient_mp2(job, ctx): return gradient.run(job, ctx)
-def gradient_casscf(job, ctx): return gradient.run(job, ctx)
-def gradient_tdhf(job, ctx): return gradient.run(job, ctx)
-def gradient_tddft(job, ctx): return gradient.run(job, ctx)
 
-def optimize_hf(job, ctx): return optimize.run(job, ctx)
-def optimize_dft(job, ctx): return optimize.run(job, ctx)
-def optimize_mp2(job, ctx): return optimize.run(job, ctx)
-def optimize_casscf(job, ctx): return optimize.run(job, ctx)
-def optimize_tdhf(job, ctx): return optimize.run(job, ctx)
-def optimize_tddft(job, ctx): return optimize.run(job, ctx)
+def energy_hf(job, ctx): return _run("energy", job, ctx)
+def energy_dft(job, ctx): return _run("energy", job, ctx)
+def energy_mp2(job, ctx): return _run("energy", job, ctx)
+def energy_casscf(job, ctx): return _run("energy", job, ctx)
+def energy_tdhf(job, ctx): return _run("energy", job, ctx)
+def energy_tddft(job, ctx): return _run("energy", job, ctx)
 
-def hessian_hf(job, ctx): return hessian.run(job, ctx)
-def hessian_dft(job, ctx): return hessian.run(job, ctx)
+def gradient_hf(job, ctx): return _run("gradient", job, ctx)
+def gradient_dft(job, ctx): return _run("gradient", job, ctx)
+def gradient_mp2(job, ctx): return _run("gradient", job, ctx)
+def gradient_casscf(job, ctx): return _run("gradient", job, ctx)
+def gradient_tdhf(job, ctx): return _run("gradient", job, ctx)
+def gradient_tddft(job, ctx): return _run("gradient", job, ctx)
+
+def optimize_hf(job, ctx): return _run("optimize", job, ctx)
+def optimize_dft(job, ctx): return _run("optimize", job, ctx)
+def optimize_mp2(job, ctx): return _run("optimize", job, ctx)
+def optimize_casscf(job, ctx): return _run("optimize", job, ctx)
+def optimize_tdhf(job, ctx): return _run("optimize", job, ctx)
+def optimize_tddft(job, ctx): return _run("optimize", job, ctx)
+
+def hessian_hf(job, ctx): return _run("hessian", job, ctx)
+def hessian_dft(job, ctx): return _run("hessian", job, ctx)
 
 
 HANDLERS = {
