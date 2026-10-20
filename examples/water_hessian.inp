@@ -1,0 +1,12 @@
+! RHF/6-31G* optimization followed by frequencies and thermochemistry
+ $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE $END
+ $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 $END
+ $STATPT NSTEP=30 OPTTOL=1.0E-5 HSSEND=.TRUE. $END
+ $FORCE  TEMP(1)=298.15,373.15 $END
+ $DATA
+Water
+CNV 2
+
+O  8.0   0.000   0.000   0.117
+H  1.0   0.000   0.757  -0.467
+ $END

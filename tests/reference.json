@@ -1,0 +1,152 @@
+{
+  "tolerances": {
+    "energy_hf_mp2": 1e-06,
+    "energy_dft": 0.0001,
+    "bond": 0.001,
+    "angle": 0.1,
+    "freq": 5.0,
+    "mulliken": 0.01
+  },
+  "cases": {
+    "benzene_rhf": {
+      "source": "ffpy-regression",
+      "energy": -230.7021803687,
+      "mulliken": {
+        "C1": -0.2,
+        "C2": -0.2,
+        "C3": -0.2,
+        "C4": -0.2,
+        "C5": -0.2,
+        "C6": -0.2,
+        "H7": 0.2,
+        "H8": 0.2,
+        "H9": 0.2,
+        "H10": 0.2,
+        "H11": 0.2,
+        "H12": 0.2
+      }
+    },
+    "c2h4_rhf": {
+      "source": "ffpy-regression",
+      "energy": -78.0311336164,
+      "mulliken": {
+        "C1": -0.3541,
+        "C2": -0.3541,
+        "H3": 0.177,
+        "H4": 0.177,
+        "H5": 0.177,
+        "H6": 0.177
+      }
+    },
+    "ch4_rhf": {
+      "source": "ffpy-regression",
+      "energy": -40.1951658997,
+      "mulliken": {
+        "C1": -0.6601,
+        "H2": 0.165,
+        "H3": 0.165,
+        "H4": 0.165,
+        "H5": 0.165
+      }
+    },
+    "h2_rhf_opt": {
+      "source": "ffpy-regression",
+      "energy": -1.1313335906,
+      "mulliken": {
+        "H1": 0.0,
+        "H2": -0.0
+      },
+      "bonds": {
+        "H1-H2": 0.732576
+      },
+      "angles": {}
+    },
+    "h2o_cation_rohf": {
+      "source": "ffpy-regression",
+      "energy": -75.6075946973,
+      "mulliken": {
+        "O1": -0.1776,
+        "H2": 0.5888,
+        "H3": 0.5888
+      }
+    },
+    "h2o_cation_uhf": {
+      "source": "ffpy-regression",
+      "energy": -75.6120581539,
+      "mulliken": {
+        "O1": -0.174,
+        "H2": 0.587,
+        "H3": 0.587
+      }
+    },
+    "nh3_rhf_opt": {
+      "source": "ffpy-regression",
+      "energy": -56.1843564487,
+      "mulliken": {
+        "N1": -0.996,
+        "H2": 0.332,
+        "H3": 0.332,
+        "H4": 0.332
+      },
+      "bonds": {
+        "N1-H2": 1.002522,
+        "N1-H3": 1.002522,
+        "N1-H4": 1.002522
+      },
+      "angles": {
+        "H2-N1-H3": 107.1798,
+        "H2-N1-H4": 107.1798,
+        "H3-N1-H4": 107.1798
+      }
+    },
+    "water_b3lyp": {
+      "source": "ffpy-regression",
+      "energy": -76.3715155916,
+      "mulliken": {
+        "O1": -0.7784,
+        "H2": 0.3892,
+        "H3": 0.3892
+      },
+      "dft": true
+    },
+    "water_mp2": {
+      "source": "ffpy-regression",
+      "energy": -76.1965476864,
+      "mulliken": {
+        "O1": -0.8668,
+        "H2": 0.4334,
+        "H3": 0.4334
+      }
+    },
+    "water_rhf_hessian": {
+      "source": "ffpy-regression",
+      "energy": -76.0107465085,
+      "mulliken": {
+        "O1": -0.8688,
+        "H2": 0.4344,
+        "H3": 0.4344
+      },
+      "freqs": [
+        1826.55,
+        4070.47,
+        4188.71
+      ]
+    },
+    "water_rhf_opt": {
+      "source": "ffpy-regression",
+      "energy": -76.0107465085,
+      "mulliken": {
+        "O1": -0.8688,
+        "H2": 0.4344,
+        "H3": 0.4344
+      },
+      "bonds": {
+        "O1-H2": 0.947318,
+        "O1-H3": 0.947318
+      },
+      "angles": {
+        "H2-O1-H3": 105.4998
+      }
+    }
+  }
+}

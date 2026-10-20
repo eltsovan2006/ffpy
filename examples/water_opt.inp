@@ -1,0 +1,11 @@
+! RHF/6-31G* optimization of water (example from the specification)
+ $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE ICHARG=0 MULT=1 $END
+ $SYSTEM MWORDS=50 $END
+ $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 $END
+ $DATA
+Water
+C1
+O  8.0   0.000   0.000   0.117
+H  1.0   0.000   0.757  -0.467
+H  1.0   0.000  -0.757  -0.467
+ $END

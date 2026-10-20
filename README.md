@@ -1,0 +1,124 @@
+# ffpy
+
+Консольная программа, которая читает входные файлы в формате Firefly/GAMESS,
+считает их через [PySCF](https://pyscf.org) и пишет вывод для Chemcraft,
+Avogadro, Jmol и Molden. Собственная реализация по открытой документации и
+формату файлов, не копия Firefly.
+
+```
+ffpy water.inp
+```
+
+На выходе:
+
+| Файл | Что внутри | Кто читает |
+|---|---|---|
+| `water.out` | лог: вход с применёнными умолчаниями, ход SCF, энергии, орбитали, заряды Малликена и Лёвдина, диполь, шаги оптимизации, частоты, термохимия, время | человек |
+| `water.molden` | геометрия, базис, орбитали; частоты и нормальные моды; путь оптимизации | Chemcraft, Avogadro, Jmol, Molden |
+| `water.dat` | итоговая геометрия `$DATA` и орбитали `$VEC` для `GUESS=MOREAD` | ffpy |
+| `water.xyz` | траектория оптимизации | любой просмотрщик |
+
+Последняя строка `.out` — `ffpy TERMINATED NORMALLY` или
+`ffpy TERMINATED ABNORMALLY: ERROR CODE n (...)`; тот же код возвращает
+процесс, так что скрипты могут проверять результат.
+
+## Установка на Windows (готовая сборка)
+
+1. Распакуйте `ffpy-0.1.0-win64.zip` в любую папку, например `C:\ffpy`.
+2. Один раз выполните `add_to_path.ps1`, чтобы команда `ffpy` работала в любом терминале:
+   ```
+   powershell -ExecutionPolicy Bypass -File C:\ffpy\add_to_path.ps1
+   ```
+3. В новом терминале: `ffpy C:\ffpy\examples\water_opt.inp`.
+
+Можно и без терминала: перетащите `.inp` на `ffpy.exe` — окно останется
+открытым до нажатия Enter, а результаты появятся рядом с входным файлом.
+
+Python и conda для готовой сборки не нужны: PySCF, geomeTRIC, NumPy и все
+DLL лежат в папке `_internal`. PySCF официально не поддерживает Windows, но
+conda-forge собирает PySCF 2.14 под win-64; эта сборка и упакована в exe.
+
+## Параметры командной строки
+
+```
+ffpy input.inp [-o OUTDIR] [-n NPROC] [--gamess] [--check] [--debug] [-q]
+ffpy --keywords      список групп и ключей
+ffpy --version
+```
+
+* `-n` — число потоков (по умолчанию min(8, ядра): для молекул учебного
+  размера больше 8 потоков не ускоряет расчёт).
+* `--gamess` — добавить в `.out` GAMESS-подобные блоки (координаты,
+  `FINAL ... ENERGY IS`, `EIGENVECTORS`, `NSERCH`, `FREQUENCY:`). Формат
+  написан по общему знанию вывода GAMESS и не сверен с примерами из
+  дистрибутива Firefly.
+* `--check` — только прочитать и проверить вход (то же, что `EXETYP=CHECK`).
+* `--debug` — дополнительно записать подробный лог PySCF (`имя.pyscf.log`).
+
+## Что умеет 0.1.0
+
+* HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`);
+  MP2 (`MPLEVL=2`, по умолчанию с замороженным остовом); TDHF/CIS/TDDFT/TDA
+  (`$TDDFT NSTATE=`, `CITYP=CIS`); CASSCF (`SCFTYP=MCSCF` + `$DET`);
+  растворитель IEF-PCM (`$PCM SOLVNT=WATER`).
+* `RUNTYP=ENERGY, GRADIENT, OPTIMIZE, HESSIAN`; частоты, ИК-интенсивности,
+  термохимия при нескольких температурах (`$FORCE TEMP(1)=...`),
+  `$STATPT HSSEND=.TRUE.`.
+* Базисы `GBASIS=STO, N21, N31, N311` с `NGAUSS/NDFUNC/NPFUNC/NFFUNC/DIFFSP/DIFFS`,
+  а также `CCD, CCT, CCQ, ACCD, ACCT, ...`.
+* Точечные группы в `$DATA` (Cs, Ci, Cn, Cnv, Cnh, Dn, Dnh, Dnd, S2n, T, Td,
+  Th, O, Oh): атомы размножаются по симметрии, расчёт идёт в C1.
+
+Полный список ключей, значения по умолчанию и таблица «метод × RUNTYP» —
+в [docs/KEYWORDS.md](docs/KEYWORDS.md). Чего нет: XMCQDPT2, FMO,
+P2P-параллелизм, ECP, z-матрица, побитовое совпадение с Firefly.
+
+## Точность относительно Firefly
+
+Ожидаемые расхождения: HF/MP2 — около 1·10⁻⁶ Eh, DFT — до 1·10⁻⁴ Eh из-за
+других сеток и формы VWN в B3LYP. Для проверки: оптимизация воды
+RHF/6-31G* даёт E = −76.0107465 Eh, r(OH) = 0.9473 Å, ∠HOH = 105.50°,
+частоты 1826.6 / 4070.5 / 4188.7 см⁻¹ — в пределах допусков от известных
+значений GAMESS для этой задачи.
+
+Эталонные числа в `tests/reference.json` пока сгенерированы самим ffpy
+(`"source": "ffpy-regression"`). Их нужно заменить числами настоящего
+Firefly, запущенного как чёрный ящик на тех же входах из `tests/inputs`.
+
+## Разработка
+
+```
+conda env create -f environment.yml
+conda activate ffpy
+python -m ffpy examples\water_opt.inp
+python -m pytest
+powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+```
+
+`build.ps1` собирает `dist\ffpy\ffpy.exe` (PyInstaller, one-folder),
+прогоняет на нём пример с водой и упаковывает `dist\ffpy-<версия>-win64.zip`.
+
+Устройство:
+
+```
+ffpy/
+  cli.py          запуск, коды выхода, .out
+  parser.py       группы $...$END -> словари, проверка ключей
+  schema.py       поддерживаемые группы, ключи, умолчания
+  job.py          Job: молекула, базис, метод, RUNTYP; разбор $DATA/$VEC
+  symmetry.py     размножение атомов по точечной группе
+  basis_map.py    GBASIS/NGAUSS/NDFUNC -> имя базиса PySCF
+  xc_map.py       DFTTYP -> строка xc PySCF
+  dispatcher.py   обработчик на каждую пару метод x RUNTYP
+  methods.py      сборка объектов PySCF
+  runners/        energy, gradient, optimize, hessian, report
+  writers/        out, molden, dat, xyz, gamess
+tests/
+  inputs/         входы тестового набора
+  reference.json  эталонные числа и допуски
+```
+
+Правовая рамка: источники — документация, примеры input/output и запуск
+Firefly как чёрного ящика. Бинарники Firefly не дизассемблируются, файлы
+дистрибутива в репозиторий не кладутся. Сторонние библиотеки в сборке —
+см. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

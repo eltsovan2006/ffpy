@@ -1,0 +1,10 @@
+name: ffpy
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pyscf=2.14.0
+  - geometric
+  - numpy
+  - pytest
+  - pyinstaller

@@ -1,0 +1,11 @@
+! MP2/6-31G* optimization of ammonia (frozen core by default)
+ $CONTRL SCFTYP=RHF MPLEVL=2 RUNTYP=OPTIMIZE $END
+ $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 $END
+ $DATA
+Ammonia
+C1
+N  7.0   0.0000   0.0000   0.1100
+H  1.0   0.0000   0.9400  -0.2600
+H  1.0   0.8141  -0.4700  -0.2600
+H  1.0  -0.8141  -0.4700  -0.2600
+ $END
