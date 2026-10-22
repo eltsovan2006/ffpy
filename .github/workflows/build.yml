@@ -31,7 +31,7 @@ jobs:
 
       - name: Build executables, zip and installer
         run: |
-          powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -EnvPath $env:CONDA
+          powershell -ExecutionPolicy Bypass -File packaging\build.ps1 -EnvPath "$env:CONDA\envs\ffpy"
 
       - name: Upload binaries to Release
         uses: softprops/action-gh-release@v2

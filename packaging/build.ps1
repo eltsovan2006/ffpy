@@ -2,10 +2,16 @@
 # Usage (from the repository root):
 #   powershell -ExecutionPolicy Bypass -File packaging\build.ps1 [-EnvPath C:\path\to\conda\env]
 param(
-    [string]$EnvPath = "$env:USERPROFILE\miniforge3\envs\ffpy"
+    [string]$EnvPath = $(if ($env:CONDA_PREFIX) { $env:CONDA_PREFIX } elseif (Test-Path "$env:CONDA\envs\ffpy") { "$env:CONDA\envs\ffpy" } else { "$env:USERPROFILE\miniforge3\envs\ffpy" })
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+
+# If a Conda root directory was passed instead of the env directory, resolve to the ffpy env
+if (Test-Path "$EnvPath\envs\ffpy\python.exe") {
+    $EnvPath = "$EnvPath\envs\ffpy"
+}
+
 if (-not (Test-Path "$EnvPath\python.exe")) {
     throw "conda env not found at $EnvPath. Create it with: conda env create -f environment.yml"
 }
@@ -21,8 +27,8 @@ try {
 
     $dist = "$root\dist\ffpy"
     Copy-Item -Recurse -Force "$root\examples" "$dist\examples"
+    Copy-Item -Recurse -Force "$root\docs" "$dist\docs"
     Copy-Item -Force "$root\README.md", "$root\THIRD_PARTY_NOTICES.md" $dist
-    Copy-Item -Force "$root\docs\KEYWORDS.md" $dist
     Copy-Item -Force "$root\packaging\add_to_path.ps1" $dist
 
     # smoke test of the frozen build on every example, without the conda env on PATH
@@ -73,10 +79,11 @@ try {
         Write-Host "Compiling Inno Setup installer..."
         & $iscc "/DMyAppVersion=$version" "$root\packaging\ffpy_setup.iss"
         if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Inno Setup compilation failed (code $LASTEXITCODE)"
-        } else {
-            Write-Host "built dist\ffpy-$version-setup.exe"
+            throw "Inno Setup compilation failed (code $LASTEXITCODE)"
         }
+        Write-Host "built dist\ffpy-$version-setup.exe"
+    } elseif ($env:CI) {
+        throw "ISCC.exe (Inno Setup 6) not found in CI environment."
     } else {
         Write-Host "ISCC.exe (Inno Setup 6) not found. To build setup.exe, install Inno Setup 6."
     }
