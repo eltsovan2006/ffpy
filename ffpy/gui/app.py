@@ -178,7 +178,8 @@ class MainWindow(QMainWindow):
         v.setContentsMargins(4, 4, 4, 4)
         row = QHBoxLayout()
         self.folder_edit = QLineEdit()
-        self.folder_edit.setReadOnly(True)
+        self.folder_edit.setPlaceholderText("Путь к папке...")
+        self.folder_edit.returnPressed.connect(self._on_folder_edit_return)
         up = QToolButton()
         up.setText("↑")
         up.setToolTip("Папка выше")
@@ -422,17 +423,27 @@ class MainWindow(QMainWindow):
             return
         self.add_tab(tab, focus)
         self._add_recent(path)
+        file_dir = os.path.dirname(os.path.abspath(path))
+        if os.path.isdir(file_dir) and (not self.folder or os.path.abspath(self.folder) != file_dir):
+            self.set_folder(file_dir)
         if tab.kind == "out" and focus:
             self.results.set_out(path)
         return tab
 
-    def new_empty(self):
+    def _on_folder_edit_return(self):
+        text = self.folder_edit.text().strip()
+        if text and os.path.isdir(text):
+            self.set_folder(text)
+        else:
+            self.folder_edit.setText(self.folder)
+
+    def new_empty(self, *args):
         tab = FileTab(None, font_size=self.font_size)
         tab.editor.setPlainText(EMPTY_INP)
         tab.editor.document().setModified(True)
         self.add_tab(tab)
 
-    def new_job(self):
+    def new_job(self, *args):
         dlg = NewJobDialog(self, self.folder)
         if dlg.exec() != NewJobDialog.Accepted:
             return
@@ -451,12 +462,12 @@ class MainWindow(QMainWindow):
         self.add_tab(tab)
         self._refresh_tab_title(tab)
 
-    def open_dialog(self):
+    def open_dialog(self, *args):
         paths, _ = QFileDialog.getOpenFileNames(self, "Открыть", self.folder, OPEN_FILTER)
         for p in paths:
             self.open_path(p)
 
-    def choose_folder(self):
+    def choose_folder(self, *args):
         d = QFileDialog.getExistingDirectory(self, "Папка с расчётами", self.folder)
         if d:
             self.set_folder(d)

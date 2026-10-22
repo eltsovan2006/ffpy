@@ -105,6 +105,7 @@ SCHEMA = {
         "TEMP": K("floatlist", [298.15], None, "thermochemistry temperatures, K"),
         "METHOD": K("str", "ANALYTIC", ("ANALYTIC", "SEMINUM", "FULLNUM"), "hessian method (always analytic in ffpy)"),
         "VIBANL": K("bool", True, None, "normal mode analysis"),
+        "PROJCT": K("bool", True, None, "project translation and rotation out of hessian"),
     },
     "TDDFT": {
         "NSTATE": K("int", 1, None, "number of excited states"),
@@ -145,7 +146,9 @@ IGNORED = {
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
     "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE"},
-    "STATPT": {"METHOD", "HESS", "NPRT", "NPUN", "IHREP", "IFOLOW", "STPT"},
+    "STATPT": {"METHOD", "HESS", "NPRT", "NPUN", "IHREP", "IFOLOW", "STPT",
+               "DXMAX", "TRMAX", "TRMIN", "IDUMP", "PURIFY", "PROJCT", "LET",
+               "ITBMX", "GMIN", "GMAX", "NPRTR", "NPUNR", "KDIAG", "SCHM"},
     "FORCE": {"NVIB", "VIBSIZ", "PURIFY", "PRTIFC"},
     "TDDFT": {"NRAD", "NLEB", "PRTTOL"},
     "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS"},

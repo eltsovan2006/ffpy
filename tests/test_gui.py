@@ -143,3 +143,32 @@ def test_results_panel_on_examples(app, tmp_path):
     hs = parse_out(str(tmp_path / "water_hessian.out"))
     assert len(td["excited"]) == 5 and not td["freqs"]
     assert len(hs["freqs"]) == 3 and not hs["excited"]
+
+
+def test_gui_folder_navigation(app, no_modal, tmp_path, monkeypatch):
+    from ffpy.gui.app import MainWindow
+    from PySide6.QtWidgets import QFileDialog
+    sub = tmp_path / "acetate"
+    sub.mkdir()
+    inp = sub / "job.inp"
+    inp.write_text(H2)
+
+    w = MainWindow()
+    w.set_folder(str(tmp_path))
+    assert not w.folder_edit.isReadOnly()
+
+    # Manual input + Enter
+    w.folder_edit.setText(str(sub))
+    w.folder_edit.returnPressed.emit()
+    assert os.path.abspath(w.folder) == os.path.abspath(str(sub))
+
+    # Button click simulation passing boolean argument
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *args, **kwargs: str(sub))
+    w.choose_folder(False)
+    assert os.path.abspath(w.folder) == os.path.abspath(str(sub))
+
+    # Open file from outside current folder switches tree folder
+    w.set_folder(str(tmp_path))
+    w.open_path(str(inp))
+    assert os.path.abspath(w.folder) == os.path.abspath(str(sub))
+    w.close()

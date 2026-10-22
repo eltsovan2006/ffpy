@@ -40,15 +40,34 @@ def parse_text(text):
     m = re.search(r"wall time ([\d.]+) s", text)
     res["wall_time"] = float(m.group(1)) if m else None
 
-    bonds, angles = {}, {}
+    bonds, angles, bond_orders = {}, {}, {}
+    mode = None
     for l in lines:
-        m = re.match(r"^\s{4}(\S+)\s+-\s+(\S+)\s+(\d+\.\d+)$", l)
-        if m:
-            bonds[(m.group(1), m.group(2))] = float(m.group(3))
-        m = re.match(r"^\s{4}(\S+)\s+-\s+(\S+)\s+-\s+(\S+)\s+(\d+\.\d+)$", l)
-        if m:
-            angles[(m.group(1), m.group(2), m.group(3))] = float(m.group(4))
-    res["bonds"], res["angles"] = bonds, angles   # last block wins (final geometry)
+        if "bond lengths (ANGS):" in l:
+            mode = "bonds"
+            continue
+        elif "bond angles (DEG):" in l:
+            mode = "angles"
+            continue
+        elif "BOND PAIRS WITH ORDER GREATER THAN" in l:
+            mode = "orders"
+            continue
+        elif l.strip().startswith("-") or (l.strip() and not l.startswith("   ")):
+            mode = None
+
+        if mode == "bonds":
+            m = re.match(r"^\s{4}(\S+)\s+-\s+(\S+)\s+(\d+\.\d+)$", l)
+            if m:
+                bonds[(m.group(1), m.group(2))] = float(m.group(3))
+        elif mode == "angles":
+            m = re.match(r"^\s{4}(\S+)\s+-\s+(\S+)\s+-\s+(\S+)\s+(\d+\.\d+)$", l)
+            if m:
+                angles[(m.group(1), m.group(2), m.group(3))] = float(m.group(4))
+        elif mode == "orders":
+            for pm in re.finditer(r"(\d+)\(\s*(\S+)\s*\)\s*-\s*(\d+)\(\s*(\S+)\s*\)\s+(\d+\.\d+)", l):
+                bond_orders[(int(pm.group(1)), int(pm.group(3)))] = float(pm.group(5))
+
+    res["bonds"], res["angles"], res["bond_orders"] = bonds, angles, bond_orders
 
     freqs, ir = [], []
     in_vib = False

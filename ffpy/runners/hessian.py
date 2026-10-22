@@ -58,6 +58,8 @@ def dipole_derivatives(job, ctx, res):
     natm = len(coords0)
     D = np.zeros((natm, 3, 3))
     printing, ctx.print_scf = ctx.print_scf, False
+    total = natm * 6
+    done = 0
     try:
         for a in range(natm):
             for x in range(3):
@@ -72,6 +74,8 @@ def dipole_derivatives(job, ctx, res):
                     if dm.ndim == 3:
                         dm = dm[0] + dm[1]
                     mus.append(hf.dip_moment(mol, dm, unit="AU", verbose=0))
+                    done += 1
+                    ctx.log("    dipole derivatives: %d/%d" % (done, total))
                 D[a, x] = (mus[0] - mus[1]) / (2 * FD_STEP)
     finally:
         ctx.print_scf = printing
@@ -90,7 +94,8 @@ def analyze(job, ctx, res):
     h = hobj.kernel()
     ctx.check_time()
     masses = isotope_masses(mol)
-    ha = thermo.harmonic_analysis(mol, h, mass=masses)
+    proj = getattr(job, "projct", True)
+    ha = thermo.harmonic_analysis(mol, h, mass=masses, exclude_trans=proj, exclude_rot=proj)
     w = np.asarray(ha["freq_wavenumber"])
     wn = np.where(np.abs(w.imag) > np.abs(w.real), -np.abs(w.imag), w.real).astype(float)
     nm = np.asarray(ha["norm_mode"])                   # (nmode, natm, 3), amu^-1/2
@@ -110,6 +115,9 @@ def analyze(job, ctx, res):
         log.warning("%d imaginary frequenc%s: %s cm-1 (not a minimum, or the geometry is not "
                     "converged tightly enough)" % (nimag, "y" if nimag == 1 else "ies",
                                                   ", ".join("%.2fi" % -x for x in wn[wn < 0])))
+        if proj:
+            log.warning("translation/rotation projection at non-stationary points shifts frequencies; "
+                        "use $FORCE PROJCT=.F. to obtain unprojected 3N modes")
     th_list = []
     for T in job.temps:
         model = _Model(_MassMol(mol), res.e_tot)

@@ -120,16 +120,39 @@ def orbitals(log, mo_energy, mo_occ, spin=""):
     log("  %s ORBITAL ENERGIES AND OCCUPATIONS" % spin if spin else "  ORBITAL ENERGIES AND OCCUPATIONS")
     log("  %5s %8s %18s %14s" % ("MO", "OCC", "ENERGY (EH)", "ENERGY (EV)"))
     occ = np.asarray(mo_occ)
+    e_arr = np.asarray(mo_energy)
+    n = max(len(e_arr), len(occ))
+    if len(e_arr) < n:
+        e_arr = np.pad(e_arr, (0, n - len(e_arr)), constant_values=0.0)
+    if len(occ) < n:
+        occ = np.pad(occ, (0, n - len(occ)), constant_values=0.0)
     homo = np.where(occ > 1e-8)[0]
     integer = np.allclose(occ, np.round(occ))
     hi = homo[-1] if len(homo) and integer else -10
-    for i, (e, o) in enumerate(zip(mo_energy, occ)):
+    for i in range(n):
+        e, o = e_arr[i], occ[i]
         tag = "  HOMO" if i == hi else ("  LUMO" if i == hi + 1 else "")
         log("  %5d %8.4f %18.10f %14.6f%s" % (i + 1, o, e, e * HARTREE_EV, tag))
 
 
+def _normalize_ao(S, dm):
+    """Normalize Cartesian AOs so S_ii == 1, matching Firefly/GAMESS Lowdin and Mayer."""
+    diag_s = np.diag(S)
+    d = 1.0 / np.sqrt(np.maximum(diag_s, 1e-15))
+    D = np.diag(d)
+    Dinv = np.diag(1.0 / d)
+    S_norm = D @ S @ D
+    dm = np.asarray(dm)
+    if dm.ndim == 3:
+        P_norm = np.array([Dinv @ dm[0] @ Dinv, Dinv @ dm[1] @ Dinv])
+    else:
+        P_norm = Dinv @ dm @ Dinv
+    return S_norm, P_norm
+
+
 def _lowdin(S, dm):
     w, v = np.linalg.eigh(S)
+    w = np.maximum(w, 1e-14)
     s12 = (v * np.sqrt(w)) @ v.T
     return np.einsum("ij,jk,ki->i", s12, dm, s12)
 
@@ -149,12 +172,15 @@ def populations(log, mol, labels, dm):
     dmt = dm[0] + dm[1] if spin else dm
     Z = mol.atom_charges()
     mull = Z - _atom_sum(mol, np.einsum("ij,ji->i", dmt, S))
-    low = Z - _atom_sum(mol, _lowdin(S, dmt))
+    S_norm, P_norm = _normalize_ao(S, dm)
+    P_norm_t = P_norm[0] + P_norm[1] if spin else P_norm
+    low = Z - _atom_sum(mol, _lowdin(S_norm, P_norm_t))
     log.section("population analysis")
     if spin:
         dms = dm[0] - dm[1]
+        P_norm_s = P_norm[0] - P_norm[1]
         smull = _atom_sum(mol, np.einsum("ij,ji->i", dms, S))
-        slow = _atom_sum(mol, _lowdin(S, dms))
+        slow = _atom_sum(mol, _lowdin(S_norm, P_norm_s))
         log("  %-10s %14s %14s %14s %14s" % ("ATOM", "MULLIKEN", "LOWDIN", "SPIN(MULL)", "SPIN(LOWD)"))
         for i in range(mol.natm):
             log("  %-10s %14.6f %14.6f %14.6f %14.6f" % (_lab(labels, i), mull[i], low[i], smull[i], slow[i]))
@@ -164,6 +190,78 @@ def populations(log, mol, labels, dm):
             log("  %-10s %14.6f %14.6f" % (_lab(labels, i), mull[i], low[i]))
     log("  %-10s %14.6f %14.6f" % ("TOTAL", mull.sum(), low.sum()))
     return mull, low
+
+
+def bond_orders_and_valences(log, mol, labels, dm, threshold=0.050):
+    """Mayer bond orders and Coulson/Mayer atomic valences matching Firefly/GAMESS."""
+    S = mol.intor_symmetric("int1e_ovlp")
+    S_norm, P_norm = _normalize_ao(S, dm)
+    spin = P_norm.ndim == 3
+
+    if spin:
+        Pa_S = P_norm[0] @ S_norm
+        Pb_S = P_norm[1] @ S_norm
+        K = 2.0 * ((Pa_S * Pa_S.T) + (Pb_S * Pb_S.T))
+        Pt = P_norm[0] + P_norm[1]
+        Pt_S = Pt @ S_norm
+        Ps_S = (P_norm[0] - P_norm[1]) @ S_norm
+    else:
+        Pt = P_norm
+        Pt_S = Pt @ S_norm
+        K = Pt_S * Pt_S.T
+
+    slices = mol.aoslice_by_atom()
+    natm = mol.natm
+    B = np.zeros((natm, natm))
+    for i in range(natm):
+        p0, p1 = slices[i][2], slices[i][3]
+        for j in range(natm):
+            q0, q1 = slices[j][2], slices[j][3]
+            B[i, j] = np.sum(K[p0:p1, q0:q1])
+
+    B = 0.5 * (B + B.T)
+
+    v_bonded = np.zeros(natm)
+    v_total = np.zeros(natm)
+    v_free = np.zeros(natm)
+
+    for i in range(natm):
+        p0, p1 = slices[i][2], slices[i][3]
+        v_bonded[i] = np.sum([B[i, j] for j in range(natm) if j != i])
+        q_A = np.trace(Pt_S[p0:p1, p0:p1])
+        X_A = np.sum(Pt_S[p0:p1, p0:p1] * Pt_S[p0:p1, p0:p1].T)
+        v_total[i] = 2.0 * q_A - X_A
+        if spin:
+            v_free[i] = np.sum(Ps_S[p0:p1, p0:p1] * Ps_S[p0:p1, p0:p1].T)
+        else:
+            v_free[i] = 0.0
+
+    log.section("bond order and valence analysis")
+    log("  BOND ORDER THRESHOLD = %.3f" % threshold)
+    log("  BOND PAIRS WITH ORDER GREATER THAN %.3f:" % threshold)
+
+    pairs = []
+    for i in range(natm):
+        for j in range(i + 1, natm):
+            if B[i, j] > threshold:
+                pairs.append((i, j, B[i, j]))
+
+    if not pairs:
+        log("  (no bond pairs with order greater than threshold)")
+    else:
+        chunks = [pairs[k:k + 3] for k in range(0, len(pairs), 3)]
+        for chunk in chunks:
+            parts = []
+            for i, j, b in chunk:
+                parts.append("%3d( %-2s ) - %3d( %-2s ) %6.3f" % (i + 1, _sym(labels[i]), j + 1, _sym(labels[j]), b))
+            log("   " + "   ".join(parts))
+
+    log("")
+    log("  %-10s %15s %15s %15s" % ("ATOM", "TOTAL VALENCE", "BONDED VALENCE", "FREE VALENCE"))
+    for i in range(natm):
+        log("  %-10s %15.3f %15.3f %15.3f" % (_lab(labels, i), v_total[i], v_bonded[i], v_free[i]))
+
+    return B, v_total, v_bonded, v_free
 
 
 def dipole(log, mol, dm):

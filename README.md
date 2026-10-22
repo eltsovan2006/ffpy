@@ -25,7 +25,7 @@ ffpy water.inp
 
 ## Установка на Windows (готовая сборка)
 
-1. Распакуйте `ffpy-0.2.0-win64.zip` в любую папку, например `C:\ffpy`.
+1. Распакуйте `ffpy-0.2.1-win64.zip` в любую папку, например `C:\ffpy`.
 2. Один раз выполните `add_to_path.ps1`, чтобы команда `ffpy` работала в любом терминале:
    ```
    powershell -ExecutionPolicy Bypass -File C:\ffpy\add_to_path.ps1
@@ -89,7 +89,7 @@ ffpy --version
 * `--check` — только прочитать и проверить вход (то же, что `EXETYP=CHECK`).
 * `--debug` — дополнительно записать подробный лог PySCF (`имя.pyscf.log`).
 
-## Что умеет 0.2.0
+## Что умеет 0.2.1
 
 * HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`);
   MP2 (`MPLEVL=2`, по умолчанию с замороженным остовом); TDHF/CIS/TDDFT/TDA

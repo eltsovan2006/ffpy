@@ -1,4 +1,4 @@
-# Поддерживаемые группы и ключи ffpy 0.2.0
+# Поддерживаемые группы и ключи ffpy 0.2.1
 
 > Ключи и значения по умолчанию записаны по документации GAMESS (US) / Firefly.
 > Перед использованием в учебных расчётах каждую группу нужно сверить с
@@ -179,7 +179,7 @@ Accepted with a WARNING, no effect: CODE, CUTOFF, METHOD, MP2PRP, NBCORE
 | OPTTOL | number | 0.0001 | max gradient, Hartree/Bohr |
 | HSSEND | .TRUE./.FALSE. | .FALSE. | hessian at the optimized geometry |
 
-Accepted with a WARNING, no effect: HESS, IFOLOW, IHREP, METHOD, NPRT, NPUN, STPT
+Accepted with a WARNING, no effect: DXMAX, GMAX, GMIN, HESS, IDUMP, IFOLOW, IHREP, ITBMX, KDIAG, LET, METHOD, NPRT, NPRTR, NPUN, NPUNR, PROJCT, PURIFY, SCHM, STPT, TRMAX, TRMIN
 
 ### $FORCE
 
@@ -187,6 +187,7 @@ Accepted with a WARNING, no effect: HESS, IFOLOW, IHREP, METHOD, NPRT, NPUN, STP
 |---|---|---|---|
 | TEMP | numbers, KEY(1)=a,b,... | 298.15 | thermochemistry temperatures, K |
 | METHOD | ANALYTIC, SEMINUM, FULLNUM | ANALYTIC | hessian method (always analytic in ffpy) |
+| PROJCT | .TRUE./.FALSE. | .TRUE. | project translation and rotation out of hessian |
 | VIBANL | .TRUE./.FALSE. | .TRUE. | normal mode analysis |
 
 Accepted with a WARNING, no effect: NVIB, PRTIFC, PURIFY, VIBSIZ

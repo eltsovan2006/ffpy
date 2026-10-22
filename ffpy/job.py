@@ -60,6 +60,7 @@ class Job:
     hssend: bool
     temps: List[float]
     exetyp: str
+    projct: bool = True
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
 
@@ -302,8 +303,10 @@ def build_job(deck):
     else:
         nstep, opttol, hssend = 20, 1e-4, False
     temps = [298.15]
+    projct = True
     if runtyp == "HESSIAN" or hssend:
         temps = g("FORCE", "TEMP")
+        projct = g("FORCE", "PROJCT", True)
         if g("FORCE", "METHOD") != "ANALYTIC":
             deck.notes.append(("warning", "$FORCE METHOD=%s: ffpy always uses the analytic hessian"
                                % deck.groups["FORCE"].keys["METHOD"]))
@@ -321,5 +324,5 @@ def build_job(deck):
         damp=g("SCF", "DAMP", False), shift=g("SCF", "SHIFT", False),
         memory_mb=memory_mb, timlim_s=timlim, grid=grid, mp2_frozen=mp2_frozen,
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
-        temps=temps, exetyp=contrl["EXETYP"], defaults=list(deck.defaults_used),
+        temps=temps, exetyp=contrl["EXETYP"], projct=projct, defaults=list(deck.defaults_used),
         nsym_ops=nops)

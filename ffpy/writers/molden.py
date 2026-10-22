@@ -6,16 +6,30 @@ from pyscf.tools import molden as pmolden
 from ffpy.constants import BOHR_ANG
 
 
-def write(path, res, method, freq=None, trajectory=None, symbols=None):
+def _write_orbitals(path, res, method):
     if method == "CASSCF":
         pmolden.from_mcscf(res.post, path)
     else:
         pmolden.from_scf(res.mf, path)
-    with open(path, "a", encoding="ascii", newline="\n") as f:
-        if freq is not None:
+
+
+def write(path, res, method, freq=None, trajectory=None, symbols=None):
+    _write_orbitals(path, res, method)
+    stem = path[:-7] if path.lower().endswith(".molden") else path
+    written = [path]
+    if freq is not None:
+        freq_path = stem + "_freq.molden"
+        _write_orbitals(freq_path, res, method)
+        with open(freq_path, "a", encoding="ascii", newline="\n") as f:
             _freq(f, res.mol, freq)
-        if trajectory and len(trajectory) > 1:
+        written.append(freq_path)
+    if trajectory and len(trajectory) > 1:
+        opt_path = stem + "_opt.molden"
+        _write_orbitals(opt_path, res, method)
+        with open(opt_path, "a", encoding="ascii", newline="\n") as f:
             _geoconv(f, trajectory, symbols)
+        written.append(opt_path)
+    return written
 
 
 def _freq(f, mol, freq):

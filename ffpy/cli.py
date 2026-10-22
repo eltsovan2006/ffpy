@@ -198,8 +198,11 @@ def _run(args, path, stem, log, pyscf_fh, t0):
     log.section("output files")
     molden.write(stem + ".molden", res, job.method, freq=ctx.freq,
                  trajectory=ctx.trajectory, symbols=job.symbols)
-    log("  %s.molden   orbitals%s" % (os.path.basename(stem),
-                                       ", frequencies" if ctx.freq is not None else ""))
+    log("  %s.molden   orbitals" % os.path.basename(stem))
+    if ctx.freq is not None:
+        log("  %s_freq.molden  frequencies and normal modes" % os.path.basename(stem))
+    if ctx.trajectory and len(ctx.trajectory) > 1:
+        log("  %s_opt.molden   optimization path" % os.path.basename(stem))
     dat.write(stem + ".dat", job, res, res.e_tot, job.method)
     log("  %s.dat      final $DATA and $VEC (GUESS=MOREAD)" % os.path.basename(stem))
     if ctx.trajectory:

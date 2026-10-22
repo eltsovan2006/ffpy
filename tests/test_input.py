@@ -162,3 +162,30 @@ def test_casscf_checks():
     job = build_job(deck(" $CONTRL SCFTYP=MCSCF $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
                          " $DET NCORE=3 NACT=4 NELS=4 $END\n"))
     assert job.method == "CASSCF"
+
+
+def test_statpt_firefly_keys_accepted():
+    d = deck(" $CONTRL RUNTYP=OPTIMIZE $END\n"
+             " $STATPT METHOD=GDIIS OPTTOL=1D-6 NSTEP=2000 DXMAX=0.1 TRMAX=0.3 IDUMP=2 $END\n"
+             " $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job = build_job(d)
+    assert job.nstep == 2000
+    assert job.opttol == 1e-6
+    notes = [msg for kind, msg in d.notes if kind == "warning"]
+    assert any("DXMAX" in n for n in notes)
+    assert any("TRMAX" in n for n in notes)
+    assert any("IDUMP" in n for n in notes)
+
+
+def test_force_projct_parsed():
+    d1 = deck(" $CONTRL RUNTYP=HESSIAN $END\n"
+              " $FORCE PROJCT=.FALSE. $END\n"
+              " $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job1 = build_job(d1)
+    assert job1.projct is False
+
+    d2 = deck(" $CONTRL RUNTYP=HESSIAN $END\n"
+              " $FORCE PROJCT=.TRUE. $END\n"
+              " $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job2 = build_job(d2)
+    assert job2.projct is True

@@ -94,6 +94,7 @@ def report(job, ctx, res, title_suffix=""):
     log("")
     log("  properties below use the %s" % note)
     out.populations(log, mol, job.labels, dm)
+    out.bond_orders_and_valences(log, mol, job.labels, dm)
     out.dipole(log, mol, dm)
     if m in ("TDDFT", "TDHF"):
         out.excited_states(log, res.post, res.e_scf, job.excited["kind"])
