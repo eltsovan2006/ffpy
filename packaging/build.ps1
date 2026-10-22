@@ -57,6 +57,29 @@ try {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($dist, $zip, [IO.Compression.CompressionLevel]::Optimal, $true)
     Write-Host "built $zip"
+
+    # Build Inno Setup installer if ISCC.exe is available
+    $iscc = (Get-Command "iscc.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue)
+    if (-not $iscc) {
+        $commonPaths = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+        )
+        foreach ($p in $commonPaths) {
+            if (Test-Path $p) { $iscc = $p; break }
+        }
+    }
+    if ($iscc) {
+        Write-Host "Compiling Inno Setup installer..."
+        & $iscc "/DMyAppVersion=$version" "$root\packaging\ffpy_setup.iss"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Inno Setup compilation failed (code $LASTEXITCODE)"
+        } else {
+            Write-Host "built dist\ffpy-$version-setup.exe"
+        }
+    } else {
+        Write-Host "ISCC.exe (Inno Setup 6) not found. To build setup.exe, install Inno Setup 6."
+    }
 } finally {
     Pop-Location
 }
