@@ -156,3 +156,18 @@ entries whose `source` is `ffpy-regression` and keeps hand-entered ones.
 - MP2 properties use the SCF density (unrelaxed). `--gamess` layout unverified.
 - GUI was tested offscreen + screenshots; not click-tested by a human yet.
 - Spec stages 1–5 are implemented; stage-5 "GAMESS-like mode" is best effort.
+
+## ИИ-workflow (Claude + Gemini/Antigravity)
+Роли: Gemini/Antigravity — исполнитель (setup, черновики спецификаций, код, тесты до зелёного, самопроверка, отчёт).
+Claude Code — экономный приёмщик (проверка спецификаций по физике, приёмка через `tools/accept.py`). Пользователь сливает ветки.
+Лимит Claude дорогой, лимит Gemini — нет: всё, что можно сделать без Claude, делает Gemini.
+- Тесты: `python -m pytest -q`
+- Код задачи NNN живёт только в ветке `gemini/NNN`. В `main` не сливать и не пушить.
+- Исполнитель не меняет: `.ai/tasks/`, `.ai/TASKS.md`, `.ai/feedback/`, `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.agents/`, `tools/`.
+- Правка расчётной части = тест с эталоном (Firefly/GAMESS/PySCF), допуск: энергия 1e-6 Eh, геометрия 1e-3 Å. Эталоны не подгонять.
+- Новые зависимости только с разрешения в спецификации.
+
+### Протокол обмена (`.ai/`)
+- `.ai/TASKS.md` — очередь: `| ID | заголовок | статус | ветка | попыток |`. Статусы: draft → todo → in-progress → accepted → merged | needs-fix
+- `.ai/tasks/NNN.md` — спецификация; `.ai/reports/NNN.md` — отчёт исполнителя (≤ 40 строк); `.ai/feedback/NNN.md` — замечания после приёмки
+- `.ai/NOTES.md` — принятые решения; `.ai/ENV.md` — состояние окружения (пишет setup)
