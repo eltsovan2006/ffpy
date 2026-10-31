@@ -14,3 +14,10 @@ dist/
 *.pyscf.log
 *.geometric.log
 .ai/logs/
+# AI-agent workflow (local only)
+.ai/
+.agents/
+.claude/
+.gemini/
+tools/
+INSTALL.md
