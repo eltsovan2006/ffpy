@@ -166,3 +166,7 @@ tests/
 Firefly как чёрного ящика. Бинарники Firefly не дизассемблируются, файлы
 дистрибутива в репозиторий не кладутся. Сторонние библиотеки в сборке —
 см. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Лицензия
+
+Apache License 2.0, © 2026 Eltsov Andrey. Текст — в [LICENSE](LICENSE), уведомление — в [NOTICE](NOTICE).
