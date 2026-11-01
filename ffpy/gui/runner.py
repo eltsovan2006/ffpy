@@ -18,7 +18,7 @@ CREATE_NO_WINDOW = 0x08000000
 
 def ffpy_command():
     if getattr(sys, "frozen", False):
-        exe_name = "ffpy.exe" if os.name == "nt" or sys.platform == "win32" else "ffpy"
+        exe_name = "ffpy.exe" if sys.platform == "win32" else "ffpy"
         exe = os.path.join(os.path.dirname(sys.executable), exe_name)
         return [exe]
     return [sys.executable, "-m", "ffpy"]

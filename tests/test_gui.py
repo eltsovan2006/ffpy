@@ -185,13 +185,11 @@ def test_ffpy_command(monkeypatch):
     # 2. Frozen on Windows
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", os.path.normpath("C:/ffpy/ffpy-gui.exe"))
-    monkeypatch.setattr(os, "name", "nt")
     monkeypatch.setattr(sys, "platform", "win32")
     assert ffpy_command() == [os.path.normpath("C:/ffpy/ffpy.exe")]
 
     # 3. Frozen on macOS / Linux (POSIX)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", "/opt/ffpy/ffpy-gui")
-    monkeypatch.setattr(os, "name", "posix")
     monkeypatch.setattr(sys, "platform", "darwin")
-    assert ffpy_command() == ["/opt/ffpy/ffpy"]
+    assert ffpy_command() == [os.path.join(os.path.dirname("/opt/ffpy/ffpy-gui"), "ffpy")]
