@@ -85,3 +85,27 @@ gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="ffpy-
 coll = COLLECT(cli_exe, cli.binaries, cli.datas,
                gui_exe, gui.binaries, gui.datas,
                name="ffpy", upx=False)
+
+if sys.platform == "darwin":
+    app_version = "0.3.0"
+    try:
+        with open(os.path.join(ROOT, "ffpy", "__init__.py"), "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("__version__"):
+                    app_version = line.split("=")[1].strip().strip("\"'")
+                    break
+    except Exception:
+        pass
+
+    app = BUNDLE(
+        coll,
+        name="ffpy.app",
+        bundle_identifier="org.ffpy.ffpy",
+        version=app_version,
+        info_plist={
+            "CFBundleExecutable": "ffpy-gui",
+            "CFBundleName": "ffpy",
+            "CFBundleDisplayName": "ffpy",
+            "NSHighResolutionCapable": True,
+        },
+    )

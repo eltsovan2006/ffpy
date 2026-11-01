@@ -193,3 +193,9 @@ def test_ffpy_command(monkeypatch):
     monkeypatch.setattr(sys, "executable", "/opt/ffpy/ffpy-gui")
     monkeypatch.setattr(sys, "platform", "darwin")
     assert ffpy_command() == [os.path.join(os.path.dirname("/opt/ffpy/ffpy-gui"), "ffpy")]
+
+    # 4. Frozen inside macOS .app bundle
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/Applications/ffpy.app/Contents/MacOS/ffpy-gui")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert ffpy_command() == ["/Applications/ffpy.app/Contents/MacOS/ffpy"]
