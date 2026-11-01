@@ -223,11 +223,13 @@ def write_docx(docx_path, data):
         for r_idx, item in enumerate(geom):
             row = t_geo.rows[r_idx + 1]
             row.cells[0].paragraphs[0].add_run(str(item.get("atom", "")))
-            z_val = item.get("Z") if item.get("Z") is not None else item.get("z", "")
-            row.cells[1].paragraphs[0].add_run(f"{z_val:.1f}" if isinstance(z_val, (int, float)) else str(z_val))
+            z_num = item.get("Z")
+            if z_num is None:
+                z_num = item.get("charge", "")
+            row.cells[1].paragraphs[0].add_run(f"{z_num:.1f}" if isinstance(z_num, (int, float)) else str(z_num))
             row.cells[2].paragraphs[0].add_run(f"{item.get('x', 0.0):.6f}")
             row.cells[3].paragraphs[0].add_run(f"{item.get('y', 0.0):.6f}")
-            z_coord = item.get("z") if "z" in item and item is not z_val else item.get("z_coord", 0.0)
+            z_coord = item.get("z_coord") if item.get("z_coord") is not None else item.get("z", 0.0)
             row.cells[4].paragraphs[0].add_run(f"{z_coord:.6f}")
 
         _format_table(t_geo, alignments=[
