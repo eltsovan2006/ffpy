@@ -10,7 +10,7 @@ end: reads Firefly/GAMESS `.inp`, computes with **PySCF**, writes `.out`
 (own format), `.molden` (Chemcraft/Avogadro), `.dat` (restart: `$DATA`+`$VEC`),
 `.xyz` (opt trajectory). Plus `ffpy-gui` (PySide6) editor/runner. Built from a
 spec the user wrote (docx, not in repo) for a quantum-chemistry course.
-Repo: github.com/eltsovan2006/ffpy (private). Releases v0.1.0, v0.2.0 carry
+Repo: github.com/eltsovan2006/ffpy (public). Releases v0.1.0, v0.2.0 carry
 `ffpy-<ver>-win64.zip` (PyInstaller, no Python needed). Installed copy on the
 user's PC: `C:\ffpy` (+ user PATH + desktop shortcut to ffpy-gui.exe).
 
