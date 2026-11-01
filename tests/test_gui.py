@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import sys
 import time
 
 import pytest
@@ -172,3 +173,25 @@ def test_gui_folder_navigation(app, no_modal, tmp_path, monkeypatch):
     w.open_path(str(inp))
     assert os.path.abspath(w.folder) == os.path.abspath(str(sub))
     w.close()
+
+
+def test_ffpy_command(monkeypatch):
+    from ffpy.gui.runner import ffpy_command
+
+    # 1. Non-frozen (development environment)
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    assert ffpy_command() == [sys.executable, "-m", "ffpy"]
+
+    # 2. Frozen on Windows
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", os.path.normpath("C:/ffpy/ffpy-gui.exe"))
+    monkeypatch.setattr(os, "name", "nt")
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert ffpy_command() == [os.path.normpath("C:/ffpy/ffpy.exe")]
+
+    # 3. Frozen on macOS / Linux (POSIX)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", "/opt/ffpy/ffpy-gui")
+    monkeypatch.setattr(os, "name", "posix")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert ffpy_command() == ["/opt/ffpy/ffpy"]

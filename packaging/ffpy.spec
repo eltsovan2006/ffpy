@@ -19,9 +19,12 @@ hiddenimports += collect_submodules("ffpy", filter=lambda name: not name.startsw
 
 # On Windows pyscf.lib.load_library() looks for libcint/xc/xcfun next to its
 # own DLLs or in sys.prefix\Library\bin; put them next to pyscf\lib\*.dll.
-env_bin = os.path.join(sys.prefix, "Library", "bin")
-for dll in ("libcint.dll", "xc.dll", "xcfun.dll"):
-    binaries.append((os.path.join(env_bin, dll), os.path.join("pyscf", "lib")))
+if sys.platform == "win32":
+    env_bin = os.path.join(sys.prefix, "Library", "bin")
+    for dll in ("libcint.dll", "xc.dll", "xcfun.dll"):
+        dll_path = os.path.join(env_bin, dll)
+        if os.path.exists(dll_path):
+            binaries.append((dll_path, os.path.join("pyscf", "lib")))
 
 cli = Analysis(
     [os.path.join(SPECPATH, "ffpy_entry.py")],
@@ -68,10 +71,17 @@ def _keep(entry):
 for a in (cli, gui):
     a.binaries = [b for b in a.binaries if _keep(b)]
 
+exe_kwargs = {}
+if sys.platform == "win32":
+    if os.path.exists(ICON):
+        exe_kwargs["icon"] = ICON
+    if os.path.exists(VERSION):
+        exe_kwargs["version"] = VERSION
+
 cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="ffpy",
-              console=True, icon=ICON, version=VERSION)
+              console=True, **exe_kwargs)
 gui_exe = EXE(PYZ(gui.pure), gui.scripts, [], exclude_binaries=True, name="ffpy-gui",
-              console=False, icon=ICON, version=VERSION)
+              console=False, **exe_kwargs)
 coll = COLLECT(cli_exe, cli.binaries, cli.datas,
                gui_exe, gui.binaries, gui.datas,
                name="ffpy", upx=False)
