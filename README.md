@@ -27,7 +27,7 @@ ffpy water.inp
 
 ### Вариант 1. Автоустановщик (рекомендуется)
 
-Скачайте `ffpy-0.3.0-setup.exe` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases) и следуйте мастеру установки:
+Скачайте `ffpy-0.3.1-setup.exe` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases) и следуйте мастеру установки:
 * Устанавливает программу в выбранную папку (по умолчанию `C:\ffpy`).
 * Автоматически добавляет путь в переменную `PATH`.
 * Создаёт ярлык `ffpy-gui` на Рабочем столе и в меню «Пуск».
@@ -35,7 +35,7 @@ ffpy water.inp
 
 ### Вариант 2. Портативная сборка (ZIP-архив)
 
-1. Распакуйте `ffpy-0.3.0-win64.zip` в любую папку, например `C:\ffpy`.
+1. Распакуйте `ffpy-0.3.1-win64.zip` в любую папку, например `C:\ffpy`.
 2. При необходимости добавьте команду `ffpy` в переменную `PATH`, запустив `add_to_path.ps1`:
    ```
    powershell -ExecutionPolicy Bypass -File C:\ffpy\add_to_path.ps1
@@ -54,11 +54,11 @@ conda-forge собирает PySCF 2.14 под win-64; эта сборка и у
 
 ### Установка из DMG-образа (рекомендуется)
 
-1. Скачайте `ffpy-0.3.0-macos-arm64.dmg` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases).
+1. Скачайте `ffpy-0.3.1-macos-arm64.dmg` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases).
 2. Откройте скачанный `.dmg` файл и перетащите `ffpy.app` в папку `Программы` (`Applications`).
 3. Для работы в терминале консольный бинарник находится внутри бандла: `/Applications/ffpy.app/Contents/MacOS/ffpy`.
 
-Также доступна портативная сборка в виде ZIP-архива `ffpy-0.3.0-macos-arm64.zip` (распакуйте в удобную папку и запускайте `ffpy` или `ffpy-gui`).
+Также доступна портативная сборка в виде ZIP-архива `ffpy-0.3.1-macos-arm64.zip` (распакуйте в удобную папку и запускайте `ffpy` или `ffpy-gui`).
 
 ### Первый запуск и обход предупреждения Gatekeeper
 
@@ -121,7 +121,7 @@ ffpy --version
 * `--check` — только прочитать и проверить вход (то же, что `EXETYP=CHECK`).
 * `--debug` — дополнительно записать подробный лог PySCF (`имя.pyscf.log`).
 
-## Что умеет 0.3.0
+## Что умеет 0.3.1
 
 * HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`);
   MP2 (`MPLEVL=2`, по умолчанию с замороженным остовом); TDHF/CIS/TDDFT/TDA

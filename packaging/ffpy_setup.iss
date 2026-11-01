@@ -3,7 +3,7 @@
 
 #define MyAppName "ffpy"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.3.0"
+  #define MyAppVersion "0.3.1"
 #endif
 #define MyAppPublisher "Andrei Eltsov"
 #define MyAppURL "https://github.com/eltsovan2006/ffpy"
