@@ -78,6 +78,7 @@ def main(argv=None):
     ap.add_argument("-o", "--outdir", help="directory for output files (default: next to the input)")
     ap.add_argument("-n", "--nproc", type=int, default=0, help="number of threads (default: min(8, cores))")
     ap.add_argument("--gamess", action="store_true", help="add GAMESS-like blocks to the .out")
+    ap.add_argument("--docx", action="store_true", help="generate a report in Microsoft Word format (.docx)")
     ap.add_argument("--check", action="store_true", help="only read and validate the input")
     ap.add_argument("--debug", action="store_true", help="also write the PySCF log (name.pyscf.log)")
     ap.add_argument("-q", "--quiet", action="store_true", help="do not echo the log to the console")
@@ -102,6 +103,34 @@ def main(argv=None):
             print("\nDrag an .inp file onto ffpy.exe, or run it from a terminal: ffpy water.inp")
             _pause()
         return 1
+    if args.input.lower().endswith(".out"):
+        try:
+            from ffpy.writers.docx_report import generate_report
+            out_path = args.input
+            if not os.path.isfile(out_path):
+                print("%s: output file not found: %s" % (PROGRAM, out_path), file=sys.stderr)
+                if explorer:
+                    _pause()
+                return 1
+            base = os.path.splitext(os.path.basename(out_path))[0]
+            outdir = args.outdir or os.path.dirname(os.path.abspath(out_path))
+            docx_path = os.path.join(outdir, base + ".docx")
+            generate_report(out_path, docx_path)
+            if not args.quiet:
+                print("Generated %s" % docx_path)
+            if explorer:
+                _pause()
+            return 0
+        except ImportError as e:
+            print("ERROR: %s" % e, file=sys.stderr)
+            if explorer:
+                _pause()
+            return 1
+        except Exception as e:
+            print("ERROR generating docx report: %s" % e, file=sys.stderr)
+            if explorer:
+                _pause()
+            return 1
     code = run_file(args)
     if explorer:
         _pause()
@@ -148,6 +177,21 @@ def run_file(args):
     log.close()
     if pyscf_fh:
         pyscf_fh.close()
+    if getattr(args, "docx", False):
+        try:
+            from ffpy.writers.docx_report import generate_report
+            docx_path = stem + ".docx"
+            generate_report(stem + ".out", docx_path)
+            if not args.quiet:
+                print("  report written to %s" % docx_path)
+        except ImportError as e:
+            print("ERROR: %s" % e, file=sys.stderr)
+            if code == 0:
+                code = 1
+        except Exception as e:
+            print("ERROR generating docx report: %s" % e, file=sys.stderr)
+            if code == 0:
+                code = 1
     return code
 
 
@@ -211,6 +255,8 @@ def _run(args, path, stem, log, pyscf_fh, t0):
             % (os.path.basename(stem), len(ctx.trajectory)))
     if pyscf_fh:
         log("  %s.pyscf.log  PySCF debug log" % os.path.basename(stem))
+    if getattr(args, "docx", False):
+        log("  %s.docx     formatted Word report" % os.path.basename(stem))
     log.section("final result")
     log("  %-34s %20.10f" % ("FINAL ENERGY (HARTREE)", res.e_tot))
     return ctx.status, ctx.status_msg

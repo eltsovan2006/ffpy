@@ -101,16 +101,46 @@ def parse_text(text):
                            "nm": float(m.group(4)), "f": float(m.group(5))})
     res["excited"] = states
 
-    mull = {}
+    mull, lowdin = {}, {}
     for i, l in enumerate(lines):
         if l.strip().startswith("ATOM") and "MULLIKEN" in l:
-            mull = {}
+            mull, lowdin = {}, {}
             for row in lines[i + 1:]:
                 parts = row.split()
                 if not parts or parts[0] == "TOTAL":
                     break
                 mull[parts[0]] = float(parts[1])
+                if len(parts) >= 3:
+                    try:
+                        lowdin[parts[0]] = float(parts[2])
+                    except ValueError:
+                        pass
     res["mulliken"] = mull
+    res["lowdin"] = lowdin
+
+    geometry = []
+    in_geom = False
+    for l in lines:
+        if "X (ANGS)" in l and "Y (ANGS)" in l and "ATOM" in l:
+            in_geom = True
+            geometry = []
+            continue
+        if in_geom:
+            parts = l.split()
+            if len(parts) >= 5:
+                try:
+                    geometry.append({
+                        "atom": parts[0],
+                        "Z": float(parts[1]),
+                        "x": float(parts[2]),
+                        "y": float(parts[3]),
+                        "z": float(parts[4]),
+                    })
+                except ValueError:
+                    in_geom = False
+            else:
+                in_geom = False
+    res["geometry"] = geometry
 
     m = re.search(r"\n(\s*-+\s*\n\s+OUTPUT FILES\s*\n\s*-+\s*\n)([\s\S]*?)\n\s*\n", text)
     res["files"] = [l.split()[0] for l in m.group(2).splitlines() if l.strip()] if m else []

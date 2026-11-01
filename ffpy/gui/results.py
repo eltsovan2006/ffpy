@@ -39,9 +39,12 @@ class ResultsPanel(QWidget):
         self.b_molden.setToolTip("Открыть орбитали и частоты в программе, связанной с .molden "
                                  "(Chemcraft, Avogadro…)")
         self.b_molden.clicked.connect(self.open_molden)
+        self.b_docx = QPushButton("Отчёт .docx")
+        self.b_docx.setToolTip("Сформировать документ Microsoft Word (.docx) с результатами расчёта")
+        self.b_docx.clicked.connect(self.export_docx)
         self.b_folder = QPushButton("Папка")
         self.b_folder.clicked.connect(self.open_folder)
-        for b in (self.b_copy, self.b_molden, self.b_folder):
+        for b in (self.b_copy, self.b_molden, self.b_docx, self.b_folder):
             row.addWidget(b)
         lay.addLayout(row)
         self.clear()
@@ -50,7 +53,7 @@ class ResultsPanel(QWidget):
         self.out_path, self.data = None, None
         self.view.setHtml("<p style='color:%s'>Здесь появится сводка результатов после расчёта "
                           "или при открытии файла .out.</p>" % hex_color("muted"))
-        for b in (self.b_copy, self.b_molden, self.b_folder):
+        for b in (self.b_copy, self.b_molden, self.b_docx, self.b_folder):
             b.setEnabled(False)
 
     def set_out(self, path):
@@ -67,6 +70,7 @@ class ResultsPanel(QWidget):
         stem = os.path.splitext(path)[0]
         self.b_copy.setEnabled(self.data["energy"] is not None)
         self.b_molden.setEnabled(os.path.exists(stem + ".molden"))
+        self.b_docx.setEnabled(True)
         self.b_folder.setEnabled(True)
 
     def _html(self, d):
@@ -137,7 +141,7 @@ class ResultsPanel(QWidget):
                 h.append("<li style='color:%s'>применено умолчаний: %d</li>" % (muted, n_def))
             h.append("</ul>")
         stem = os.path.splitext(self.out_path)[0]
-        files = [stem + ext for ext in (".out", ".molden", ".dat", ".xyz") if os.path.exists(stem + ext)]
+        files = [stem + ext for ext in (".out", ".molden", ".dat", ".xyz", ".docx") if os.path.exists(stem + ext)]
         if files:
             h.append("<p><b>Файлы</b><br>")
             h.append("<br>".join("<a href='%s'>%s</a>" % (QUrl.fromLocalFile(f).toString(),
@@ -148,7 +152,7 @@ class ResultsPanel(QWidget):
 
     def _link(self, url):
         path = url.toLocalFile()
-        if path.lower().endswith(".molden"):
+        if path.lower().endswith((".molden", ".docx")):
             open_external(path)
         else:
             self.open_file.emit(path)
@@ -160,6 +164,27 @@ class ResultsPanel(QWidget):
     def open_molden(self):
         if self.out_path:
             open_external(os.path.splitext(self.out_path)[0] + ".molden")
+
+    def export_docx(self, target_path=None):
+        if not self.out_path:
+            return
+        if not target_path:
+            from PySide6.QtWidgets import QFileDialog
+            stem = os.path.splitext(self.out_path)[0]
+            target_path, _ = QFileDialog.getSaveFileName(
+                self, "Сохранить отчёт .docx", stem + ".docx", "Microsoft Word (*.docx)"
+            )
+            if not target_path:
+                return
+        from PySide6.QtWidgets import QMessageBox
+        try:
+            from ffpy.writers.docx_report import generate_report
+            generate_report(self.out_path, target_path)
+            QMessageBox.information(self, "Экспорт отчёта", f"Отчёт успешно сохранён:\n{target_path}")
+        except ImportError as e:
+            QMessageBox.warning(self, "Экспорт отчёта", str(e))
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка экспорта", f"Не удалось сформировать отчёт:\n{e}")
 
     def open_folder(self):
         if self.out_path:
