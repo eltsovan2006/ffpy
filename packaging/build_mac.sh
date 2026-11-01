@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds dist/ffpy/ffpy, dist/ffpy/ffpy-gui and dist/ffpy-<version>-macos-<arch>.zip.
+# Builds dist/ffpy, dist/ffpy.app, dist/ffpy-<version>-macos-<arch>.zip and dist/ffpy-<version>-macos-<arch>.dmg.
 # Usage (from repository root):
 #   ./packaging/build_mac.sh [/path/to/conda/env]
 set -euo pipefail
@@ -51,6 +51,12 @@ if [ ! -d "$DIST" ]; then
     exit 1
 fi
 
+APP="$ROOT/dist/ffpy.app"
+if [ ! -d "$APP" ]; then
+    echo "Error: PyInstaller output bundle $APP does not exist" >&2
+    exit 1
+fi
+
 echo "Copying supplementary files..."
 rm -rf "$DIST/examples" "$DIST/docs"
 cp -R "$ROOT/examples" "$DIST/examples"
@@ -58,7 +64,7 @@ cp -R "$ROOT/docs" "$DIST/docs"
 cp "$ROOT/README.md" "$DIST/"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$DIST/"
 
-echo "Running smoke tests on frozen build..."
+echo "Running smoke tests on frozen build inside ffpy.app..."
 TMP_DIR="$(mktemp -d -t ffpy_smoke_XXXXXX)"
 cleanup() {
     rm -rf "$TMP_DIR"
@@ -71,18 +77,20 @@ if [ -n "$ENV_PATH" ]; then
     PATH="$(echo "$PATH" | tr ':' '\n' | grep -v "^$ENV_PATH" | tr '\n' ':' | sed 's/:$//')"
 fi
 
+APP_BIN="$APP/Contents/MacOS"
+
 echo "Testing CLI on examples..."
 for inp in "$ROOT"/examples/*.inp; do
     base="$(basename "$inp")"
     stem="${base%.inp}"
-    "$DIST/ffpy" "$inp" -o "$TMP_DIR" -q
+    "$APP_BIN/ffpy" "$inp" -o "$TMP_DIR" -q
     last_line="$(tail -n 1 "$TMP_DIR/${stem}.out")"
     printf "%-26s %s\n" "$base" "$last_line"
 done
 
 echo "Testing GUI smoke test..."
 export QT_QPA_PLATFORM=offscreen
-"$DIST/ffpy-gui" --smoke-test &
+"$APP_BIN/ffpy-gui" --smoke-test &
 GUI_PID=$!
 WAIT_SECS=0
 while kill -0 "$GUI_PID" 2>/dev/null; do
@@ -109,5 +117,15 @@ ZIP="$ROOT/dist/ffpy-$VERSION-macos-$ARCH.zip"
 rm -f "$ZIP"
 echo "Creating archive $ZIP..."
 (cd "$ROOT/dist" && zip -r -q "$ZIP" ffpy)
-
 echo "Successfully built $ZIP"
+
+DMG="$ROOT/dist/ffpy-$VERSION-macos-$ARCH.dmg"
+rm -f "$DMG"
+echo "Creating disk image $DMG..."
+DMG_SRC="$(mktemp -d -t ffpy_dmg_XXXXXX)"
+cp -R "$APP" "$DMG_SRC/"
+ln -s /Applications "$DMG_SRC/Applications"
+hdiutil create -volname "ffpy" -srcfolder "$DMG_SRC" -ov -format UDZO "$DMG"
+rm -rf "$DMG_SRC"
+
+echo "Successfully built $DMG"
