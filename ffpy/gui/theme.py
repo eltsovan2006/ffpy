@@ -199,8 +199,8 @@ QMainWindow {{
 QToolBar#main_toolbar {{
     background-color: {p['surface']};
     border-bottom: 1px solid {p['border']};
-    spacing: 8px;
-    padding: 4px 10px;
+    spacing: 10px;
+    padding: 0 16px;
 }}
 
 QMenuBar {{
@@ -252,17 +252,40 @@ QDockWidget {{
 
 QDockWidget::title {{
     background-color: {p['surface']};
+    border: none;
     border-bottom: 1px solid {p['border']};
-    padding: 6px 10px;
+    padding: 8px 14px;
     font-size: 11px;
     font-weight: 600;
     color: {p['muted']};
 }}
 
+QDockWidget::close-button, QDockWidget::float-button {{
+    border: none;
+    background: transparent;
+    icon-size: 0px;
+    width: 0px;
+}}
+
+QLabel[dock_label="true"] {{
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: {p['muted']};
+    background: transparent;
+}}
+
+QLabel[dock_sub="true"] {{
+    font-size: 11px;
+    color: {p['muted']};
+    background: transparent;
+}}
+
 QTabWidget::pane {{
     border: 1px solid {p['border']};
     background-color: {p['surface']};
-    border-radius: 8px;
+    border-radius: 0 10px 10px 10px;
+    top: -1px;
 }}
 
 QTabBar::tab {{
@@ -271,9 +294,11 @@ QTabBar::tab {{
     padding: 8px 16px;
     font-size: 13px;
     font-weight: 500;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    margin-right: 2px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    margin-right: 4px;
 }}
 
 QTabBar::tab:selected {{
@@ -281,12 +306,25 @@ QTabBar::tab:selected {{
     color: {p['text']};
     font-weight: 600;
     border: 1px solid {p['border']};
-    border-bottom: none;
+    border-bottom: 1px solid {p['surface']};
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
 }}
 
 QTabBar::tab:hover:!selected {{
     background-color: {p['hover']};
     color: {p['text']};
+}}
+
+QTabBar::close-button {{
+    background: transparent;
+    border: none;
+    padding: 2px;
+    border-radius: 4px;
+}}
+
+QTabBar::close-button:hover {{
+    background-color: {p['chip']};
 }}
 
 QPushButton {{
@@ -456,11 +494,11 @@ QWidget#rail_widget {{
 QToolButton[rail="true"] {{
     background-color: transparent;
     border: none;
-    border-radius: 12px;
+    border-radius: 10px;
     color: {p['railText']};
     font-size: 10px;
     font-weight: 500;
-    padding: 4px;
+    padding: 3px 0px;
 }}
 
 QToolButton[rail="true"]:hover {{
@@ -473,6 +511,33 @@ QToolButton[rail="true"]:checked {{
     color: #ffffff;
 }}
 
+/* Flat toolbar buttons */
+QToolButton[flat_btn="true"], QPushButton[flat_btn="true"] {{
+    background-color: {p['surface']};
+    color: {p['text']};
+    border: 1px solid {p['border']};
+    border-radius: 8px;
+    padding: 0 12px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+}}
+
+QToolButton[flat_btn="true"]:hover, QPushButton[flat_btn="true"]:hover {{
+    background-color: {p['hover']};
+}}
+
+QToolButton[flat_btn="true"]:pressed, QPushButton[flat_btn="true"]:pressed {{
+    background-color: {p['chip']};
+}}
+
+QToolButton[flat_btn="true"]:disabled, QPushButton[flat_btn="true"]:disabled {{
+    color: {p['muted']};
+    background-color: {p['surface']};
+    border-color: {p['border']};
+    opacity: 0.5;
+}}
+
 /* Primary Run button */
 QToolButton#btn_run {{
     background-color: {p['accent']};
@@ -480,7 +545,8 @@ QToolButton#btn_run {{
     font-weight: 600;
     border: none;
     border-radius: 8px;
-    padding: 6px 16px;
+    padding: 0 16px;
+    height: 34px;
     font-size: 13px;
 }}
 
@@ -499,39 +565,55 @@ QToolButton#btn_stop {{
     color: {p['muted']};
     border: 1px solid {p['border']};
     border-radius: 8px;
-    padding: 6px 14px;
+    padding: 0 14px;
+    height: 34px;
     font-size: 13px;
+    font-weight: 500;
 }}
 
-QToolButton#btn_stop:hover {{
+QToolButton#btn_stop:hover:!disabled {{
     background-color: {p['hover']};
     color: {p['text']};
+}}
+
+QToolButton#btn_stop:disabled {{
+    color: {p['muted']};
+    opacity: 0.5;
+    border-color: {p['border']};
 }}
 
 /* Claude-style dock toggle buttons */
 QToolButton[icon_btn="true"] {{
     background-color: transparent;
-    border: 1px solid transparent;
+    border: none;
     border-radius: 8px;
-    padding: 4px;
+    padding: 0px;
+    width: 32px;
+    height: 32px;
 }}
 
 QToolButton[icon_btn="true"]:hover {{
     background-color: {p['chip']};
-    border-color: {p['border']};
 }}
 
 QToolButton[icon_btn="true"]:checked {{
-    background-color: {p['chip']};
-    border-color: {p['border']};
+    background-color: transparent;
 }}
 
 /* Vertical toolbar separator */
 QFrame[vsep="true"] {{
     background-color: {p['border']};
+    border: none;
     width: 1px;
     max-width: 1px;
-    margin: 4px 6px;
+    height: 22px;
+    max-height: 22px;
+    margin: 0 6px;
+}}
+
+QWidget#toolbar_spacer {{
+    background: transparent;
+    border: none;
 }}
 
 """

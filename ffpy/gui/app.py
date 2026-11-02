@@ -233,6 +233,48 @@ def app_icon():
     return icon
 
 
+def make_logo_pixmap(size=26, radius=8):
+    """Draw the ffpy logo matching mock: 26px tile with 8px radius and water molecule."""
+    pix = QPixmap(size, size)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    path = QPainterPath()
+    path.addRoundedRect(QRectF(0, 0, size, size), radius, radius)
+    p.setClipPath(path)
+    grad = QLinearGradient(0, 0, size, size)
+    grad.setColorAt(0.0, QColor("#2a4fb8"))
+    grad.setColorAt(1.0, QColor("#0f1b3d"))
+    p.fillPath(path, grad)
+    s = size / 16.0
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor("#e5384f"))
+    p.drawEllipse(QPointF(8.0 * s, 5.0 * s), 3.0 * s, 3.0 * s)
+    p.setBrush(QColor("#e8eefc"))
+    p.drawEllipse(QPointF(3.5 * s, 12.0 * s), 2.2 * s, 2.2 * s)
+    p.drawEllipse(QPointF(12.5 * s, 12.0 * s), 2.2 * s, 2.2 * s)
+    p.end()
+    return pix
+
+
+def make_stop_icon(mode=None):
+    """Quiet stop icon: small rounded square of color --muted matching mock."""
+    icon = QIcon()
+    for s in (11, 16, 22):
+        pix = QPixmap(s, s)
+        pix.fill(Qt.transparent)
+        p = QPainter(pix)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        box = s * 0.72
+        offset = (s - box) / 2.0
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(hex_color("muted", mode)))
+        p.drawRoundedRect(QRectF(offset, offset, box, box), 2.0, 2.0)
+        p.end()
+        icon.addPixmap(pix)
+    return icon
+
+
 def make_gear_icon(size=24):
     """Draw a clean gear icon matching theme."""
     import math
@@ -601,14 +643,14 @@ class MainWindow(QMainWindow):
         self.rail_widget.setObjectName("rail_widget")
         self.rail_widget.setFixedWidth(68)
         layout = QVBoxLayout(self.rail_widget)
-        layout.setContentsMargins(10, 12, 10, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(0, 12, 0, 12)
+        layout.setSpacing(6)
         layout.setAlignment(Qt.AlignHCenter)
 
         def make_btn(label, icon_name, is_check=True):
             b = QToolButton()
             b.setProperty("rail", "true")
-            b.setFixedSize(48, 48)
+            b.setFixedSize(68, 50)
             b.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
             b.setCheckable(is_check)
             b.setText(label)
@@ -616,6 +658,9 @@ class MainWindow(QMainWindow):
             b.setIcon(make_rail_icon(icon_name))
             b.setIconSize(QSize(20, 20))
             b.setCursor(Qt.PointingHandCursor)
+            font = b.font()
+            font.setPixelSize(10)
+            b.setFont(font)
             return b
 
         self.btn_mode_editor = make_btn("Редактор", "editor")
@@ -755,20 +800,39 @@ class MainWindow(QMainWindow):
     def _build_files_dock(self):
         dock = QDockWidget("Файлы", self)
         dock.setObjectName("files")
+        title_bar = QWidget()
+        title_bar.setObjectName("files_dock_title")
+        th = QHBoxLayout(title_bar)
+        th.setContentsMargins(14, 10, 14, 4)
+        th.setSpacing(8)
+        lbl_files = QLabel("ФАЙЛЫ")
+        lbl_files.setProperty("dock_label", "true")
+        self.lbl_folder_name = QLabel()
+        self.lbl_folder_name.setProperty("dock_sub", "true")
+        th.addWidget(lbl_files)
+        th.addStretch(1)
+        th.addWidget(self.lbl_folder_name)
+        dock.setTitleBarWidget(title_bar)
+
         w = QWidget()
         v = QVBoxLayout(w)
-        v.setContentsMargins(4, 4, 4, 4)
+        v.setContentsMargins(8, 4, 8, 8)
+        v.setSpacing(6)
         row = QHBoxLayout()
+        row.setSpacing(4)
         self.folder_edit = QLineEdit()
-        self.folder_edit.setPlaceholderText("Путь к папке...")
+        self.folder_edit.setPlaceholderText("Поиск по файлам или путь...")
+        self.folder_edit.setFixedHeight(30)
         self.folder_edit.returnPressed.connect(self._on_folder_edit_return)
         up = QToolButton()
         up.setText("↑")
         up.setToolTip("Папка выше")
+        up.setFixedSize(28, 30)
         up.clicked.connect(lambda: self.set_folder(os.path.dirname(self.folder)))
         browse = QToolButton()
         browse.setText("…")
         browse.setToolTip("Выбрать папку")
+        browse.setFixedSize(28, 30)
         browse.clicked.connect(self.choose_folder)
         row.addWidget(self.folder_edit, 1)
         row.addWidget(up)
@@ -785,7 +849,7 @@ class MainWindow(QMainWindow):
             self.tree.setColumnHidden(col, True)
         self.tree.setSortingEnabled(True)
         self.tree.sortByColumn(0, Qt.AscendingOrder)
-        self.tree.setHeaderHidden(False)
+        self.tree.setHeaderHidden(True)
         self.tree.setSelectionMode(QTreeView.ExtendedSelection)
         self.tree.setDragEnabled(True)
         self.tree.setDragDropMode(QTreeView.DragOnly)
@@ -805,6 +869,15 @@ class MainWindow(QMainWindow):
     def _build_results_dock(self):
         dock = QDockWidget("Результаты", self)
         dock.setObjectName("results")
+        res_title = QWidget()
+        res_title.setObjectName("results_dock_title")
+        rh = QHBoxLayout(res_title)
+        rh.setContentsMargins(14, 10, 14, 4)
+        lbl_res = QLabel("РЕЗУЛЬТАТЫ")
+        lbl_res.setProperty("dock_label", "true")
+        rh.addWidget(lbl_res)
+        rh.addStretch(1)
+        dock.setTitleBarWidget(res_title)
         self.results = ResultsPanel()
         self.results.setMinimumWidth(260)
         self.results.open_file.connect(self.open_path)
@@ -815,6 +888,7 @@ class MainWindow(QMainWindow):
     def _build_log_dock(self):
         dock = QDockWidget("Журнал запуска", self)
         dock.setObjectName("log")
+        dock.setTitleBarWidget(QWidget())
         w = QWidget()
         v = QVBoxLayout(cw := w)
         v.setContentsMargins(4, 2, 4, 2)
@@ -842,6 +916,7 @@ class MainWindow(QMainWindow):
 
         pdock = QDockWidget("Проверка входа", self)
         pdock.setObjectName("problems")
+        pdock.setTitleBarWidget(QWidget())
         self.problems = ProblemsList()
         self.problems.itemActivated.connect(self._goto_problem)
         pdock.setWidget(self.problems)
@@ -947,33 +1022,51 @@ class MainWindow(QMainWindow):
         tb = self.addToolBar("Основное")
         tb.setObjectName("main_toolbar")
         tb.setMovable(False)
+        tb.setFloatable(False)
+        tb.setContextMenuPolicy(Qt.PreventContextMenu)
         tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
         # 1. Logo with version
         logo_widget = QWidget()
+        logo_widget.setObjectName("logo_widget")
+        logo_widget.setStyleSheet("background: transparent;")
         h_logo = QHBoxLayout(logo_widget)
-        h_logo.setContentsMargins(4, 0, 10, 0)
+        h_logo.setContentsMargins(0, 0, 8, 0)
         h_logo.setSpacing(8)
-        lbl_icon = QLabel()
-        lbl_icon.setPixmap(app_icon().pixmap(24, 24))
-        lbl_title = QLabel("ffpy")
-        lbl_title.setStyleSheet("font-size: 15px; font-weight: 700;")
-        lbl_ver = QLabel(__version__)
-        lbl_ver.setStyleSheet("font-size: 12px; color: %s;" % hex_color("muted"))
-        h_logo.addWidget(lbl_icon)
-        h_logo.addWidget(lbl_title)
-        h_logo.addWidget(lbl_ver)
+        self.lbl_logo_icon = QLabel()
+        self.lbl_logo_icon.setFixedSize(26, 26)
+        self.lbl_logo_icon.setPixmap(make_logo_pixmap(26, 8))
+        self.lbl_logo_title = QLabel("ffpy")
+        self.lbl_logo_title.setStyleSheet("font-size: 15px; font-weight: 700; background: transparent;")
+        self.lbl_logo_ver = QLabel(__version__)
+        self.lbl_logo_ver.setStyleSheet("font-size: 12px; color: %s; background: transparent;" % hex_color("muted"))
+        h_logo.addWidget(self.lbl_logo_icon)
+        h_logo.addWidget(self.lbl_logo_title)
+        h_logo.addWidget(self.lbl_logo_ver)
         tb.addWidget(logo_widget)
 
         # 2. Main actions
-        self.btn_new = tb.addAction(self.a_new_job.icon(), "Новый расчёт", self.new_job)
-        self.btn_open = tb.addAction(self.a_open.icon(), "Открыть", self.open_dialog)
-        self.btn_save = tb.addAction(self.a_save.icon(), "Сохранить", self.save_current)
+        def make_flat_tb_btn(text, slot, tip):
+            b = QToolButton()
+            b.setProperty("flat_btn", "true")
+            b.setText(text)
+            b.setToolButtonStyle(Qt.ToolButtonTextOnly)
+            b.setFixedHeight(32)
+            b.setToolTip(tip)
+            b.clicked.connect(slot)
+            return b
+
+        self.btn_new = make_flat_tb_btn("Новый расчёт", self.new_job, self.a_new_job.toolTip())
+        tb.addWidget(self.btn_new)
+        self.btn_open = make_flat_tb_btn("Открыть", self.open_dialog, self.a_open.toolTip())
+        tb.addWidget(self.btn_open)
+        self.btn_save = make_flat_tb_btn("Сохранить", self.save_current, self.a_save.toolTip())
+        tb.addWidget(self.btn_save)
 
         # 3. Vertical separator
         sep = QFrame()
         sep.setProperty("vsep", "true")
-        sep.setFrameShape(QFrame.VLine)
+        sep.setFrameShape(QFrame.NoFrame)
         sep.setFixedWidth(1)
         sep.setFixedHeight(22)
         tb.addWidget(sep)
@@ -982,6 +1075,7 @@ class MainWindow(QMainWindow):
         self.btn_run = QToolButton()
         self.btn_run.setObjectName("btn_run")
         self.btn_run.setText("▶  Запустить")
+        self.btn_run.setFixedHeight(34)
         self.btn_run.setToolTip(self.a_run.toolTip())
         self.btn_run.setStatusTip(self.a_run.statusTip())
         self.btn_run.clicked.connect(self.run_current)
@@ -991,7 +1085,10 @@ class MainWindow(QMainWindow):
         self.btn_stop = QToolButton()
         self.btn_stop.setObjectName("btn_stop")
         self.btn_stop.setText("Стоп")
-        self.btn_stop.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.btn_stop.setIcon(make_stop_icon())
+        self.btn_stop.setIconSize(QSize(11, 11))
+        self.btn_stop.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.btn_stop.setFixedHeight(34)
         self.btn_stop.setToolTip(self.a_stop.toolTip())
         self.btn_stop.setStatusTip(self.a_stop.statusTip())
         self.btn_stop.clicked.connect(self.stop_run)
@@ -999,12 +1096,15 @@ class MainWindow(QMainWindow):
 
         # 6. Spacer
         spacer = QWidget()
+        spacer.setObjectName("toolbar_spacer")
+        spacer.setStyleSheet("background: transparent;")
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         tb.addWidget(spacer)
 
         # 7. Claude-style dock toggle buttons
         self.btn_toggle_files = QToolButton()
         self.btn_toggle_files.setProperty("icon_btn", "true")
+        self.btn_toggle_files.setFixedSize(32, 32)
         self.btn_toggle_files.setCheckable(True)
         self.btn_toggle_files.setChecked(True)
         self.btn_toggle_files.setAccessibleName("Список файлов")
@@ -1018,6 +1118,7 @@ class MainWindow(QMainWindow):
 
         self.btn_toggle_results = QToolButton()
         self.btn_toggle_results.setProperty("icon_btn", "true")
+        self.btn_toggle_results.setFixedSize(32, 32)
         self.btn_toggle_results.setCheckable(True)
         self.btn_toggle_results.setChecked(True)
         self.btn_toggle_results.setAccessibleName("Результаты")
@@ -1158,6 +1259,10 @@ class MainWindow(QMainWindow):
             folder = os.path.expanduser("~")
         self.folder = os.path.abspath(folder)
         self.folder_edit.setText(self.folder)
+        self.folder_edit.setCursorPosition(0)
+        self.folder_edit.setToolTip(self.folder)
+        if hasattr(self, "lbl_folder_name"):
+            self.lbl_folder_name.setText(os.path.basename(self.folder) or self.folder)
         self.tree.setRootIndex(self.fs.setRootPath(self.folder))
         self.settings.setValue("folder", self.folder)
 
@@ -1254,12 +1359,16 @@ class MainWindow(QMainWindow):
         editable = bool(t and not t.read_only)
         for a in (self.a_save, self.a_save_as, self.a_replace, self.a_comment, self.a_undo, self.a_redo):
             a.setEnabled(editable)
+        if hasattr(self, "btn_save"):
+            self.btn_save.setEnabled(editable)
         for a in (self.a_find, self.a_goto, self.a_copy_all, self.a_close):
             a.setEnabled(t is not None)
         self.a_open_out.setEnabled(bool(t and t.path and t.kind == "inp"))
         has_molden = bool(t and t.path and os.path.exists(os.path.splitext(t.path)[0] + ".molden"))
         self.a_molden.setEnabled(has_molden)
         self.a_run.setEnabled(inp)
+        if hasattr(self, "btn_run"):
+            self.btn_run.setEnabled(inp)
 
     def _update_pos(self):
         t = self.tab()
@@ -1611,6 +1720,10 @@ class MainWindow(QMainWindow):
         if hasattr(self, "btn_toggle_files"):
             self.btn_toggle_files.setIcon(make_sidebar_icon("left"))
             self.btn_toggle_results.setIcon(make_sidebar_icon("right"))
+        if hasattr(self, "btn_stop"):
+            self.btn_stop.setIcon(make_stop_icon())
+        if hasattr(self, "lbl_logo_ver"):
+            self.lbl_logo_ver.setStyleSheet("font-size: 12px; color: %s; background: transparent;" % hex_color("muted"))
         if hasattr(self, "btn_mode_editor"):
             self.btn_mode_editor.setIcon(make_rail_icon("editor"))
             self.btn_mode_results.setIcon(make_rail_icon("results"))
