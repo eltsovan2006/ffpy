@@ -340,6 +340,14 @@ def make_dock_toggle_pixmap(side="left", checked=False, size=20, mode=None):
             fill_col.setAlphaF(0.35)
             p.setBrush(fill_col)
             p.drawRoundedRect(QRectF(3.0 * s, 4.5 * s, 4.2 * s, 11.0 * s), 2.0 * s, 2.0 * s)
+    elif side == "bottom":
+        p.drawLine(QPointF(2.5 * s, 11.5 * s), QPointF(17.5 * s, 11.5 * s))
+        if checked:
+            p.setPen(Qt.NoPen)
+            fill_col = QColor(fg_col)
+            fill_col.setAlphaF(0.35)
+            p.setBrush(fill_col)
+            p.drawRoundedRect(QRectF(3.0 * s, 12.0 * s, 14.0 * s, 3.5 * s), 1.8 * s, 1.8 * s)
     else:
         p.drawLine(QPointF(12.5 * s, 4.0 * s), QPointF(12.5 * s, 16.0 * s))
         if checked:
@@ -500,6 +508,24 @@ class MainWindow(QMainWindow):
             v = r_vis in (True, "true", "True", 1, "1")
             self.results_dock.setVisible(v)
             self.btn_toggle_results.setChecked(v)
+
+        spec_vis = self.settings.value("viewer3d/spectrum_open")
+        if spec_vis is not None:
+            v = spec_vis in (True, "true", "True", 1, "1")
+            self.viewer3d.set_spectrum_visible(v)
+            self.btn_toggle_spectrum.setChecked(v)
+        else:
+            self.viewer3d.set_spectrum_visible(True)
+            self.btn_toggle_spectrum.setChecked(True)
+
+        props_vis = self.settings.value("viewer3d/props_open")
+        if props_vis is not None:
+            v = props_vis in (True, "true", "True", 1, "1")
+            self.viewer3d.set_properties_visible(v)
+            self.btn_toggle_props.setChecked(v)
+        else:
+            self.viewer3d.set_properties_visible(True)
+            self.btn_toggle_props.setChecked(True)
         self._editor_docks_visibility = {
             "files": not self.files_dock.isHidden(),
             "results": not self.results_dock.isHidden(),
@@ -723,6 +749,13 @@ class MainWindow(QMainWindow):
                 except Exception:
                     pass
         is_editor = (index == 0)
+        is_3d = (index == 2)
+        if hasattr(self, "btn_toggle_spectrum") and hasattr(self, "btn_toggle_props"):
+            self.btn_toggle_spectrum.setVisible(is_3d)
+            self.btn_toggle_props.setVisible(is_3d)
+            self.btn_toggle_files.setVisible(not is_3d)
+            self.btn_toggle_results.setVisible(not is_3d)
+
         if not is_editor:
             self.files_dock.hide()
             self.results_dock.hide()
@@ -1113,6 +1146,34 @@ class MainWindow(QMainWindow):
         tb.addWidget(spacer)
 
         # 7. Claude-style dock toggle buttons
+        self.btn_toggle_spectrum = QToolButton()
+        self.btn_toggle_spectrum.setProperty("icon_btn", "true")
+        self.btn_toggle_spectrum.setFixedSize(32, 32)
+        self.btn_toggle_spectrum.setCheckable(True)
+        self.btn_toggle_spectrum.setChecked(True)
+        self.btn_toggle_spectrum.setAccessibleName("Спектр")
+        self.btn_toggle_spectrum.setToolTip("Панель «Спектр»")
+        self.btn_toggle_spectrum.setIcon(make_sidebar_icon("bottom"))
+        self.btn_toggle_spectrum.setIconSize(QSize(20, 20))
+        self.btn_toggle_spectrum.toggled.connect(self._on_spectrum_toggled)
+        self.viewer3d.spectrumVisibilityChanged.connect(self.btn_toggle_spectrum.setChecked)
+        self.btn_toggle_spectrum.setVisible(False)
+        tb.addWidget(self.btn_toggle_spectrum)
+
+        self.btn_toggle_props = QToolButton()
+        self.btn_toggle_props.setProperty("icon_btn", "true")
+        self.btn_toggle_props.setFixedSize(32, 32)
+        self.btn_toggle_props.setCheckable(True)
+        self.btn_toggle_props.setChecked(True)
+        self.btn_toggle_props.setAccessibleName("Свойства")
+        self.btn_toggle_props.setToolTip("Панель «Свойства»")
+        self.btn_toggle_props.setIcon(make_sidebar_icon("right"))
+        self.btn_toggle_props.setIconSize(QSize(20, 20))
+        self.btn_toggle_props.toggled.connect(self._on_props_toggled)
+        self.viewer3d.propertiesVisibilityChanged.connect(self.btn_toggle_props.setChecked)
+        self.btn_toggle_props.setVisible(False)
+        tb.addWidget(self.btn_toggle_props)
+
         self.btn_toggle_files = QToolButton()
         self.btn_toggle_files.setProperty("icon_btn", "true")
         self.btn_toggle_files.setFixedSize(32, 32)
@@ -1632,6 +1693,14 @@ class MainWindow(QMainWindow):
             ok = self.viewer3d.export_png(path)
             if ok:
                 self.statusBar().showMessage("Изображение экспортировано: %s" % os.path.basename(path), 5000)
+
+    def _on_spectrum_toggled(self, checked: bool):
+        self.viewer3d.set_spectrum_visible(checked)
+        self.settings.setValue("viewer3d/spectrum_open", checked)
+
+    def _on_props_toggled(self, checked: bool):
+        self.viewer3d.set_properties_visible(checked)
+        self.settings.setValue("viewer3d/props_open", checked)
 
     # ---------- file tree ----------
     def _tree_paths(self):

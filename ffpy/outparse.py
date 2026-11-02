@@ -142,6 +142,75 @@ def parse_text(text):
                 in_geom = False
     res["geometry"] = geometry
 
+    opt_steps = []
+    in_opt = False
+    for l in lines:
+        if "STEP" in l and "ENERGY" in l and "MAX GRAD" in l:
+            in_opt = True
+            opt_steps = []
+            continue
+        if in_opt:
+            m = re.match(r"^\s*(\d+)\s+(-?\d+\.\d+)\s+([+-]?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)\s+(\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)\s+(\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)", l)
+            if m:
+                opt_steps.append({
+                    "step": int(m.group(1)),
+                    "energy": float(m.group(2)),
+                    "delta_e": float(m.group(3)),
+                    "max_grad": float(m.group(4)),
+                    "rms_grad": float(m.group(5)),
+                })
+            elif l.strip() and not l.startswith("   "):
+                in_opt = False
+    res["opt_steps"] = opt_steps
+
+    normal_modes = []
+    in_modes = False
+    cur_cols = []
+    cur_modes_dict = {}
+    i = 0
+    while i < len(lines):
+        l = lines[i]
+        if "normal modes (cartesian displacements" in l:
+            in_modes = True
+            cur_modes_dict = {}
+            i += 1
+            continue
+        if in_modes:
+            if l.strip().startswith("section:") or "thermochemistry" in l.lower() or "OUTPUT FILES" in l or l.strip().startswith("FINAL ENERGY"):
+                in_modes = False
+                i += 1
+                continue
+            sl = l.strip()
+            if sl.startswith("MODE"):
+                parts = sl.split()[1:]
+                cur_cols = [int(p) - 1 for p in parts if p.isdigit()]
+                for c in cur_cols:
+                    if c not in cur_modes_dict:
+                        cur_modes_dict[c] = {}
+                i += 1
+                continue
+            if sl.startswith("FREQ"):
+                i += 1
+                continue
+            m = re.match(r"^\s*([A-Za-z0-9_]+)\s+([XYZxyz])\s+(.*)$", l)
+            if m and cur_cols:
+                atom_lbl = m.group(1)
+                axis = m.group(2).upper()
+                axis_idx = {"X": 0, "Y": 1, "Z": 2}[axis]
+                vals = [float(v) for v in m.group(3).split()]
+                for col_idx, val in zip(cur_cols, vals):
+                    if atom_lbl not in cur_modes_dict[col_idx]:
+                        cur_modes_dict[col_idx][atom_lbl] = [0.0, 0.0, 0.0]
+                    cur_modes_dict[col_idx][atom_lbl][axis_idx] = val
+        i += 1
+
+    if cur_modes_dict:
+        sorted_keys = sorted(cur_modes_dict.keys())
+        for k in sorted_keys:
+            atom_dict = cur_modes_dict[k]
+            normal_modes.append([atom_dict[a] for a in atom_dict])
+    res["normal_modes"] = normal_modes
+
     m = re.search(r"\n(\s*-+\s*\n\s+OUTPUT FILES\s*\n\s*-+\s*\n)([\s\S]*?)\n\s*\n", text)
     res["files"] = [l.split()[0] for l in m.group(2).splitlines() if l.strip()] if m else []
     return res
