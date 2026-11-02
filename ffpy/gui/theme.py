@@ -440,4 +440,98 @@ QFrame[segmented="true"] QPushButton:checked {{
 QFrame[segmented="true"] QPushButton:hover:!checked {{
     color: {p['text']};
 }}
+
+/* Rail navigation */
+QToolBar#rail_toolbar {{
+    background-color: {p['rail']};
+    border: none;
+    spacing: 0px;
+    padding: 0px;
+}}
+
+QWidget#rail_widget {{
+    background-color: {p['rail']};
+}}
+
+QToolButton[rail="true"] {{
+    background-color: transparent;
+    border: none;
+    border-radius: 12px;
+    color: {p['railText']};
+    font-size: 10px;
+    font-weight: 500;
+    padding: 4px;
+}}
+
+QToolButton[rail="true"]:hover {{
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}}
+
+QToolButton[rail="true"]:checked {{
+    background-color: {p['railActive']};
+    color: #ffffff;
+}}
+
+/* Primary Run button */
+QToolButton#btn_run {{
+    background-color: {p['accent']};
+    color: {p['onAccent']};
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 16px;
+    font-size: 13px;
+}}
+
+QToolButton#btn_run:hover {{
+    background-color: {p['accentText']};
+}}
+
+QToolButton#btn_run[busy="true"] {{
+    background-color: {p['accentSoft']};
+    color: {p['accentText']};
+}}
+
+/* Quiet Stop button */
+QToolButton#btn_stop {{
+    background-color: {p['surface']};
+    color: {p['muted']};
+    border: 1px solid {p['border']};
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+}}
+
+QToolButton#btn_stop:hover {{
+    background-color: {p['hover']};
+    color: {p['text']};
+}}
+
+/* Claude-style dock toggle buttons */
+QToolButton[icon_btn="true"] {{
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 4px;
+}}
+
+QToolButton[icon_btn="true"]:hover {{
+    background-color: {p['chip']};
+    border-color: {p['border']};
+}}
+
+QToolButton[icon_btn="true"]:checked {{
+    background-color: {p['chip']};
+    border-color: {p['border']};
+}}
+
+/* Vertical toolbar separator */
+QFrame[vsep="true"] {{
+    background-color: {p['border']};
+    width: 1px;
+    max-width: 1px;
+    margin: 4px 6px;
+}}
+
 """

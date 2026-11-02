@@ -9,11 +9,13 @@ from PySide6.QtCore import (QDir, QFile, QFileSystemWatcher, QPointF, QRect, QRe
 from PySide6.QtGui import (QAction, QBrush, QColor, QDesktopServices, QIcon, QImage,
                            QKeySequence, QLinearGradient, QPainter, QPainterPath,
                            QPen, QPixmap, QRadialGradient)
-from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QFileSystemModel,
-                               QHeaderView, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QListWidget, QListWidgetItem, QMainWindow, QMenu, QMessageBox,
-                               QPushButton, QSpinBox, QStyle, QTabBar, QTabWidget, QToolButton,
-                               QTreeView, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QDockWidget, QFileDialog,
+                               QFileSystemModel, QFrame, QHeaderView, QHBoxLayout,
+                               QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+                               QMainWindow, QMenu, QMessageBox, QPushButton, QSizePolicy,
+                               QSpacerItem, QSpinBox, QStackedWidget, QStyle, QTabBar,
+                               QTabWidget, QToolBar, QToolButton, QTreeView, QVBoxLayout,
+                               QWidget)
 
 from ffpy import __version__
 from ffpy.gui.builder import NewJobDialog
@@ -270,6 +272,126 @@ def make_gear_icon(size=24):
     return QIcon(pix)
 
 
+def make_dock_toggle_pixmap(side="left", checked=False, size=20, mode=None):
+    pix = QPixmap(size, size)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing, True)
+
+    fg_col = QColor(hex_color("text" if checked else "muted", mode))
+    pen = QPen(fg_col, 1.6)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.NoBrush)
+
+    s = size / 20.0
+    rect = QRectF(2.5 * s, 4.0 * s, 15.0 * s, 12.0 * s)
+    p.drawRoundedRect(rect, 3.0 * s, 3.0 * s)
+
+    if side == "left":
+        p.drawLine(QPointF(7.5 * s, 4.0 * s), QPointF(7.5 * s, 16.0 * s))
+        if checked:
+            p.setPen(Qt.NoPen)
+            fill_col = QColor(fg_col)
+            fill_col.setAlphaF(0.35)
+            p.setBrush(fill_col)
+            p.drawRoundedRect(QRectF(3.0 * s, 4.5 * s, 4.2 * s, 11.0 * s), 2.0 * s, 2.0 * s)
+    else:
+        p.drawLine(QPointF(12.5 * s, 4.0 * s), QPointF(12.5 * s, 16.0 * s))
+        if checked:
+            p.setPen(Qt.NoPen)
+            fill_col = QColor(fg_col)
+            fill_col.setAlphaF(0.35)
+            p.setBrush(fill_col)
+            p.drawRoundedRect(QRectF(12.8 * s, 4.5 * s, 4.2 * s, 11.0 * s), 2.0 * s, 2.0 * s)
+    p.end()
+    return pix
+
+
+def make_sidebar_icon(side="left", mode=None):
+    icon = QIcon()
+    for s in (16, 20, 24, 32):
+        pix_off = make_dock_toggle_pixmap(side=side, checked=False, size=s, mode=mode)
+        pix_on = make_dock_toggle_pixmap(side=side, checked=True, size=s, mode=mode)
+        icon.addPixmap(pix_off, QIcon.Normal, QIcon.Off)
+        icon.addPixmap(pix_on, QIcon.Normal, QIcon.On)
+    return icon
+
+
+def make_rail_pixmap(mode_name, checked=False, size=20, mode=None):
+    pix = QPixmap(size, size)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing, True)
+
+    col = QColor("#ffffff" if checked else hex_color("railText", mode))
+    pen = QPen(col, 1.6)
+    pen.setCapStyle(Qt.RoundCap)
+    pen.setJoinStyle(Qt.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.NoBrush)
+
+    s = size / 20.0
+    if mode_name == "editor":
+        path = QPainterPath()
+        path.moveTo(4.0 * s, 16.0 * s)
+        path.lineTo(5.0 * s, 12.0 * s)
+        path.lineTo(13.0 * s, 4.0 * s)
+        path.lineTo(16.0 * s, 7.0 * s)
+        path.lineTo(8.0 * s, 15.0 * s)
+        path.closeSubpath()
+        p.drawPath(path)
+        p.drawLine(QPointF(12.0 * s, 5.0 * s), QPointF(15.0 * s, 8.0 * s))
+    elif mode_name == "results":
+        p.drawLine(QPointF(3.0 * s, 16.0 * s), QPointF(3.0 * s, 4.0 * s))
+        p.drawLine(QPointF(3.0 * s, 16.0 * s), QPointF(17.0 * s, 16.0 * s))
+        path = QPainterPath()
+        path.moveTo(6.0 * s, 12.0 * s)
+        path.lineTo(9.0 * s, 8.0 * s)
+        path.lineTo(12.0 * s, 10.0 * s)
+        path.lineTo(16.0 * s, 4.0 * s)
+        p.drawPath(path)
+    elif mode_name == "3d":
+        path = QPainterPath()
+        path.moveTo(10.0 * s, 2.5 * s)
+        path.lineTo(17.0 * s, 6.5 * s)
+        path.lineTo(17.0 * s, 14.5 * s)
+        path.lineTo(10.0 * s, 18.5 * s)
+        path.lineTo(3.0 * s, 14.5 * s)
+        path.lineTo(3.0 * s, 6.5 * s)
+        path.closeSubpath()
+        p.drawPath(path)
+        p.drawLine(QPointF(10.0 * s, 10.5 * s), QPointF(17.0 * s, 6.5 * s))
+        p.drawLine(QPointF(10.0 * s, 10.5 * s), QPointF(10.0 * s, 18.5 * s))
+        p.drawLine(QPointF(10.0 * s, 10.5 * s), QPointF(3.0 * s, 6.5 * s))
+    elif mode_name == "batch":
+        p.drawRoundedRect(QRectF(3.0 * s, 4.0 * s, 14.0 * s, 4.0 * s), 1.0 * s, 1.0 * s)
+        p.drawRoundedRect(QRectF(3.0 * s, 12.0 * s, 14.0 * s, 4.0 * s), 1.0 * s, 1.0 * s)
+    elif mode_name == "settings":
+        p.drawEllipse(QPointF(10.0 * s, 10.0 * s), 3.0 * s, 3.0 * s)
+        p.drawLine(QPointF(10.0 * s, 2.0 * s), QPointF(10.0 * s, 5.0 * s))
+        p.drawLine(QPointF(10.0 * s, 15.0 * s), QPointF(10.0 * s, 18.0 * s))
+        p.drawLine(QPointF(2.0 * s, 10.0 * s), QPointF(5.0 * s, 10.0 * s))
+        p.drawLine(QPointF(15.0 * s, 10.0 * s), QPointF(18.0 * s, 10.0 * s))
+        p.drawLine(QPointF(4.5 * s, 4.5 * s), QPointF(6.5 * s, 6.5 * s))
+        p.drawLine(QPointF(13.5 * s, 13.5 * s), QPointF(15.5 * s, 15.5 * s))
+        p.drawLine(QPointF(15.5 * s, 4.5 * s), QPointF(13.5 * s, 6.5 * s))
+        p.drawLine(QPointF(6.5 * s, 13.5 * s), QPointF(4.5 * s, 15.5 * s))
+    p.end()
+    return pix
+
+
+def make_rail_icon(mode_name, mode=None):
+    icon = QIcon()
+    for s in (16, 20, 24, 32):
+        pix_off = make_rail_pixmap(mode_name, checked=False, size=s, mode=mode)
+        pix_on = make_rail_pixmap(mode_name, checked=True, size=s, mode=mode)
+        icon.addPixmap(pix_off, QIcon.Normal, QIcon.Off)
+        icon.addPixmap(pix_on, QIcon.Normal, QIcon.On)
+    return icon
+
+
 class MainWindow(QMainWindow):
     def __init__(self, files=()):
         super().__init__()
@@ -303,6 +425,7 @@ class MainWindow(QMainWindow):
         self._build_files_dock()
         self._build_results_dock()
         self._build_log_dock()
+        self._build_rail()
         self._build_actions()
         self._build_status()
 
@@ -322,6 +445,20 @@ class MainWindow(QMainWindow):
             self.restoreState(state)
         else:
             self.apply_default_dock_sizes()
+
+        # Restore visibility from settings if specified
+        f_vis = self.settings.value("files_dock_visible")
+        if f_vis is not None:
+            v = f_vis in (True, "true", "True", 1, "1")
+            self.files_dock.setVisible(v)
+            self.btn_toggle_files.setChecked(v)
+        r_vis = self.settings.value("results_dock_visible")
+        if r_vis is not None:
+            v = r_vis in (True, "true", "True", 1, "1")
+            self.results_dock.setVisible(v)
+            self.btn_toggle_results.setChecked(v)
+        self._update_editor_centering()
+
         folder = self.settings.value("folder") or self._default_folder()
         self.set_folder(folder)
         for f in files:
@@ -329,7 +466,7 @@ class MainWindow(QMainWindow):
         self._update_actions()
 
     def apply_default_dock_sizes(self):
-        self.resizeDocks([self.files_dock, self.results_dock], [255, 295], Qt.Horizontal)
+        self.resizeDocks([self.files_dock, self.results_dock], [252, 340], Qt.Horizontal)
         self.resizeDocks([self.log_dock, self.problems_dock], [150, 150], Qt.Vertical)
 
     def showEvent(self, e):
@@ -337,11 +474,15 @@ class MainWindow(QMainWindow):
         if not getattr(self, "_dock_sizes_applied", False):
             self._dock_sizes_applied = True
             state = self.settings.value("window_state")
-            if (state is None or self.files_dock.width() < 240 or self.files_dock.width() > 280
-                    or self.results_dock.width() < 280 or self.results_dock.width() > 360
-                    or self.tabs.width() < int(self.width() * 0.55)
+            if (state is None or self.files_dock.width() < 235 or self.files_dock.width() > 275
+                    or self.results_dock.width() < 310 or self.results_dock.width() > 370
                     or self.log_dock.height() > 180):
                 self.apply_default_dock_sizes()
+        self._update_editor_centering()
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self._update_editor_centering()
 
     # ---------- layout ----------
     def _default_folder(self):
@@ -389,6 +530,33 @@ class MainWindow(QMainWindow):
         if (x, y, w, h) != (geo.x(), geo.y(), geo.width(), geo.height()):
             self.setGeometry(x, y, w, h)
 
+    def _make_stub_page(self, title, description):
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setAlignment(Qt.AlignCenter)
+        card = QWidget()
+        card.setObjectName("stub_card")
+        card.setStyleSheet(f"""
+            QWidget#stub_card {{
+                background-color: {hex_color('surface')};
+                border: 1px solid {hex_color('border')};
+                border-radius: 12px;
+                padding: 36px 48px;
+            }}
+        """)
+        cv = QVBoxLayout(card)
+        cv.setAlignment(Qt.AlignCenter)
+        cv.setSpacing(10)
+        lbl_title = QLabel(f"<h2>{title}</h2>")
+        lbl_title.setAlignment(Qt.AlignCenter)
+        lbl_desc = QLabel(description)
+        lbl_desc.setAlignment(Qt.AlignCenter)
+        lbl_desc.setStyleSheet(f"color: {hex_color('muted')}; font-size: 13px;")
+        cv.addWidget(lbl_title)
+        cv.addWidget(lbl_desc)
+        v.addWidget(card)
+        return w
+
     def _build_tabs(self):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
@@ -397,8 +565,133 @@ class MainWindow(QMainWindow):
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.currentChanged.connect(self._tab_changed)
         self.welcome = self._make_welcome()
-        self.setCentralWidget(self.tabs)
         self._show_welcome()
+
+        # Page 0: editor container with centering when docks are hidden
+        self.editor_page = QWidget()
+        self.editor_layout = QHBoxLayout(self.editor_page)
+        self.editor_layout.setContentsMargins(16, 0, 16, 0)
+        self.editor_layout.setSpacing(0)
+        self.left_spacer = QSpacerItem(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.right_spacer = QSpacerItem(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.editor_layout.addItem(self.left_spacer)
+        self.editor_layout.addWidget(self.tabs, 1)
+        self.editor_layout.addItem(self.right_spacer)
+
+        # Pages 1-3: stubs
+        self.stub_results = self._make_stub_page("Итоги", "Сводная таблица и графики расчётов появятся здесь")
+        self.stub_3d = self._make_stub_page("3D", "Интерактивная 3D-визуализация молекулярных структур")
+        self.stub_batch = self._make_stub_page("Пакеты", "Пакетная обработка и управление очередью расчётов")
+
+        self.stack = QStackedWidget(self)
+        self.stack.addWidget(self.editor_page)
+        self.stack.addWidget(self.stub_results)
+        self.stack.addWidget(self.stub_3d)
+        self.stack.addWidget(self.stub_batch)
+        self.setCentralWidget(self.stack)
+
+    def _build_rail(self):
+        self.rail_widget = QWidget()
+        self.rail_widget.setObjectName("rail_widget")
+        self.rail_widget.setFixedWidth(68)
+        layout = QVBoxLayout(self.rail_widget)
+        layout.setContentsMargins(10, 12, 10, 12)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignHCenter)
+
+        def make_btn(label, icon_name, is_check=True):
+            b = QToolButton()
+            b.setProperty("rail", "true")
+            b.setFixedSize(48, 48)
+            b.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+            b.setCheckable(is_check)
+            b.setText(label)
+            b.setAccessibleName(label)
+            b.setIcon(make_rail_icon(icon_name))
+            b.setIconSize(QSize(20, 20))
+            b.setCursor(Qt.PointingHandCursor)
+            return b
+
+        self.btn_mode_editor = make_btn("Редактор", "editor")
+        self.btn_mode_results = make_btn("Итоги", "results")
+        self.btn_mode_3d = make_btn("3D", "3d")
+        self.btn_mode_batch = make_btn("Пакеты", "batch")
+        self.btn_mode_settings = make_btn("Настройки", "settings", is_check=False)
+        self.btn_mode_settings.clicked.connect(self.open_settings)
+        self.settings_btn = self.btn_mode_settings
+
+        self.rail_group = QButtonGroup(self)
+        self.rail_group.setExclusive(True)
+        self.rail_group.addButton(self.btn_mode_editor, 0)
+        self.rail_group.addButton(self.btn_mode_results, 1)
+        self.rail_group.addButton(self.btn_mode_3d, 2)
+        self.rail_group.addButton(self.btn_mode_batch, 3)
+        self.btn_mode_editor.setChecked(True)
+        self.rail_group.idClicked.connect(self.set_mode)
+
+        layout.addWidget(self.btn_mode_editor)
+        layout.addWidget(self.btn_mode_results)
+        layout.addWidget(self.btn_mode_3d)
+        layout.addWidget(self.btn_mode_batch)
+        layout.addStretch(1)
+        layout.addWidget(self.btn_mode_settings)
+
+        self.rail_toolbar = self.addToolBar("Режимы")
+        self.rail_toolbar.setObjectName("rail_toolbar")
+        self.rail_toolbar.setMovable(False)
+        self.rail_toolbar.setFloatable(False)
+        self.rail_toolbar.setContextMenuPolicy(Qt.PreventContextMenu)
+        self.rail_toolbar.setFixedWidth(68)
+        self.rail_toolbar.addWidget(self.rail_widget)
+        self.rail = self.rail_widget
+
+    def set_mode(self, index):
+        if self.stack.currentIndex() == index:
+            return
+        self.stack.setCurrentIndex(index)
+        btn = self.rail_group.button(index)
+        if btn and not btn.isChecked():
+            btn.setChecked(True)
+        is_editor = (index == 0)
+        if not is_editor:
+            self._editor_docks_visibility = {
+                "files": self.files_dock.isVisible(),
+                "results": self.results_dock.isVisible(),
+                "log": self.log_dock.isVisible(),
+                "problems": self.problems_dock.isVisible(),
+            }
+            self.files_dock.hide()
+            self.results_dock.hide()
+            self.log_dock.hide()
+            self.problems_dock.hide()
+        else:
+            vis = getattr(self, "_editor_docks_visibility", None)
+            if vis is not None:
+                self.files_dock.setVisible(vis.get("files", True))
+                self.results_dock.setVisible(vis.get("results", True))
+                self.log_dock.setVisible(vis.get("log", True))
+                self.problems_dock.setVisible(vis.get("problems", False))
+            else:
+                self.files_dock.show()
+                self.results_dock.show()
+                self.log_dock.show()
+            self._update_editor_centering()
+
+    def _update_editor_centering(self):
+        if not hasattr(self, "tabs") or not hasattr(self, "files_dock"):
+            return
+        t = self.tab()
+        is_inp = (t is None or getattr(t, "kind", "inp") == "inp")
+        docks_closed = (self.files_dock.isHidden() and self.results_dock.isHidden())
+        if is_inp and docks_closed:
+            self.tabs.setMaximumWidth(860)
+            self.left_spacer.changeSize(1, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
+            self.right_spacer.changeSize(1, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        else:
+            self.tabs.setMaximumWidth(16777215)
+            self.left_spacer.changeSize(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+            self.right_spacer.changeSize(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.editor_layout.invalidate()
 
     def _make_welcome(self):
         w = QWidget()
@@ -643,22 +936,92 @@ class MainWindow(QMainWindow):
         tb.setObjectName("main_toolbar")
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        for a in (self.a_new_job, self.a_open, self.a_save, None, self.a_run, self.a_stop, None,
-                  self.a_open_out, self.a_molden):
-            tb.addSeparator() if a is None else tb.addAction(a)
-        tb.addSeparator()
-        tb.addWidget(QLabel(" Потоки: "))
+
+        # 1. Logo with version
+        logo_widget = QWidget()
+        h_logo = QHBoxLayout(logo_widget)
+        h_logo.setContentsMargins(4, 0, 10, 0)
+        h_logo.setSpacing(8)
+        lbl_icon = QLabel()
+        lbl_icon.setPixmap(app_icon().pixmap(24, 24))
+        lbl_title = QLabel("ffpy")
+        lbl_title.setStyleSheet("font-size: 15px; font-weight: 700;")
+        lbl_ver = QLabel(__version__)
+        lbl_ver.setStyleSheet("font-size: 12px; color: %s;" % hex_color("muted"))
+        h_logo.addWidget(lbl_icon)
+        h_logo.addWidget(lbl_title)
+        h_logo.addWidget(lbl_ver)
+        tb.addWidget(logo_widget)
+
+        # 2. Main actions
+        self.btn_new = tb.addAction(self.a_new_job.icon(), "Новый расчёт", self.new_job)
+        self.btn_open = tb.addAction(self.a_open.icon(), "Открыть", self.open_dialog)
+        self.btn_save = tb.addAction(self.a_save.icon(), "Сохранить", self.save_current)
+
+        # 3. Vertical separator
+        sep = QFrame()
+        sep.setProperty("vsep", "true")
+        sep.setFrameShape(QFrame.VLine)
+        sep.setFixedWidth(1)
+        sep.setFixedHeight(22)
+        tb.addWidget(sep)
+
+        # 4. Primary Run button
+        self.btn_run = QToolButton()
+        self.btn_run.setObjectName("btn_run")
+        self.btn_run.setText("▶  Запустить")
+        self.btn_run.setToolTip(self.a_run.toolTip())
+        self.btn_run.setStatusTip(self.a_run.statusTip())
+        self.btn_run.clicked.connect(self.run_current)
+        tb.addWidget(self.btn_run)
+
+        # 5. Quiet Stop button
+        self.btn_stop = QToolButton()
+        self.btn_stop.setObjectName("btn_stop")
+        self.btn_stop.setText("Стоп")
+        self.btn_stop.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.btn_stop.setToolTip(self.a_stop.toolTip())
+        self.btn_stop.setStatusTip(self.a_stop.statusTip())
+        self.btn_stop.clicked.connect(self.stop_run)
+        tb.addWidget(self.btn_stop)
+
+        # 6. Spacer
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        tb.addWidget(spacer)
+
+        # 7. Claude-style dock toggle buttons
+        self.btn_toggle_files = QToolButton()
+        self.btn_toggle_files.setProperty("icon_btn", "true")
+        self.btn_toggle_files.setCheckable(True)
+        self.btn_toggle_files.setChecked(True)
+        self.btn_toggle_files.setAccessibleName("Список файлов")
+        self.btn_toggle_files.setToolTip("Список файлов")
+        self.btn_toggle_files.setIcon(make_sidebar_icon("left"))
+        self.btn_toggle_files.setIconSize(QSize(20, 20))
+        self.btn_toggle_files.toggled.connect(self.files_dock.setVisible)
+        self.files_dock.visibilityChanged.connect(self.btn_toggle_files.setChecked)
+        self.files_dock.visibilityChanged.connect(lambda _: self._update_editor_centering())
+        tb.addWidget(self.btn_toggle_files)
+
+        self.btn_toggle_results = QToolButton()
+        self.btn_toggle_results.setProperty("icon_btn", "true")
+        self.btn_toggle_results.setCheckable(True)
+        self.btn_toggle_results.setChecked(True)
+        self.btn_toggle_results.setAccessibleName("Результаты")
+        self.btn_toggle_results.setToolTip("Результаты")
+        self.btn_toggle_results.setIcon(make_sidebar_icon("right"))
+        self.btn_toggle_results.setIconSize(QSize(20, 20))
+        self.btn_toggle_results.toggled.connect(self.results_dock.setVisible)
+        self.results_dock.visibilityChanged.connect(self.btn_toggle_results.setChecked)
+        self.results_dock.visibilityChanged.connect(lambda _: self._update_editor_centering())
+        tb.addWidget(self.btn_toggle_results)
+
+        # Keep threads spinbox off-toolbar for ask_threads / tests
         self.threads_spin = QSpinBox()
         self.threads_spin.setRange(1, max(1, os.cpu_count() or 1))
         self.threads_spin.setValue(self.runner.threads)
-        self.threads_spin.setToolTip("Число потоков для расчёта (больше 8 обычно не ускоряет)")
         self.threads_spin.valueChanged.connect(self._set_threads)
-        tb.addWidget(self.threads_spin)
-        tb.addSeparator()
-        self.settings_btn = QToolButton()
-        self.settings_btn.setDefaultAction(self.a_settings)
-        self.settings_btn.setToolTip("Настройки оформления и языка")
-        tb.addWidget(self.settings_btn)
 
     def _build_status(self):
         self.check_label = QLabel("")
@@ -972,6 +1335,7 @@ class MainWindow(QMainWindow):
                                      % chk.message)
             if r != QMessageBox.Yes:
                 return
+        self.results_dock.hide()
         self.run_paths([t.path])
 
     def run_paths(self, paths):
@@ -1028,6 +1392,11 @@ class MainWindow(QMainWindow):
             else:
                 self.open_path(out, focus=False)
             self.results.set_out(out)
+            if code == 0:
+                self.results_dock.show()
+                self.results_dock.raise_()
+        elif code == 0:
+            self.results_dock.show()
             self.results_dock.raise_()
         self.resizeDocks([self.log_dock, self.problems_dock], [150, 150], Qt.Vertical)
         self._update_run_state()
@@ -1044,10 +1413,22 @@ class MainWindow(QMainWindow):
                 txt += ", в очереди: %d" % q
             self.run_label.setText(txt)
             self.run_label.setStyleSheet("color:%s; font-weight:bold" % hex_color("accent"))
+            if hasattr(self, "btn_run"):
+                self.btn_run.setText("Расчёт…")
+                self.btn_run.setProperty("busy", "true")
+                self.btn_run.style().unpolish(self.btn_run)
+                self.btn_run.style().polish(self.btn_run)
         else:
             self.run_label.setText("Нет запущенных расчётов")
             self.run_label.setStyleSheet("")
+            if hasattr(self, "btn_run"):
+                self.btn_run.setText("▶  Запустить")
+                self.btn_run.setProperty("busy", "false")
+                self.btn_run.style().unpolish(self.btn_run)
+                self.btn_run.style().polish(self.btn_run)
         self.a_stop.setEnabled(self.runner.is_running() or bool(q))
+        if hasattr(self, "btn_stop"):
+            self.btn_stop.setEnabled(self.runner.is_running() or bool(q))
 
     def _set_threads(self, n):
         self.runner.threads = n
@@ -1214,6 +1595,15 @@ class MainWindow(QMainWindow):
             app.setStyleSheet(build_qss())
         if hasattr(self, "a_settings"):
             self.a_settings.setIcon(make_gear_icon())
+        if hasattr(self, "btn_toggle_files"):
+            self.btn_toggle_files.setIcon(make_sidebar_icon("left"))
+            self.btn_toggle_results.setIcon(make_sidebar_icon("right"))
+        if hasattr(self, "btn_mode_editor"):
+            self.btn_mode_editor.setIcon(make_rail_icon("editor"))
+            self.btn_mode_results.setIcon(make_rail_icon("results"))
+            self.btn_mode_3d.setIcon(make_rail_icon("3d"))
+            self.btn_mode_batch.setIcon(make_rail_icon("batch"))
+            self.btn_mode_settings.setIcon(make_rail_icon("settings"))
         self._refresh_theme()
 
     def _refresh_theme(self):
@@ -1323,6 +1713,8 @@ class MainWindow(QMainWindow):
             self.runner.stop()
         self.settings.setValue("geometry", self.saveGeometry())
         self.settings.setValue("window_state", self.saveState())
+        self.settings.setValue("files_dock_visible", self.files_dock.isVisible())
+        self.settings.setValue("results_dock_visible", self.results_dock.isVisible())
         e.accept()
 
 
