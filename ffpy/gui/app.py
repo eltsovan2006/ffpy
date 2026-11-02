@@ -395,7 +395,7 @@ def make_rail_icon(mode_name, mode=None):
 class MainWindow(QMainWindow):
     def __init__(self, files=()):
         super().__init__()
-        self.settings = QSettings("ffpy", "ffpy-gui")
+        self.settings = QSettings(QSettings.defaultFormat(), QSettings.UserScope, "ffpy", "ffpy-gui")
         self.font_size = int(self.settings.value("font_size", 10))
         theme_mode = self.settings.value("theme_mode", "system")
         set_theme_mode(theme_mode)
@@ -636,13 +636,15 @@ class MainWindow(QMainWindow):
         layout.addStretch(1)
         layout.addWidget(self.btn_mode_settings)
 
-        self.rail_toolbar = self.addToolBar("Режимы")
+        self.rail_toolbar = QToolBar("Режимы", self)
         self.rail_toolbar.setObjectName("rail_toolbar")
         self.rail_toolbar.setMovable(False)
         self.rail_toolbar.setFloatable(False)
         self.rail_toolbar.setContextMenuPolicy(Qt.PreventContextMenu)
         self.rail_toolbar.setFixedWidth(68)
+        self.rail_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         self.rail_toolbar.addWidget(self.rail_widget)
+        self.addToolBar(Qt.LeftToolBarArea, self.rail_toolbar)
         self.rail = self.rail_widget
 
     def set_mode(self, index):
@@ -655,10 +657,10 @@ class MainWindow(QMainWindow):
         is_editor = (index == 0)
         if not is_editor:
             self._editor_docks_visibility = {
-                "files": self.files_dock.isVisible(),
-                "results": self.results_dock.isVisible(),
-                "log": self.log_dock.isVisible(),
-                "problems": self.problems_dock.isVisible(),
+                "files": not self.files_dock.isHidden(),
+                "results": not self.results_dock.isHidden(),
+                "log": not self.log_dock.isHidden(),
+                "problems": not self.problems_dock.isHidden(),
             }
             self.files_dock.hide()
             self.results_dock.hide()
@@ -687,10 +689,12 @@ class MainWindow(QMainWindow):
             self.tabs.setMaximumWidth(860)
             self.left_spacer.changeSize(1, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
             self.right_spacer.changeSize(1, 0, QSizePolicy.Expanding, QSizePolicy.Minimum)
+            self.editor_layout.setContentsMargins(16, 0, 16, 0)
         else:
             self.tabs.setMaximumWidth(16777215)
             self.left_spacer.changeSize(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
             self.right_spacer.changeSize(0, 0, QSizePolicy.Fixed, QSizePolicy.Minimum)
+            self.editor_layout.setContentsMargins(0, 0, 0, 0)
         self.editor_layout.invalidate()
 
     def _make_welcome(self):
@@ -1223,6 +1227,7 @@ class MainWindow(QMainWindow):
         self._update_title()
         self._update_actions()
         self._update_pos()
+        self._update_editor_centering()
         if t and t.kind == "inp":
             self._validate_current()
         else:
@@ -1368,7 +1373,7 @@ class MainWindow(QMainWindow):
         self.run_timer.start()
         self._update_run_state()
         self.log_dock.raise_()
-        target_h = max(200, int(self.height() * 0.3))
+        target_h = max(240, int(self.height() * 0.35))
         self.resizeDocks([self.log_dock], [target_h], Qt.Vertical)
 
     def _on_run_line(self, line):
@@ -1711,10 +1716,15 @@ class MainWindow(QMainWindow):
                 e.ignore()
                 return
             self.runner.stop()
-        self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("window_state", self.saveState())
-        self.settings.setValue("files_dock_visible", self.files_dock.isVisible())
-        self.settings.setValue("results_dock_visible", self.results_dock.isVisible())
+        if self.isVisible():
+            self.settings.setValue("geometry", self.saveGeometry())
+            self.settings.setValue("window_state", self.saveState())
+            if self.stack.currentIndex() == 0:
+                self.settings.setValue("files_dock_visible", not self.files_dock.isHidden())
+                self.settings.setValue("results_dock_visible", not self.results_dock.isHidden())
+            elif hasattr(self, "_editor_docks_visibility"):
+                self.settings.setValue("files_dock_visible", self._editor_docks_visibility.get("files", True))
+                self.settings.setValue("results_dock_visible", self._editor_docks_visibility.get("results", True))
         e.accept()
 
 

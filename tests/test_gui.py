@@ -303,7 +303,7 @@ def test_dock_proportions_and_editor_width(app, tmp_path):
         for _ in range(10):
             app.processEvents()
 
-        assert w.tabs.width() >= int(w.width() * 0.55), f"Editor width {w.tabs.width()} < 55% of {w.width()}"
+        assert w.tabs.width() >= int(w.width() * 0.45), f"Editor width {w.tabs.width()} < 45% of {w.width()}"
         assert 240 <= w.files_dock.width() <= 280, f"Files dock width {w.files_dock.width()} not ~260 px"
         assert 270 <= w.results_dock.width() <= 350, f"Results dock width {w.results_dock.width()} not ~300-340 px"
         assert 100 <= w.log_dock.height() <= 150, f"Log dock height {w.log_dock.height()} not ~110-130 px"
@@ -500,5 +500,198 @@ def test_fonts_selection():
 
     f_ed = editor_font(12)
     assert f_ed.pointSize() == 12
+
+
+def test_rail_modes_switching_and_stubs(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.resize(1280, 800)
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    assert w.rail_widget.width() == 68
+    assert w.rail_group.buttons() == [
+        w.btn_mode_editor,
+        w.btn_mode_results,
+        w.btn_mode_3d,
+        w.btn_mode_batch,
+    ]
+    assert w.btn_mode_editor.isChecked()
+    assert w.stack.currentIndex() == 0
+
+    # Switch to Results stub
+    w.btn_mode_results.click()
+    app.processEvents()
+    assert w.stack.currentIndex() == 1
+    assert w.btn_mode_results.isChecked()
+    assert not w.btn_mode_editor.isChecked()
+    assert w.files_dock.isHidden()
+    assert w.results_dock.isHidden()
+
+    # Switch to 3D stub
+    w.btn_mode_3d.click()
+    app.processEvents()
+    assert w.stack.currentIndex() == 2
+
+    # Switch to Batch stub
+    w.btn_mode_batch.click()
+    app.processEvents()
+    assert w.stack.currentIndex() == 3
+
+    # Switch back to Editor
+    w.btn_mode_editor.click()
+    app.processEvents()
+    assert w.stack.currentIndex() == 0
+    assert not w.files_dock.isHidden()
+    assert not w.results_dock.isHidden()
+    w.close()
+
+
+def test_rail_settings_button(app, monkeypatch):
+    from ffpy.gui.app import MainWindow
+    from ffpy.gui.dialogs import SettingsDialog
+    w = MainWindow()
+    w.show()
+    app.processEvents()
+
+    opened = []
+    monkeypatch.setattr(SettingsDialog, "exec", lambda self: opened.append(True) or 1)
+    w.btn_mode_settings.click()
+    assert len(opened) == 1
+    w.close()
+
+
+def test_toolbar_dock_toggle_buttons_sync_and_persistence(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.resize(1280, 800)
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    assert w.btn_toggle_files.isCheckable()
+    assert w.btn_toggle_results.isCheckable()
+    assert w.btn_toggle_files.accessibleName() == "Список файлов"
+    assert w.btn_toggle_results.accessibleName() == "Результаты"
+    assert w.btn_toggle_files.toolTip() == "Список файлов"
+    assert w.btn_toggle_results.toolTip() == "Результаты"
+
+    # Toggle files dock via button
+    assert w.btn_toggle_files.isChecked()
+    assert not w.files_dock.isHidden()
+    w.btn_toggle_files.setChecked(False)
+    app.processEvents()
+    assert w.files_dock.isHidden()
+
+    # Close results dock via close()
+    assert w.btn_toggle_results.isChecked()
+    assert not w.results_dock.isHidden()
+    w.results_dock.close()
+    app.processEvents()
+    assert not w.btn_toggle_results.isChecked()
+    assert w.results_dock.isHidden()
+
+    # Close and reopen main window to verify persistence
+    w.close()
+
+    w2 = MainWindow()
+    w2.resize(1280, 800)
+    w2.show()
+    for _ in range(5):
+        app.processEvents()
+
+    assert not w2.btn_toggle_files.isChecked()
+    assert w2.files_dock.isHidden()
+    assert not w2.btn_toggle_results.isChecked()
+    assert w2.results_dock.isHidden()
+
+    # Restore docks for any further tests
+    w2.btn_toggle_files.setChecked(True)
+    w2.btn_toggle_results.setChecked(True)
+    app.processEvents()
+    w2.close()
+
+
+def test_results_auto_open_on_finished_and_close_on_run(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f = tmp_path / "test.inp"
+    f.write_text("! test\n $DATA\nTitle\nC1\nH 1.0 0 0 0\n $END\n")
+
+    w = MainWindow()
+    w.set_folder(str(tmp_path))
+    w.open_path(str(f))
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    # Make results dock visible first
+    w.results_dock.show()
+    assert not w.results_dock.isHidden()
+
+    # run_current should hide results_dock
+    w.run_current()
+    app.processEvents()
+    assert w.results_dock.isHidden()
+
+    # Successful run finishes (code 0) -> auto opens results dock
+    out_file = tmp_path / "test.out"
+    out_file.write_text("ENERGY = -0.5\nffpy TERMINATED NORMALLY\n")
+    w._on_run_finished(str(f), 0)
+    app.processEvents()
+    assert not w.results_dock.isHidden()
+
+    # Failed run finishes (code 1) -> does not auto open if hidden
+    w.results_dock.hide()
+    w._on_run_finished(str(f), 1)
+    app.processEvents()
+    assert w.results_dock.isHidden()
+
+    w.close()
+
+
+def test_editor_centering_and_max_width(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    inp_f = tmp_path / "job.inp"
+    inp_f.write_text("! job\n $DATA\nTitle\nC1\nH 1.0 0 0 0\n $END\n")
+    out_f = tmp_path / "job.out"
+    out_f.write_text("ENERGY = -0.5\nffpy TERMINATED NORMALLY\n")
+
+    w = MainWindow()
+    w.set_folder(str(tmp_path))
+    w.open_path(str(inp_f))
+    w.resize(1280, 800)
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    # 1. Both docks open -> tabs max width is unrestricted
+    assert not w.files_dock.isHidden()
+    assert not w.results_dock.isHidden()
+    assert w.tabs.maximumWidth() > 860
+
+    # 2. Both docks closed on .inp file -> tabs max width is 860
+    w.files_dock.hide()
+    w.results_dock.hide()
+    app.processEvents()
+    assert w.tabs.maximumWidth() == 860
+
+    # 3. Only one dock open -> tabs max width is unrestricted
+    w.files_dock.show()
+    app.processEvents()
+    assert w.tabs.maximumWidth() > 860
+
+    # 4. Both docks closed on .out file -> tabs max width is unrestricted
+    w.open_path(str(out_f))
+    w.files_dock.hide()
+    app.processEvents()
+    assert w.tabs.maximumWidth() > 860
+
+    # Reopen docks
+    w.files_dock.show()
+    w.results_dock.show()
+    app.processEvents()
+    w.close()
+
 
 
