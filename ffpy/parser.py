@@ -104,7 +104,13 @@ def _typed(group, key, value, raw):
             raise InputError("%s: a number is expected" % where)
         v = float(v)
     elif spec.type == "bool":
-        if not isinstance(v, bool):
+        if isinstance(v, bool):
+            pass
+        elif isinstance(v, int) and v in (0, 1):
+            v = bool(v)
+        elif isinstance(v, str) and v in ("1", "0", "T", "F", ".T.", ".F.", "TRUE", "FALSE", ".TRUE.", ".FALSE."):
+            v = v in ("1", "T", ".T.", "TRUE", ".TRUE.")
+        else:
             raise InputError("%s: .TRUE. or .FALSE. is expected" % where)
     elif spec.type == "str":
         v = str(v).upper() if not isinstance(v, str) else v

@@ -64,6 +64,7 @@ SCHEMA = {
     },
     "SYSTEM": {
         "MWORDS": K("float", None, None, "memory in 10^6 words (8 MB); not set = PySCF default 4000 MB"),
+        "MEMORY": K("float", None, None, "memory in words (8 bytes per word); converted to MWORDS"),
         "TIMLIM": K("float", 525600.0, None, "time limit, minutes"),
     },
     "BASIS": {
@@ -95,6 +96,7 @@ SCHEMA = {
     },
     "MP2": {
         "NACORE": K("int", None, None, "frozen core orbitals; not set = chemical core"),
+        "RI": K("bool", False, None, "RI-MP2 (not supported)"),
     },
     "STATPT": {
         "NSTEP": K("int", 20, None, "max optimization steps"),
@@ -136,13 +138,16 @@ SCHEMA = {
         "EPS": K("float", None, None, "dielectric constant (overrides SOLVNT)"),
         "IEF": K("int", -10, None, "IEF-PCM flavour (ffpy always uses IEF-PCM)"),
     },
+    "SMP": {},
+    "ELMOM": {},
 }
 
 IGNORED = {
     "CONTRL": {"NPRINT", "ICUT", "ITOL", "INTTYP", "QMTTOL", "NOSYM", "NORMF",
-               "NORMP", "MOLPLT", "PLTORB", "AIMPAC", "FRIEND", "D5", "NUMGRD"},
-    "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP"},
-    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE"},
+               "NORMP", "MOLPLT", "PLTORB", "AIMPAC", "FRIEND", "D5", "NUMGRD", "WIDE"},
+    "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"},
+    "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
+    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
     "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE"},
@@ -150,10 +155,12 @@ IGNORED = {
                "DXMAX", "TRMAX", "TRMIN", "IDUMP", "PURIFY", "PROJCT", "LET",
                "ITBMX", "GMIN", "GMAX", "NPRTR", "NPUNR", "KDIAG", "SCHM"},
     "FORCE": {"NVIB", "VIBSIZ", "PURIFY", "PRTIFC"},
-    "TDDFT": {"NRAD", "NLEB", "PRTTOL"},
-    "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS"},
+    "CIS": {"ISTSYM"},
+    "TDDFT": {"NRAD", "NLEB", "PRTTOL", "ISTSYM"},
+    "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS", "GROUP", "ISTSYM", "ISPIN"},
     "MCSCF": {"SOSCF", "FULLNR", "FOCAS", "QUAD", "JACOBI"},
     "PCM": {"ICOMP", "ICAV", "IDISP", "RSOLV", "EPSINF", "IDP"},
+    "ELMOM": {"IEMOM", "WHERE"},
 }
 
 UNSUPPORTED_GROUPS = {
@@ -164,4 +171,7 @@ UNSUPPORTED_GROUPS = {
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
     "LIBE": "LIBE", "P2P": "P2P parallelism", "DRT": "GUGA",
+    "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis", "MP4": "MP4",
+    "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
+    "MOROKM": "Morokuma", "DFTD": "dispersion DFT", "SCRF": "SCRF", "CPHF": "CPHF",
 }
