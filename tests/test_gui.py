@@ -335,3 +335,30 @@ def test_log_dock_expansion_on_run(app, tmp_path):
     assert finished_h <= 140
     w.close()
 
+
+def test_icons(app):
+    """Verify application icon and packaging icon files (ffpy.ico, ffpy.icns)."""
+    from ffpy.gui.app import app_icon
+
+    icon = app_icon()
+    assert not icon.isNull()
+    pix = icon.pixmap(64, 64)
+    assert not pix.isNull()
+    assert pix.width() == 64 and pix.height() == 64
+
+    pkg_dir = os.path.join(os.path.dirname(HERE), "packaging")
+    ico_path = os.path.join(pkg_dir, "ffpy.ico")
+    icns_path = os.path.join(pkg_dir, "ffpy.icns")
+
+    assert os.path.isfile(ico_path), f"{ico_path} does not exist"
+    with open(ico_path, "rb") as f:
+        ico_hdr = f.read(4)
+    assert ico_hdr == b"\x00\x00\x01\x00", f"Invalid ICO magic: {ico_hdr!r}"
+    assert os.path.getsize(ico_path) > 1000
+
+    assert os.path.isfile(icns_path), f"{icns_path} does not exist"
+    with open(icns_path, "rb") as f:
+        icns_hdr = f.read(4)
+    assert icns_hdr == b"icns", f"Invalid ICNS magic: {icns_hdr!r}"
+    assert os.path.getsize(icns_path) > 1000
+
