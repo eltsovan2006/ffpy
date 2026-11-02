@@ -189,3 +189,128 @@ def test_force_projct_parsed():
               " $BASIS GBASIS=STO NGAUSS=3 $END\n")
     job2 = build_job(d2)
     assert job2.projct is True
+
+
+def test_system_memory_and_mwords():
+    # MEMORY only
+    d1 = deck(" $SYSTEM MEMORY=200000 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job1 = build_job(d1)
+    assert job1.memory_mb == pytest.approx(200000 * 8e-6)
+    notes1 = [msg for kind, msg in d1.notes if kind == "warning"]
+    assert any("$SYSTEM MEMORY=" in n and "converted to MWORDS=" in n for n in notes1)
+
+    # MWORDS has precedence when both are given
+    d2 = deck(" $SYSTEM MWORDS=100 MEMORY=200000 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job2 = build_job(d2)
+    assert job2.memory_mb == 800.0
+    notes2 = [msg for kind, msg in d2.notes if kind == "warning"]
+    assert any("takes precedence" in n for n in notes2)
+
+
+def test_system_and_smp_ignored_keys():
+    d = deck(" $SYSTEM MEMDDI=100 KDIAG=3 NOJAC=1 PARALL=.T. MKLNP=2 NP=4 CORE=1 BALNCS=1 XDLB=1 $END\n"
+             " $SMP HTTNP=2 MKLNP=2 NP=4 CALL64=1 $END\n"
+             " $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job = build_job(d)
+    notes = [msg for kind, msg in d.notes if kind == "warning"]
+    for key in ("MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"):
+        assert any(f"$SYSTEM {key}=" in n and "is accepted but has no effect in ffpy" in n for n in notes)
+    for key in ("HTTNP", "MKLNP", "NP", "CALL64"):
+        assert any(f"$SMP {key}=" in n and "is accepted but has no effect in ffpy" in n for n in notes)
+
+    # Unknown key in $SMP should raise InputError
+    with pytest.raises(InputError, match="unknown keyword"):
+        deck(" $SMP UNKNOWN_KEY=1 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+
+
+def test_contrl_wide_ignored():
+    d = deck(" $CONTRL WIDE=.TRUE. $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job = build_job(d)
+    notes = [msg for kind, msg in d.notes if kind == "warning"]
+    assert any("$CONTRL WIDE=" in n and "is accepted but has no effect in ffpy" in n for n in notes)
+
+
+def test_boolean_literals():
+    for val in ("1", "0", ".T.", ".F.", ".TRUE.", ".FALSE.", "T", "F", "TRUE", "FALSE"):
+        d = deck(f" $SCF DIRSCF={val} $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        job = build_job(d)
+        expected = val in ("1", ".T.", ".TRUE.", "T", "TRUE")
+        assert job.direct is expected
+
+    # Non-boolean integer keys must still require an integer and not accept booleans
+    with pytest.raises(InputError, match="integer"):
+        deck(" $CONTRL MULT=.TRUE. $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+
+    # Invalid boolean values should raise InputError
+    with pytest.raises(InputError, match=r"\.TRUE\. or \.FALSE\."):
+        deck(" $SCF DIRSCF=2 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(InputError, match=r"\.TRUE\. or \.FALSE\."):
+        deck(" $SCF DIRSCF=INVALID $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+
+
+def test_data_incomplete_coordinates():
+    inp = """ $BASIS GBASIS=STO NGAUSS=3 $END
+ $DATA
+Test Incomplete Coords
+C1
+O  8.0
+H  1.0  0.757
+N  7.0  0.100  0.200
+C  6.0  0.100  0.200  0.300
+ $END
+"""
+    d = parse_input(inp)
+    job = build_job(d)
+    assert len(job.labels) == 4
+    # O (only name Z) -> [0, 0, 0]
+    np.testing.assert_allclose(job.coords[0], [0.0, 0.0, 0.0])
+    # H (name Z X) -> [X*scale, 0, 0]
+    assert job.coords[1][0] != 0.0
+    assert job.coords[1][1] == 0.0
+    assert job.coords[1][2] == 0.0
+    # N (name Z X Y) -> [X*scale, Y*scale, 0]
+    assert job.coords[2][0] != 0.0
+    assert job.coords[2][1] != 0.0
+    assert job.coords[2][2] == 0.0
+    # C (name Z X Y Z) -> [X*scale, Y*scale, Z*scale]
+    assert job.coords[3][2] != 0.0
+
+    # < 2 tokens -> InputError
+    inp_short = """ $BASIS GBASIS=STO NGAUSS=3 $END
+ $DATA
+Title
+C1
+O
+ $END
+"""
+    with pytest.raises(InputError, match=r"\$DATA: atom line"):
+        build_job(parse_input(inp_short))
+
+    # > 5 tokens -> UnsupportedError
+    inp_long = """ $BASIS GBASIS=STO NGAUSS=3 $END
+ $DATA
+Title
+C1
+O 8.0 0.0 0.0 0.0 1.0
+ $END
+"""
+    with pytest.raises(UnsupportedError, match=r"\$DATA: extra fields"):
+        build_job(parse_input(inp_long))
+
+
+def test_strict_rejection_of_unsupported_physics():
+    with pytest.raises(InputError, match="CITYP"):
+        deck(" $CONTRL CITYP=GUGA $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(InputError, match="MPLEVL"):
+        deck(" $CONTRL MPLEVL=3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(InputError, match="COORD"):
+        deck(" $CONTRL COORD=ZMT $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(InputError, match="NZVAR"):
+        deck(" $CONTRL NZVAR=3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(InputError, match="DFTTYP"):
+        deck(" $CONTRL DFTTYP=D-PBEP86 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(UnsupportedError, match=r"\$ECP"):
+        deck(" $ECP $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    with pytest.raises(UnsupportedError, match=r"\$ZMAT"):
+        deck(" $ZMAT $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+

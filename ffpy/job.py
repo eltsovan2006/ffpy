@@ -122,14 +122,15 @@ def _parse_data(lines, units):
                     "not supported; use the $BASIS group")
             break
         tok = line.split()
-        if len(tok) < 5:
-            raise InputError("$DATA: atom line must be 'name Z x y z': %s" % line.strip())
+        if len(tok) < 2:
+            raise InputError("$DATA: atom line must be 'name Z [x [y [z]]]': %s" % line.strip())
         if len(tok) > 5:
             raise UnsupportedError("$DATA: extra fields on atom line are not supported: %s"
                                    % line.strip())
+        coords_tok = tok[2:] + ["0.0"] * (5 - len(tok))
         try:
             z = float(tok[1].upper().replace("D", "E"))
-            xyz = [float(t.upper().replace("D", "E")) * scale for t in tok[2:5]]
+            xyz = [float(t.upper().replace("D", "E")) * scale for t in coords_tok]
         except ValueError:
             raise InputError("$DATA: cannot read numbers in: %s" % line.strip())
         if abs(z - round(z)) > 1e-6 or not (1 <= round(z) < len(ELEMENTS)):
@@ -199,6 +200,8 @@ def build_job(deck):
     b = deck.groups["BASIS"].keys
     basis = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
                        b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
+    if basis in ("sto-2g", "sto-4g", "sto-5g"):
+        raise UnsupportedError("basis %s is not supported by PySCF" % basis)
 
     mult, charge = contrl["MULT"], contrl["ICHARG"]
     nelec = sum(z for _, z, _ in atoms) - charge
@@ -223,6 +226,13 @@ def build_job(deck):
     nconv = 10.0 ** -g("SCF", "NCONV") if conv is None else conv
 
     mwords = g("SYSTEM", "MWORDS")
+    mem_words = g("SYSTEM", "MEMORY", report_default=False)
+    if mem_words is not None:
+        if mwords is None:
+            mwords = mem_words / 1e6
+            deck.notes.append(("warning", "$SYSTEM MEMORY=%g converted to MWORDS=%g" % (mem_words, mwords)))
+        else:
+            deck.notes.append(("warning", "$SYSTEM MWORDS=%g takes precedence over MEMORY=%g" % (mwords, mem_words)))
     memory_mb = None if mwords is None else mwords * 8.0
 
     grid = None
@@ -235,6 +245,8 @@ def build_job(deck):
 
     mp2_frozen = None
     if mplevl == 2:
+        if deck.has("MP2") and g("MP2", "RI", report_default=False):
+            raise UnsupportedError("RI-MP2 ($MP2 RI=.TRUE.) is not supported")
         mp2_frozen = g("MP2", "NACORE", False)
 
     excited = None
