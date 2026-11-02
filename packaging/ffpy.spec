@@ -7,6 +7,7 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 ICON = os.path.join(SPECPATH, "ffpy.ico")
+ICON_ICNS = os.path.join(SPECPATH, "ffpy.icns")
 VERSION = os.path.join(SPECPATH, "version_info.txt")
 
 datas, binaries, hiddenimports = [], [], []
@@ -100,6 +101,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="ffpy.app",
+        icon=ICON_ICNS if os.path.exists(ICON_ICNS) else None,
         bundle_identifier="org.ffpy.ffpy",
         version=app_version,
         info_plist={

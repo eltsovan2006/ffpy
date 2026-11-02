@@ -42,6 +42,11 @@ VERSION="$("$PYTHON_EXE" -c "import ffpy; print(ffpy.__version__)")"
 ARCH="$(uname -m)"
 echo "Building ffpy v$VERSION for macOS ($ARCH)..."
 
+if [ ! -f "$ROOT/packaging/ffpy.icns" ]; then
+    echo "packaging/ffpy.icns not found, generating application icons..."
+    "$PYTHON_EXE" "$ROOT/packaging/make_icon.py"
+fi
+
 "$PYTHON_EXE" -m PyInstaller --noconfirm --clean \
     --distpath "$ROOT/dist" --workpath "$ROOT/build" "$ROOT/packaging/ffpy.spec"
 
@@ -56,6 +61,12 @@ if [ ! -d "$APP" ]; then
     echo "Error: PyInstaller output bundle $APP does not exist" >&2
     exit 1
 fi
+
+if ! ls "$APP/Contents/Resources"/*.icns >/dev/null 2>&1; then
+    echo "Error: icon (.icns) not found inside $APP/Contents/Resources" >&2
+    exit 1
+fi
+echo "Verified icon inside $APP/Contents/Resources"
 
 echo "Copying supplementary files..."
 rm -rf "$DIST/examples" "$DIST/docs"
