@@ -5,12 +5,12 @@ below only see a Job and PySCF objects.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
 from ffpy import symmetry
-from ffpy.basis_map import basis_name
+from ffpy.basis_map import basis_name, make_element_basis
 from ffpy.constants import ANG_BOHR
 from ffpy.errors import InputError, UnsupportedError
 from ffpy.schema import SOLVENTS
@@ -37,7 +37,7 @@ class Job:
     dfttyp: Optional[str]
     xc: Optional[str]
     mplevl: int
-    basis: str
+    basis: Any
     cart: bool
     guess: str
     vec: Optional[Tuple[np.ndarray, Optional[np.ndarray]]]
@@ -198,10 +198,12 @@ def build_job(deck):
     if not deck.has("BASIS") or not deck.explicit("BASIS", "GBASIS"):
         raise InputError("$BASIS GBASIS=... is required (basis sets inside $DATA are not supported)")
     b = deck.groups["BASIS"].keys
-    basis = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
-                       b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
-    if basis in ("sto-2g", "sto-4g", "sto-5g"):
-        raise UnsupportedError("basis %s is not supported by PySCF" % basis)
+    canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
+                           b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
+    if canonical in ("sto-2g", "sto-4g", "sto-5g"):
+        raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
+    elements = {ELEMENTS[z] for _, z, _ in atoms}
+    basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
 
     mult, charge = contrl["MULT"], contrl["ICHARG"]
     nelec = sum(z for _, z, _ in atoms) - charge

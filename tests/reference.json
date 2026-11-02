@@ -8,6 +8,14 @@
     "mulliken": 0.01
   },
   "cases": {
+    "bench01": {
+      "source": "firefly",
+      "energy": -368.0867960551
+    },
+    "bench04": {
+      "source": "firefly",
+      "energy": -407.1472108431
+    },
     "benzene_rhf": {
       "source": "ffpy-regression",
       "energy": -230.7021803687,
