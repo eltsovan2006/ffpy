@@ -4,9 +4,11 @@ import os
 import shutil
 import sys
 
-from PySide6.QtCore import QDir, QFile, QFileSystemWatcher, QSettings, QSize, Qt, QTimer, QUrl, qVersion
-from PySide6.QtGui import (QAction, QColor, QDesktopServices, QIcon, QKeySequence, QPainter, QPen,
-                           QPixmap)
+from PySide6.QtCore import (QDir, QFile, QFileSystemWatcher, QPointF, QRectF,
+                            QSettings, QSize, Qt, QTimer, QUrl, qVersion)
+from PySide6.QtGui import (QAction, QBrush, QColor, QDesktopServices, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPainterPath,
+                           QPen, QPixmap, QRadialGradient)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QFileSystemModel,
                                QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPushButton,
@@ -38,26 +40,166 @@ H  1.0   0.000  -0.757  -0.467
 """
 
 
-def app_icon():
-    """A small water-molecule glyph; also used to make packaging/ffpy.ico."""
-    pm = QPixmap(256, 256)
-    pm.fill(Qt.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.Antialiasing)
-    p.setBrush(QColor("#1f4fbf"))
+def render_app_image(size=1024):
+    """Render high-resolution macOS-style squircle app icon with 3D quantum molecule."""
+    img = QImage(size, size, QImage.Format_ARGB32_Premultiplied)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    p.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+    scale = size / 1024.0
+    p.scale(scale, scale)
+
+    # Multi-layered soft drop shadow (macOS style)
+    shadow_layers = [(36, 18, 10), (28, 14, 15), (20, 10, 22), (14, 6, 30), (8, 2, 42)]
     p.setPen(Qt.NoPen)
-    p.drawRoundedRect(8, 8, 240, 240, 48, 48)
-    p.setPen(QPen(QColor("#ffffff"), 14))
-    p.drawLine(128, 104, 66, 176)
-    p.drawLine(128, 104, 190, 176)
+    for dy, exp, alpha in shadow_layers:
+        p.setBrush(QColor(0, 0, 0, alpha))
+        p.drawRoundedRect(QRectF(100 - exp, 100 + dy - exp, 824 + 2 * exp, 824 + 2 * exp), 185 + exp, 185 + exp)
+
+    # Squircle tile
+    tile_rect = QRectF(100, 100, 824, 824)
+    tile_path = QPainterPath()
+    tile_path.addRoundedRect(tile_rect, 185, 185)
+
+    bg_grad = QLinearGradient(100, 100, 924, 924)
+    bg_grad.setColorAt(0.0, QColor("#1e3a8a"))
+    bg_grad.setColorAt(0.45, QColor("#172554"))
+    bg_grad.setColorAt(1.0, QColor("#090d16"))
+    p.fillPath(tile_path, bg_grad)
+
+    p.save()
+    p.setClipPath(tile_path)
+
+    # Ambient quantum glow
+    glow = QRadialGradient(512, 500, 380)
+    glow.setColorAt(0.0, QColor(56, 189, 248, 75))
+    glow.setColorAt(0.4, QColor(99, 102, 241, 40))
+    glow.setColorAt(1.0, QColor(15, 23, 42, 0))
+    p.setBrush(glow)
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor("#ff6b6b"))
-    p.drawEllipse(88, 64, 80, 80)
-    p.setBrush(QColor("#ffffff"))
-    p.drawEllipse(38, 148, 56, 56)
-    p.drawEllipse(162, 148, 56, 56)
+    p.drawEllipse(QPointF(512, 500), 380, 380)
+
+    # Quantum orbital rings
+    p.save()
+    p.translate(512, 510)
+    p.rotate(-25)
+    p.setPen(QPen(QColor(56, 189, 248, 75), 5.0))
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(0, 0), 330, 120)
+    p.restore()
+
+    p.save()
+    p.translate(512, 510)
+    p.rotate(35)
+    p.setPen(QPen(QColor(168, 85, 247, 65), 4.5))
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(0, 0), 310, 110)
+    p.restore()
+
+    # Glass specular rim highlight
+    rim_grad = QLinearGradient(512, 100, 512, 350)
+    rim_grad.setColorAt(0.0, QColor(255, 255, 255, 90))
+    rim_grad.setColorAt(0.5, QColor(255, 255, 255, 25))
+    rim_grad.setColorAt(1.0, QColor(255, 255, 255, 0))
+    p.setPen(QPen(QBrush(rim_grad), 3.0))
+    p.setBrush(Qt.NoBrush)
+    p.drawRoundedRect(QRectF(101.5, 101.5, 821, 821), 184, 184)
+    p.restore()
+
+    # Covalent bonds: shadow
+    p.setPen(QPen(QColor(0, 0, 0, 80), 38.0, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(512 + 8, 425 + 16), QPointF(335 + 8, 635 + 16))
+    p.drawLine(QPointF(512 + 8, 425 + 16), QPointF(689 + 8, 635 + 16))
+
+    # Covalent bonds: 3D cylinder body
+    p.setPen(QPen(QColor("#475569"), 30.0, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(512, 425), QPointF(335, 635))
+    p.drawLine(QPointF(512, 425), QPointF(689, 635))
+
+    # Covalent bonds: specular shine
+    p.setPen(QPen(QColor(241, 245, 249, 190), 10.0, Qt.SolidLine, Qt.RoundCap))
+    p.drawLine(QPointF(512 - 3, 425 - 3), QPointF(335 - 3, 635 - 3))
+    p.drawLine(QPointF(512 + 3, 425 - 3), QPointF(689 + 3, 635 - 3))
+
+    # Lone-pair orbital lobe above oxygen
+    p.save()
+    p.translate(512, 295)
+    orb_path = QPainterPath()
+    orb_path.addEllipse(QRectF(-48, -70, 96, 140))
+    orb_grad = QLinearGradient(0, -70, 0, 70)
+    orb_grad.setColorAt(0.0, QColor(56, 189, 248, 190))
+    orb_grad.setColorAt(0.6, QColor(99, 102, 241, 150))
+    orb_grad.setColorAt(1.0, QColor(244, 63, 94, 70))
+    p.setBrush(orb_grad)
+    p.setPen(QPen(QColor(224, 242, 254, 160), 2.5))
+    p.drawPath(orb_path)
+    core_grad = QRadialGradient(0, -25, 35)
+    core_grad.setColorAt(0.0, QColor(255, 255, 255, 200))
+    core_grad.setColorAt(1.0, QColor(56, 189, 248, 0))
+    p.setBrush(core_grad)
+    p.setPen(Qt.NoPen)
+    p.drawEllipse(QPointF(0, -25), 35, 45)
+    p.restore()
+
+    # Atom drop shadows
+    for cx, cy, r in [(335, 635, 74), (689, 635, 74), (512, 425, 118)]:
+        sh_grad = QRadialGradient(cx + 8, cy + 20, r + 15)
+        sh_grad.setColorAt(0.0, QColor(0, 0, 0, 90))
+        sh_grad.setColorAt(0.7, QColor(0, 0, 0, 40))
+        sh_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(sh_grad)
+        p.setPen(Qt.NoPen)
+        p.drawEllipse(QPointF(cx + 8, cy + 20), r + 15, r + 15)
+
+    def draw_h(cx, cy, r):
+        h_grad = QRadialGradient(cx, cy, r, cx - r * 0.38, cy - r * 0.38)
+        h_grad.setColorAt(0.0, QColor("#ffffff"))
+        h_grad.setColorAt(0.2, QColor("#f8fafc"))
+        h_grad.setColorAt(0.5, QColor("#cbd5e1"))
+        h_grad.setColorAt(0.8, QColor("#64748b"))
+        h_grad.setColorAt(1.0, QColor("#334155"))
+        p.setBrush(h_grad)
+        p.setPen(Qt.NoPen)
+        p.drawEllipse(QPointF(cx, cy), r, r)
+        rim = QRadialGradient(cx, cy, r, cx + r * 0.5, cy + r * 0.5)
+        rim.setColorAt(0.8, QColor(56, 189, 248, 0))
+        rim.setColorAt(1.0, QColor(56, 189, 248, 80))
+        p.setBrush(rim)
+        p.drawEllipse(QPointF(cx, cy), r, r)
+
+    draw_h(335, 635, 74)
+    draw_h(689, 635, 74)
+
+    ox, oy, orad = 512, 425, 118
+    o_grad = QRadialGradient(ox, oy, orad, ox - orad * 0.36, oy - orad * 0.36)
+    o_grad.setColorAt(0.0, QColor("#ffffff"))
+    o_grad.setColorAt(0.12, QColor("#fda4af"))
+    o_grad.setColorAt(0.42, QColor("#f43f5e"))
+    o_grad.setColorAt(0.72, QColor("#be123c"))
+    o_grad.setColorAt(0.92, QColor("#881337"))
+    o_grad.setColorAt(1.0, QColor("#4c0519"))
+    p.setBrush(o_grad)
+    p.setPen(Qt.NoPen)
+    p.drawEllipse(QPointF(ox, oy), orad, orad)
+
+    o_rim = QRadialGradient(ox, oy, orad, ox + orad * 0.45, oy + orad * 0.45)
+    o_rim.setColorAt(0.82, QColor(254, 205, 211, 0))
+    o_rim.setColorAt(1.0, QColor(254, 205, 211, 85))
+    p.setBrush(o_rim)
+    p.drawEllipse(QPointF(ox, oy), orad, orad)
+
     p.end()
-    return QIcon(pm)
+    return img
+
+
+def app_icon():
+    """Modern macOS-style squircle application icon with 3D quantum molecule."""
+    icon = QIcon()
+    for s in (16, 24, 32, 48, 64, 128, 256):
+        icon.addPixmap(QPixmap.fromImage(render_app_image(s)))
+    return icon
 
 
 class MainWindow(QMainWindow):
