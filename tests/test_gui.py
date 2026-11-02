@@ -700,4 +700,161 @@ def test_editor_centering_and_max_width(app, tmp_path):
     w.close()
 
 
+def test_rail_buttons_geometry_and_no_elide(app):
+    from PySide6.QtGui import QFontMetrics
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.show()
+    app.processEvents()
+
+    rail_btns = [
+        w.btn_mode_editor,
+        w.btn_mode_results,
+        w.btn_mode_3d,
+        w.btn_mode_batch,
+        w.btn_mode_settings,
+    ]
+    expected_texts = ["Редактор", "Итоги", "3D", "Пакеты", "Настройки"]
+
+    assert w.rail_widget.width() == 68
+
+    for btn, exp_text in zip(rail_btns, expected_texts):
+        assert btn.text() == exp_text
+        assert btn.accessibleName() == exp_text
+        assert btn.width() == 68
+        assert btn.property("rail") == "true"
+        font = btn.font()
+        pt = font.pointSizeF()
+        px = font.pixelSize()
+        size = px if px > 0 else pt
+        assert 9.0 <= size <= 10.5
+        fm = QFontMetrics(font)
+        adv = fm.horizontalAdvance(btn.text())
+        assert adv <= btn.width(), f"Text '{btn.text()}' advance {adv} exceeds width {btn.width()}"
+
+    w.close()
+
+
+def test_toolbar_buttons_geometry_and_style(app):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QToolButton, QWidget
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.show()
+    app.processEvents()
+
+    # 1. Flat buttons: Новый расчёт, Открыть, Сохранить
+    flat_btns = [w.btn_new, w.btn_open, w.btn_save]
+    for b in flat_btns:
+        assert isinstance(b, QToolButton)
+        assert b.property("flat_btn") == "true"
+        assert b.height() == 32 or b.maximumHeight() == 32
+        assert b.icon().isNull() or b.toolButtonStyle() == Qt.ToolButtonTextOnly
+
+    # 2. Run button: accent, height 34
+    assert w.btn_run.objectName() == "btn_run"
+    assert w.btn_run.height() == 34 or w.btn_run.maximumHeight() == 34
+    assert "Запустить" in w.btn_run.text()
+
+    # 3. Stop button: quiet, height 34, iconSize 11x11, text 'Стоп'
+    assert w.btn_stop.objectName() == "btn_stop"
+    assert w.btn_stop.height() == 34 or w.btn_stop.maximumHeight() == 34
+    assert w.btn_stop.text() == "Стоп"
+    assert w.btn_stop.iconSize().width() == 11
+    assert w.btn_stop.iconSize().height() == 11
+    assert not w.btn_stop.icon().isNull()
+
+    # 4. Spacer: transparent background
+    spacer = w.findChild(QWidget, "toolbar_spacer")
+    assert spacer is not None
+    assert "transparent" in spacer.styleSheet()
+
+    # 5. Claude-style dock toggle buttons
+    assert w.btn_toggle_files.property("icon_btn") == "true"
+    assert w.btn_toggle_results.property("icon_btn") == "true"
+    assert w.btn_toggle_files.size().width() == 32
+    assert w.btn_toggle_files.size().height() == 32
+    assert w.btn_toggle_results.size().width() == 32
+    assert w.btn_toggle_results.size().height() == 32
+
+    w.close()
+
+
+def test_toolbar_logo_and_separator(app):
+    from PySide6.QtWidgets import QFrame
+    from ffpy import __version__
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.show()
+    app.processEvents()
+
+    # Logo
+    assert w.lbl_logo_icon.width() == 26
+    assert w.lbl_logo_icon.height() == 26
+    pix = w.lbl_logo_icon.pixmap()
+    assert not pix.isNull()
+    assert pix.width() == 26
+    assert pix.height() == 26
+    assert w.lbl_logo_title.text() == "ffpy"
+    assert w.lbl_logo_ver.text() == __version__
+    assert "12px" in w.lbl_logo_ver.styleSheet()
+
+    # Separator
+    vseps = [c for c in w.findChildren(QFrame) if c.property("vsep") == "true"]
+    assert len(vseps) >= 1
+    s = vseps[0]
+    assert s.width() == 1
+    assert s.height() == 22 or s.maximumHeight() == 22
+
+    w.close()
+
+
+def test_dock_headers_and_folder_name(app, tmp_path):
+    from PySide6.QtWidgets import QLabel
+    from ffpy.gui.app import MainWindow
+    sub = tmp_path / "my_calculations"
+    sub.mkdir()
+
+    w = MainWindow()
+    w.set_folder(str(sub))
+    w.show()
+    app.processEvents()
+
+    # 1. Files dock header: "ФАЙЛЫ" and current folder name
+    files_title = w.files_dock.titleBarWidget()
+    assert files_title is not None
+    labels = files_title.findChildren(QLabel)
+    texts = [l.text() for l in labels]
+    assert "ФАЙЛЫ" in texts
+    assert "my_calculations" in texts
+    assert w.lbl_folder_name.text() == "my_calculations"
+
+    # folder_edit starts with cursor at 0 and contains full path
+    assert w.folder_edit.text() == str(sub)
+    assert w.folder_edit.cursorPosition() == 0
+
+    # 2. Results dock header: "РЕЗУЛЬТАТЫ"
+    res_title = w.results_dock.titleBarWidget()
+    assert res_title is not None
+    res_labels = res_title.findChildren(QLabel)
+    res_texts = [l.text() for l in res_labels]
+    assert "РЕЗУЛЬТАТЫ" in res_texts
+
+    # 3. Log & problems docks have empty title bar widget (no duplicate headers)
+    assert w.log_dock.titleBarWidget() is not None
+    assert len(w.log_dock.titleBarWidget().findChildren(QLabel)) == 0
+    assert w.problems_dock.titleBarWidget() is not None
+    assert len(w.problems_dock.titleBarWidget().findChildren(QLabel)) == 0
+
+    w.close()
+
+
+def test_tab_card_style(app):
+    from ffpy.gui.theme import build_qss
+    qss = build_qss()
+    assert "border-top-left-radius: 10px" in qss
+    assert "border-top-right-radius: 10px" in qss
+    assert "border-radius: 0 10px 10px 10px" in qss
+
+
 
