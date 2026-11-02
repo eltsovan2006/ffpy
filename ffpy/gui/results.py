@@ -55,6 +55,9 @@ class ResultsPanel(QWidget):
         lay.addLayout(grid)
         self.clear()
 
+    def minimumSizeHint(self):
+        return QSize(250, 100)
+
     def sizeHint(self):
         return QSize(300, 350)
 

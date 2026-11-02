@@ -362,3 +362,143 @@ def test_icons(app):
     assert icns_hdr == b"icns", f"Invalid ICNS magic: {icns_hdr!r}"
     assert os.path.getsize(icns_path) > 1000
 
+
+def test_theme_palette_tokens():
+    from ffpy.gui.theme import DARK_PALETTE, LIGHT_PALETTE
+    required = {
+        "bg", "surface", "border", "text", "muted", "accent", "onAccent",
+        "accentSoft", "accentText", "rail", "railActive", "railText",
+        "ok", "okSoft", "err", "errSoft", "gutter", "hover", "chip",
+        "kw", "key", "num", "com",
+    }
+    assert set(LIGHT_PALETTE.keys()) == set(DARK_PALETTE.keys())
+    assert required.issubset(set(LIGHT_PALETTE.keys()))
+
+
+def test_theme_wcag_contrast():
+    from ffpy.gui.theme import DARK_PALETTE, LIGHT_PALETTE, contrast_ratio
+    # WCAG AA requires at least 4.5:1 for normal text
+    assert contrast_ratio(LIGHT_PALETTE["text"], LIGHT_PALETTE["bg"]) >= 4.5
+    assert contrast_ratio(LIGHT_PALETTE["text"], LIGHT_PALETTE["surface"]) >= 4.5
+    assert contrast_ratio(DARK_PALETTE["text"], DARK_PALETTE["bg"]) >= 4.5
+    assert contrast_ratio(DARK_PALETTE["text"], DARK_PALETTE["surface"]) >= 4.5
+
+
+def test_theme_system_mode(monkeypatch):
+    from ffpy.gui import theme
+    # Test explicit light and dark
+    theme.set_theme_mode("light")
+    assert not theme.is_dark()
+    assert theme.get_palette() == theme.LIGHT_PALETTE
+
+    theme.set_theme_mode("dark")
+    assert theme.is_dark()
+    assert theme.get_palette() == theme.DARK_PALETTE
+
+    # Test system mode
+    theme.set_theme_mode("system")
+    monkeypatch.setattr(theme, "is_system_dark", lambda: True)
+    assert theme.is_dark()
+    assert theme.get_palette() == theme.DARK_PALETTE
+
+    monkeypatch.setattr(theme, "is_system_dark", lambda: False)
+    assert not theme.is_dark()
+    assert theme.get_palette() == theme.LIGHT_PALETTE
+
+
+def test_build_qss():
+    from ffpy.gui.theme import DARK_PALETTE, LIGHT_PALETTE, build_qss
+    for pal in (LIGHT_PALETTE, DARK_PALETTE):
+        qss = build_qss(pal)
+        assert isinstance(qss, str) and len(qss) > 200
+        for selector in ("QMainWindow", "QToolBar", "QMenuBar", "QMenu",
+                         "QDockWidget", "QTabBar", "QPushButton", "QStatusBar", "QDialog"):
+            assert selector in qss
+
+
+def test_syntax_highlighter_updates_on_theme_change(app):
+    from PySide6.QtGui import QTextDocument
+    from ffpy.gui import theme
+    from ffpy.gui.highlight import InpHighlighter, OutHighlighter
+
+    doc = QTextDocument()
+    hl = InpHighlighter(doc)
+    out_doc = QTextDocument()
+    out_hl = OutHighlighter(out_doc)
+
+    theme.set_theme_mode("light")
+    light_kw = hl.f_group.foreground().color().name()
+    assert light_kw.lower() == theme.LIGHT_PALETTE["kw"].lower()
+
+    theme.set_theme_mode("dark")
+    dark_kw = hl.f_group.foreground().color().name()
+    assert dark_kw.lower() == theme.DARK_PALETTE["kw"].lower()
+    assert dark_kw.lower() != light_kw.lower()
+
+    dark_err = out_hl.f_err.foreground().color().name()
+    assert dark_err.lower() == theme.DARK_PALETTE["err"].lower()
+
+    theme.set_theme_mode("system")
+
+
+def test_settings_dialog_and_persistence(app, tmp_path):
+    from PySide6.QtCore import QSettings
+    from ffpy.gui import theme
+    from ffpy.gui.settings import SettingsDialog
+
+    settings = QSettings("ffpy", "ffpy-gui")
+    settings.setValue("theme_mode", "light")
+    settings.setValue("language", "ru")
+
+    dlg = SettingsDialog()
+    assert dlg.theme_seg.value() == "light"
+    assert dlg.lang_seg.value() == "ru"
+
+    # Switch theme to dark via segment
+    dlg.theme_seg.set_value("dark")
+    dlg.theme_seg._on_btn_clicked("dark")
+    assert theme.get_theme_mode() == "dark"
+    assert settings.value("theme_mode") == "dark"
+
+    # Switch language to en
+    dlg.lang_seg.set_value("en")
+    dlg.lang_seg._on_btn_clicked("en")
+    assert settings.value("language") == "en"
+    dlg.close()
+
+
+def test_toolbar_no_theme_switcher(app):
+    from PySide6.QtGui import QAction
+    from PySide6.QtWidgets import QComboBox, QMenu, QToolBar, QToolButton
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    tb = w.findChild(QToolBar, "main_toolbar")
+    assert tb is not None
+
+    # Check there is no QComboBox or segmented switch on toolbar
+    for child in tb.children():
+        assert not isinstance(child, QComboBox)
+        if isinstance(child, QToolButton):
+            txt = child.text().lower()
+            assert "светлая" not in txt and "тёмная" not in txt
+
+    # Check there is a settings action and button
+    assert hasattr(w, "a_settings")
+    assert w.a_settings is not None
+    # Check Settings in menu
+    mb = w.menuBar()
+    settings_menus = [m for m in mb.findChildren(QMenu) if "настройки" in m.title().lower()]
+    assert len(settings_menus) >= 1 or any("настройки" in a.text().lower() for a in mb.actions())
+    w.close()
+
+
+def test_fonts_selection():
+    from ffpy.gui.editor import editor_font
+    from ffpy.gui.theme import app_font
+    f_app = app_font(11)
+    assert f_app.pointSize() == 11
+
+    f_ed = editor_font(12)
+    assert f_ed.pointSize() == 12
+
+

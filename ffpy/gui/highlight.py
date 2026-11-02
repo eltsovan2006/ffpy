@@ -4,7 +4,7 @@ import re
 
 from PySide6.QtGui import QFont, QSyntaxHighlighter, QTextCharFormat
 
-from ffpy.gui.theme import color
+from ffpy.gui.theme import color, get_theme_bus
 
 _GROUP = re.compile(r"\$(\w+)")
 _KEY = re.compile(r"\b([A-Za-z][A-Za-z0-9_]*)(\(\d+\))?\s*=")
@@ -31,16 +31,17 @@ class InpHighlighter(QSyntaxHighlighter):
 
     def __init__(self, document):
         super().__init__(document)
+        get_theme_bus().theme_changed.connect(self.refresh_colors)
         self.refresh_colors()
 
     def refresh_colors(self):
-        self.f_group = _fmt("group", bold=True)
+        self.f_group = _fmt("kw", bold=True)
         self.f_key = _fmt("key")
-        self.f_num = _fmt("number")
-        self.f_bool = _fmt("bool")
-        self.f_comment = _fmt("comment", italic=True)
-        self.f_atom = _fmt("atom", bold=True)
-        self.f_title = _fmt("atom", italic=True)
+        self.f_num = _fmt("num")
+        self.f_bool = _fmt("kw")
+        self.f_comment = _fmt("com", italic=True)
+        self.f_atom = _fmt("text", bold=True)
+        self.f_title = _fmt("text", italic=True)
         self.rehighlight()
 
     def highlightBlock(self, text):
@@ -92,13 +93,14 @@ class OutHighlighter(QSyntaxHighlighter):
 
     def __init__(self, document):
         super().__init__(document)
+        get_theme_bus().theme_changed.connect(self.refresh_colors)
         self.refresh_colors()
 
     def refresh_colors(self):
-        self.f_warn = _fmt("warning", bold=True)
-        self.f_err = _fmt("error", bold=True)
+        self.f_warn = _fmt("accentText", bold=True)
+        self.f_err = _fmt("err", bold=True)
         self.f_ok = _fmt("ok", bold=True)
-        self.f_head = _fmt("header", bold=True)
+        self.f_head = _fmt("kw", bold=True)
         self.f_muted = _fmt("muted")
         self.f_accent = _fmt("accent", bold=True)
         self.f_bold = QTextCharFormat()

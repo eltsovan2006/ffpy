@@ -288,7 +288,7 @@ class NewJobDialog(QDialog):
 
     def _status(self, ok, msg):
         self.status.setText(msg)
-        self.status.setStyleSheet("color:%s" % hex_color("ok" if ok else "error"))
+        self.status.setStyleSheet("color:%s" % hex_color("ok" if ok else "err"))
         self.b_create.setEnabled(ok)
 
     def accept_job(self):
