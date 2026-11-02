@@ -11,18 +11,22 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, 
                                QToolButton, QVBoxLayout, QWidget)
 
 from ffpy.gui.highlight import InpHighlighter, OutHighlighter
-from ffpy.gui.theme import color
+from ffpy.gui.theme import color, get_theme_bus
 
 EDITABLE = {".inp", ".txt", ""}
 LOG_LIKE = {".out", ".log"}
 
 
 def editor_font(size=10):
-    f = QFontDatabase.systemFont(QFontDatabase.FixedFont)
-    for family in ("Cascadia Mono", "Consolas", "Courier New"):
-        if family in QFontDatabase.families():
-            f = QFont(family)
-            break
+    families = QFontDatabase.families()
+    if "JetBrains Mono" in families:
+        f = QFont("JetBrains Mono")
+    else:
+        f = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        for family in ("Cascadia Mono", "Consolas", "Courier New"):
+            if family in families:
+                f = QFont(family)
+                break
     f.setPointSize(size)
     f.setStyleHint(QFont.Monospace)
     return f
@@ -54,8 +58,13 @@ class CodeEditor(QPlainTextEdit):
         self.blockCountChanged.connect(self._update_gutter_width)
         self.updateRequest.connect(self._update_gutter)
         self.cursorPositionChanged.connect(self._refresh_selections)
+        get_theme_bus().theme_changed.connect(self._on_theme_changed)
         self._update_gutter_width()
         self._refresh_selections()
+
+    def _on_theme_changed(self):
+        self._refresh_selections()
+        self._gutter.update()
 
     def set_font_size(self, size):
         self.setFont(editor_font(size))
@@ -92,11 +101,11 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 if self._error_line is not None and num + 1 == self._error_line:
-                    p.setPen(color("error"))
+                    p.setPen(color("err"))
                 elif num == cur:
-                    p.setPen(self.palette().text().color())
+                    p.setPen(color("text"))
                 else:
-                    p.setPen(color("line_number"))
+                    p.setPen(color("muted"))
                 p.drawText(0, top, self._gutter.width() - 6, self.fontMetrics().height(),
                            Qt.AlignRight, str(num + 1))
             block = block.next()
@@ -120,13 +129,13 @@ class CodeEditor(QPlainTextEdit):
             block = self.document().findBlockByNumber(self._error_line - 1)
             if block.isValid():
                 s = QTextEdit.ExtraSelection()
-                s.format.setBackground(color("error_line"))
+                s.format.setBackground(color("errSoft"))
                 s.format.setProperty(QTextFormat.FullWidthSelection, True)
                 s.cursor = QTextCursor(block)
                 sels.append(s)
         if not self.isReadOnly() or self.hasFocus():
             s = QTextEdit.ExtraSelection()
-            s.format.setBackground(color("current_line"))
+            s.format.setBackground(color("hover"))
             s.format.setProperty(QTextFormat.FullWidthSelection, True)
             s.cursor = self.textCursor()
             s.cursor.clearSelection()
@@ -134,7 +143,7 @@ class CodeEditor(QPlainTextEdit):
                 sels.insert(0, s)
         for c in self._find_selections:
             s = QTextEdit.ExtraSelection()
-            s.format.setBackground(color("find"))
+            s.format.setBackground(color("accentSoft"))
             s.cursor = c
             sels.append(s)
         self.setExtraSelections(sels)

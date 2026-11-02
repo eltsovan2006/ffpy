@@ -21,7 +21,8 @@ from ffpy.gui.editor import CodeEditor, FileTab
 from ffpy.gui.highlight import OutHighlighter
 from ffpy.gui.results import ResultsPanel, open_external
 from ffpy.gui.runner import RunManager
-from ffpy.gui.theme import hex_color
+from ffpy.gui.settings import SettingsDialog
+from ffpy.gui.theme import app_font, build_qss, get_theme_bus, hex_color, set_theme_mode
 from ffpy.gui.validate import check_text
 
 FILE_FILTERS = ["*.inp", "*.out", "*.molden", "*.dat", "*.xyz", "*.log", "*.txt"]
@@ -230,11 +231,59 @@ def app_icon():
     return icon
 
 
+def make_gear_icon(size=24):
+    """Draw a clean gear icon matching theme."""
+    import math
+    pix = QPixmap(size, size)
+    pix.fill(Qt.transparent)
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.Antialiasing, True)
+    cx, cy = size / 2.0, size / 2.0
+    r_out = size * 0.42
+    r_in = size * 0.32
+    r_hole = size * 0.16
+    teeth = 8
+
+    path = QPainterPath()
+    for i in range(teeth):
+        a0 = 2 * math.pi * i / teeth
+        a1 = a0 + math.pi / teeth * 0.35
+        a2 = a0 + math.pi / teeth * 0.65
+        a3 = a0 + math.pi / teeth
+        if i == 0:
+            path.moveTo(cx + r_out * math.cos(a0), cy + r_out * math.sin(a0))
+        else:
+            path.lineTo(cx + r_out * math.cos(a0), cy + r_out * math.sin(a0))
+        path.lineTo(cx + r_out * math.cos(a1), cy + r_out * math.sin(a1))
+        path.lineTo(cx + r_in * math.cos(a2), cy + r_in * math.sin(a2))
+        path.lineTo(cx + r_in * math.cos(a3), cy + r_in * math.sin(a3))
+    path.closeSubpath()
+
+    hole = QPainterPath()
+    hole.addEllipse(QPointF(cx, cy), r_hole, r_hole)
+    gear = path.subtracted(hole)
+
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(hex_color("muted")))
+    p.drawPath(gear)
+    p.end()
+    return QIcon(pix)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, files=()):
         super().__init__()
         self.settings = QSettings("ffpy", "ffpy-gui")
         self.font_size = int(self.settings.value("font_size", 10))
+        theme_mode = self.settings.value("theme_mode", "system")
+        set_theme_mode(theme_mode)
+
+        app = QApplication.instance()
+        if app is not None:
+            app.setFont(app_font(self.font_size))
+            app.setStyleSheet(build_qss())
+        get_theme_bus().theme_changed.connect(self._on_theme_changed)
+
         self.setWindowTitle("ffpy %s" % __version__)
         self.setWindowIcon(app_icon())
         self.resize(1280, 800)
@@ -546,6 +595,8 @@ class MainWindow(QMainWindow):
         self.a_font_down = A("Мельче шрифт", lambda: self.set_font_size(self.font_size - 1), "Ctrl+-")
         self.a_keywords = A("Ключевые слова ffpy", self.show_keywords, "F1")
         self.a_about = A("О программе", self.about)
+        self.a_settings = A("Настройки…", self.open_settings, "Ctrl+,", "Настройки оформления и языка",
+                            make_gear_icon(), "Настройки")
 
         mb = self.menuBar()
         mb.setNativeMenuBar(True)
@@ -581,6 +632,9 @@ class MainWindow(QMainWindow):
         for d in (self.files_dock, self.results_dock, self.log_dock, self.problems_dock):
             m.addAction(d.toggleViewAction())
 
+        m = mb.addMenu("&Настройки")
+        m.addAction(self.a_settings)
+
         m = mb.addMenu("&Справка")
         m.addAction(self.a_keywords)
         m.addAction(self.a_about)
@@ -600,6 +654,11 @@ class MainWindow(QMainWindow):
         self.threads_spin.setToolTip("Число потоков для расчёта (больше 8 обычно не ускоряет)")
         self.threads_spin.valueChanged.connect(self._set_threads)
         tb.addWidget(self.threads_spin)
+        tb.addSeparator()
+        self.settings_btn = QToolButton()
+        self.settings_btn.setDefaultAction(self.a_settings)
+        self.settings_btn.setToolTip("Настройки оформления и языка")
+        tb.addWidget(self.settings_btn)
 
     def _build_status(self):
         self.check_label = QLabel("")
@@ -1145,6 +1204,38 @@ class MainWindow(QMainWindow):
             except OSError as e:
                 QMessageBox.warning(self, "ffpy", str(e))
 
+    def open_settings(self):
+        dlg = SettingsDialog(self)
+        dlg.exec()
+
+    def _on_theme_changed(self):
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(build_qss())
+        if hasattr(self, "a_settings"):
+            self.a_settings.setIcon(make_gear_icon())
+        self._refresh_theme()
+
+    def _refresh_theme(self):
+        for i in range(self.tabs.count()):
+            t = self.tab(i)
+            if t:
+                if hasattr(t, "highlighter") and t.highlighter:
+                    t.highlighter.refresh_colors()
+                t.editor._refresh_selections()
+                t.editor._gutter.update()
+        if hasattr(self, "log_highlighter") and self.log_highlighter:
+            self.log_highlighter.refresh_colors()
+        if hasattr(self, "log_view"):
+            self.log_view._refresh_selections()
+            self.log_view._gutter.update()
+        self._validate_current()
+        if hasattr(self, "results"):
+            if self.results.data and self.results.out_path:
+                self.results.view.setHtml(self.results._html(self.results.data))
+            else:
+                self.results.clear()
+
     # ---------- recent files ----------
     def _recent(self):
         r = self.settings.value("recent") or []
@@ -1241,6 +1332,8 @@ def main(argv=None):
     app.setApplicationName("ffpy-gui")
     app.setOrganizationName("ffpy")
     app.setWindowIcon(app_icon())
+    app.setFont(app_font())
+    app.setStyleSheet(build_qss())
     w = MainWindow(files=[a for a in argv[1:] if not a.startswith("-")])
     w.show()
     if "--smoke-test" in argv:     # used by packaging/build.ps1 on the frozen build
