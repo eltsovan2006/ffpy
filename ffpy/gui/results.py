@@ -4,9 +4,9 @@ excited states, warnings) and links to the output files."""
 import html
 import os
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import QSize, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QPushButton, QTextBrowser,
+from PySide6.QtWidgets import (QApplication, QGridLayout, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
 from ffpy.errors import EXIT_CODES
@@ -32,9 +32,15 @@ class ResultsPanel(QWidget):
         self.view.setOpenLinks(False)
         self.view.anchorClicked.connect(self._link)
         lay.addWidget(self.view, 1)
-        row = QHBoxLayout()
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(4)
         self.b_copy = QPushButton("Копировать энергию")
+        self.b_copy.setToolTip("Скопировать итоговую энергию в буфер обмена")
         self.b_copy.clicked.connect(self.copy_energy)
+        self.b_folder = QPushButton("Папка")
+        self.b_folder.setToolTip("Показать папку с расчётом")
+        self.b_folder.clicked.connect(self.open_folder)
         self.b_molden = QPushButton("Открыть .molden")
         self.b_molden.setToolTip("Открыть орбитали и частоты в программе, связанной с .molden "
                                  "(Chemcraft, Avogadro…)")
@@ -42,12 +48,15 @@ class ResultsPanel(QWidget):
         self.b_docx = QPushButton("Отчёт .docx")
         self.b_docx.setToolTip("Сформировать документ Microsoft Word (.docx) с результатами расчёта")
         self.b_docx.clicked.connect(self.export_docx)
-        self.b_folder = QPushButton("Папка")
-        self.b_folder.clicked.connect(self.open_folder)
-        for b in (self.b_copy, self.b_molden, self.b_docx, self.b_folder):
-            row.addWidget(b)
-        lay.addLayout(row)
+        grid.addWidget(self.b_copy, 0, 0)
+        grid.addWidget(self.b_folder, 0, 1)
+        grid.addWidget(self.b_molden, 1, 0)
+        grid.addWidget(self.b_docx, 1, 1)
+        lay.addLayout(grid)
         self.clear()
+
+    def sizeHint(self):
+        return QSize(300, 350)
 
     def clear(self):
         self.out_path, self.data = None, None

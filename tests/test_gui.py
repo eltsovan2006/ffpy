@@ -201,6 +201,141 @@ def test_ffpy_command(monkeypatch):
     assert ffpy_command() == [os.path.join(os.path.dirname("/Applications/ffpy.app/Contents/MacOS/ffpy-gui"), "ffpy")]
 
 
+def test_compact_path_label():
+    from ffpy.gui.app import compact_path_label
+    assert compact_path_label("/home/user/calc/water.inp") == "water.inp   —   calc"
+    assert compact_path_label("/calc/water.inp") == "water.inp   —   calc"
+    cur_parent = os.path.basename(os.path.abspath("."))
+    assert compact_path_label("water.inp") == f"water.inp   —   {cur_parent}"
+
+
+def test_window_fit_to_screen(app):
+    from PySide6.QtCore import QRect
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    screen_rect = QRect(0, 0, 1024, 768)
+    # Exceeding size
+    w.setGeometry(QRect(0, 0, 1600, 1200))
+    w.ensure_within_screen(screen_rect)
+    geo = w.geometry()
+    assert geo.width() <= screen_rect.width()
+    assert geo.height() <= screen_rect.height()
+    assert geo.right() <= screen_rect.right()
+    assert geo.bottom() <= screen_rect.bottom()
+    assert geo.left() >= screen_rect.left()
+    assert geo.top() >= screen_rect.top()
+
+    # Position outside screen
+    w.setGeometry(QRect(1200, 900, 800, 600))
+    w.ensure_within_screen(screen_rect)
+    geo2 = w.geometry()
+    assert screen_rect.contains(geo2)
+    w.close()
+
+
+def test_results_panel_narrow_dock(app):
+    from ffpy.gui.results import ResultsPanel
+    p = ResultsPanel()
+    p.show()
+    app.processEvents()
+    assert p.minimumSizeHint().width() <= 260
+    for width in (260, 280, 320):
+        p.resize(width, 400)
+        app.processEvents()
+        for btn in (p.b_copy, p.b_folder, p.b_molden, p.b_docx):
+            assert btn.isVisible()
+            assert btn.width() > 0
+            assert btn.height() > 0
+            assert btn.geometry().right() <= p.width()
+    p.close()
+
+
+def test_recent_files_formatting(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f1 = tmp_path / "water.inp"
+    f1.write_text("test")
+    w = MainWindow()
+    w._add_recent(str(f1))
+    w._fill_recent()
+    assert w.recent_list.count() >= 1
+    item = w.recent_list.item(0)
+    assert item.text().startswith("water.inp   —   ")
+    assert item.toolTip() == str(f1)
+
+    w._fill_recent_menu()
+    actions = w.recent_menu.actions()
+    assert len(actions) >= 1
+    assert actions[0].text().startswith("water.inp   —   ")
+    assert actions[0].toolTip() == str(f1)
+    w.close()
+
+
+def test_files_tree_and_dock_layout(app, tmp_path):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QHeaderView
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.set_folder(str(tmp_path))
+    w.show()
+    app.processEvents()
+
+    assert w.files_dock.widget().minimumWidth() >= 240
+    assert w.tree.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
+    assert not w.tree.horizontalScrollBar().isVisible()
+    assert w.tree.isColumnHidden(1)
+    assert w.tree.isColumnHidden(2)
+    assert w.tree.isColumnHidden(3)
+    assert w.tree.header().sectionResizeMode(0) == QHeaderView.Stretch
+    w.close()
+
+
+def test_dock_proportions_and_editor_width(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f = tmp_path / "water_opt.inp"
+    f.write_text("! water\n $DATA\nTitle\nC1\nO 8.0 0 0 0\n $END\n")
+
+    for w_res, h_res in ((1280, 800), (1440, 900)):
+        w = MainWindow()
+        w.set_folder(str(tmp_path))
+        w.open_path(str(f))
+        w.resize(w_res, h_res)
+        w.show()
+        for _ in range(10):
+            app.processEvents()
+
+        assert w.tabs.width() >= int(w.width() * 0.55), f"Editor width {w.tabs.width()} < 55% of {w.width()}"
+        assert 240 <= w.files_dock.width() <= 280, f"Files dock width {w.files_dock.width()} not ~260 px"
+        assert 270 <= w.results_dock.width() <= 350, f"Results dock width {w.results_dock.width()} not ~300-340 px"
+        assert 100 <= w.log_dock.height() <= 150, f"Log dock height {w.log_dock.height()} not ~110-130 px"
+        w.close()
+
+
+def test_log_dock_expansion_on_run(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f = tmp_path / "water_opt.inp"
+    f.write_text("! water\n $DATA\nTitle\nC1\nO 8.0 0 0 0\n $END\n")
+    w = MainWindow()
+    w.resize(1280, 800)
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    initial_h = w.log_dock.height()
+    assert initial_h <= 140
+
+    w._on_run_started(str(f))
+    app.processEvents()
+    running_h = w.log_dock.height()
+    assert running_h > initial_h
+    assert running_h >= 200
+
+    w._on_run_finished(str(f), 0)
+    app.processEvents()
+    finished_h = w.log_dock.height()
+    assert finished_h <= 140
+    w.close()
+
+
 def test_icons(app):
     """Verify application icon and packaging icon files (ffpy.ico, ffpy.icns)."""
     from ffpy.gui.app import app_icon
