@@ -57,6 +57,10 @@
         "H5": 0.165
       }
     },
+    "ch4_zmt": {
+      "source": "pyscf",
+      "energy": -40.1950932006
+    },
     "h2_rhf_opt": {
       "source": "ffpy-regression",
       "energy": -1.1313335906,
@@ -86,6 +90,10 @@
         "H2": 0.587,
         "H3": 0.587
       }
+    },
+    "h2o_zmt": {
+      "source": "pyscf",
+      "energy": -74.9629282465
     },
     "nh3_rhf_opt": {
       "source": "ffpy-regression",
@@ -157,4 +165,4 @@
       }
     }
   }
-}
+}

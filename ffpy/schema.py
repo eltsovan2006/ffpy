@@ -58,8 +58,8 @@ SCHEMA = {
         "UNITS": K("str", "ANGS", ("ANGS", "BOHR"), "units of $DATA coordinates"),
         "MAXIT": K("int", 30, None, "max SCF iterations"),
         "ISPHER": K("int", -1, (-1, 0, 1), "-1/0 Cartesian d,f; 1 spherical"),
-        "COORD": K("str", "UNIQUE", ("UNIQUE", "CART"), "coordinate input style"),
-        "NZVAR": K("int", 0, (0,), "internal coordinates (only 0)"),
+        "COORD": K("str", "UNIQUE", ("UNIQUE", "CART", "ZMT", "ZMTMPC"), "coordinate input style"),
+        "NZVAR": K("int", 0, None, "internal coordinates (0=Cartesian, >0=internals)"),
         "EXETYP": K("str", "RUN", ("RUN", "CHECK"), "CHECK: parse input only"),
     },
     "SYSTEM": {
@@ -138,6 +138,13 @@ SCHEMA = {
         "EPS": K("float", None, None, "dielectric constant (overrides SOLVNT)"),
         "IEF": K("int", -10, None, "IEF-PCM flavour (ffpy always uses IEF-PCM)"),
     },
+    "ZMAT": {
+        "IZMAT": K("floatlist", None, None, "simple internal coordinates"),
+        "DLC": K("bool", False, None, "delocalized internal coordinates"),
+        "AUTO": K("bool", False, None, "automatic redundant internal coordinates"),
+        "IFREEZ": K("floatlist", None, None, "frozen internal coordinates"),
+        "SCAN": K("str", None, None, "potential energy surface scan"),
+    },
     "SMP": {},
     "ELMOM": {},
 }
@@ -161,10 +168,11 @@ IGNORED = {
     "MCSCF": {"SOSCF", "FULLNR", "FOCAS", "QUAD", "JACOBI"},
     "PCM": {"ICOMP", "ICAV", "IDISP", "RSOLV", "EPSINF", "IDP"},
     "ELMOM": {"IEMOM", "WHERE"},
+    "ZMAT": {"NONVDW", "AUTOFV", "DLCTOL", "IFRZAT", "SIJ", "IJS", "FVALUE", "IXZMAT", "IRZMAT", "IFZMAT"},
 }
 
 UNSUPPORTED_GROUPS = {
-    "ZMAT": "internal coordinates", "EFRAG": "EFP", "EFP": "EFP",
+    "EFRAG": "EFP", "EFP": "EFP",
     "FMO": "FMO", "XMCQDPT": "XMCQDPT2", "MCQDPT": "MCQDPT",
     "CIDRT": "GUGA CI", "ECP": "effective core potentials",
     "TDHF": "TDHF polarizabilities", "CCINP": "coupled cluster",

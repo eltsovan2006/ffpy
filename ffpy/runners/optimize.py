@@ -58,6 +58,11 @@ def run(job, ctx):
         "convergence_drms": 1.2e-3,
         "convergence_dmax": 1.8e-3,
     }
+    if getattr(job, "coord", None) in ("ZMT", "ZMTMPC") and getattr(job, "nzvar", 0) == 0:
+        params["coordsys"] = "cart"
+    elif getattr(job, "nzvar", 0) > 0:
+        params["coordsys"] = "dlc" if getattr(job, "dlc", False) else "tric"
+
     log.section("geometry optimization (geomeTRIC)")
     log("  NSTEP = %d, OPTTOL = %.2E hartree/bohr (max gradient), RMS gradient < OPTTOL/3"
         % (job.nstep, job.opttol))
