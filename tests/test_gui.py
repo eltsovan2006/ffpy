@@ -502,7 +502,7 @@ def test_fonts_selection():
     assert f_ed.pointSize() == 12
 
 
-def test_rail_modes_switching_and_stubs(app, tmp_path):
+def test_rail_modes_switching_and_stubs(app, tmp_path, no_modal):
     from ffpy.gui.app import MainWindow
     w = MainWindow()
     w.resize(1280, 800)
@@ -550,7 +550,7 @@ def test_rail_modes_switching_and_stubs(app, tmp_path):
 
 def test_rail_settings_button(app, monkeypatch):
     from ffpy.gui.app import MainWindow
-    from ffpy.gui.dialogs import SettingsDialog
+    from ffpy.gui.settings import SettingsDialog
     w = MainWindow()
     w.show()
     app.processEvents()
@@ -613,7 +613,7 @@ def test_toolbar_dock_toggle_buttons_sync_and_persistence(app, tmp_path):
     w2.close()
 
 
-def test_results_auto_open_on_finished_and_close_on_run(app, tmp_path):
+def test_results_auto_open_on_finished_and_close_on_run(app, tmp_path, no_modal):
     from ffpy.gui.app import MainWindow
     f = tmp_path / "test.inp"
     f.write_text("! test\n $DATA\nTitle\nC1\nH 1.0 0 0 0\n $END\n")
@@ -633,6 +633,7 @@ def test_results_auto_open_on_finished_and_close_on_run(app, tmp_path):
     w.run_current()
     app.processEvents()
     assert w.results_dock.isHidden()
+    w.runner.stop()
 
     # Successful run finishes (code 0) -> auto opens results dock
     out_file = tmp_path / "test.out"
@@ -647,6 +648,9 @@ def test_results_auto_open_on_finished_and_close_on_run(app, tmp_path):
     app.processEvents()
     assert w.results_dock.isHidden()
 
+    # Restore dock for any further tests
+    w.results_dock.show()
+    app.processEvents()
     w.close()
 
 
@@ -661,6 +665,8 @@ def test_editor_centering_and_max_width(app, tmp_path):
     w.set_folder(str(tmp_path))
     w.open_path(str(inp_f))
     w.resize(1280, 800)
+    w.files_dock.show()
+    w.results_dock.show()
     w.show()
     for _ in range(5):
         app.processEvents()

@@ -457,6 +457,12 @@ class MainWindow(QMainWindow):
             v = r_vis in (True, "true", "True", 1, "1")
             self.results_dock.setVisible(v)
             self.btn_toggle_results.setChecked(v)
+        self._editor_docks_visibility = {
+            "files": not self.files_dock.isHidden(),
+            "results": not self.results_dock.isHidden(),
+            "log": not self.log_dock.isHidden(),
+            "problems": not self.problems_dock.isHidden(),
+        }
         self._update_editor_centering()
 
         folder = self.settings.value("folder") or self._default_folder()
@@ -650,18 +656,20 @@ class MainWindow(QMainWindow):
     def set_mode(self, index):
         if self.stack.currentIndex() == index:
             return
-        self.stack.setCurrentIndex(index)
-        btn = self.rail_group.button(index)
-        if btn and not btn.isChecked():
-            btn.setChecked(True)
-        is_editor = (index == 0)
-        if not is_editor:
+        prev_index = self.stack.currentIndex()
+        if prev_index == 0:
             self._editor_docks_visibility = {
                 "files": not self.files_dock.isHidden(),
                 "results": not self.results_dock.isHidden(),
                 "log": not self.log_dock.isHidden(),
                 "problems": not self.problems_dock.isHidden(),
             }
+        self.stack.setCurrentIndex(index)
+        btn = self.rail_group.button(index)
+        if btn and not btn.isChecked():
+            btn.setChecked(True)
+        is_editor = (index == 0)
+        if not is_editor:
             self.files_dock.hide()
             self.results_dock.hide()
             self.log_dock.hide()
