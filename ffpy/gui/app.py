@@ -18,12 +18,14 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QDockWidget, QFileDia
                                QWidget)
 
 from ffpy import __version__
+from ffpy.gui.batch import BatchView
 from ffpy.gui.builder import NewJobDialog
 from ffpy.gui.editor import CodeEditor, FileTab
 from ffpy.gui.highlight import OutHighlighter
 from ffpy.gui.results import ResultsPanel, open_external
 from ffpy.gui.runner import RunManager
 from ffpy.gui.settings import SettingsDialog
+from ffpy.gui.summary import SummaryView
 from ffpy.gui.theme import app_font, build_qss, get_theme_bus, hex_color, set_theme_mode
 from ffpy.gui.validate import check_text
 from ffpy.gui.viewer3d import Molecule, MoleculeViewer3D
@@ -653,17 +655,25 @@ class MainWindow(QMainWindow):
         self.editor_layout.addWidget(self.tabs, 1)
         self.editor_layout.addItem(self.right_spacer)
 
-        # Page 1: results stub; Page 2: 3D viewer; Page 3: batch stub
-        self.stub_results = self._make_stub_page("Итоги", "Сводная таблица и графики расчётов появятся здесь")
+        # Page 1: summary view; Page 2: 3D viewer; Page 3: batch view
+        self.summary_view = SummaryView(self, runner=self.runner)
+        self.summary_view.open_in_3d.connect(self.open_in_3d)
+        self.summary_view.open_in_editor.connect(self.open_path)
+        self.stub_results = self.summary_view
+
         self.viewer3d = MoleculeViewer3D(self)
         self.stub_3d = self.viewer3d
-        self.stub_batch = self._make_stub_page("Пакеты", "Пакетная обработка и управление очередью расчётов")
+
+        self.batch_view = BatchView(self, runner=self.runner)
+        self.batch_view.open_in_3d.connect(self.open_in_3d)
+        self.batch_view.open_in_editor.connect(self.open_path)
+        self.stub_batch = self.batch_view
 
         self.stack = QStackedWidget(self)
         self.stack.addWidget(self.editor_page)
-        self.stack.addWidget(self.stub_results)
+        self.stack.addWidget(self.summary_view)
         self.stack.addWidget(self.viewer3d)
-        self.stack.addWidget(self.stub_batch)
+        self.stack.addWidget(self.batch_view)
         self.setCentralWidget(self.stack)
 
     def _build_rail(self):
@@ -741,13 +751,17 @@ class MainWindow(QMainWindow):
         btn = self.rail_group.button(index)
         if btn and not btn.isChecked():
             btn.setChecked(True)
-        if index == 2 and self.viewer3d.molecule is None:
+        if index == 1 and hasattr(self, "summary_view"):
+            self.summary_view.refresh_sources()
+        elif index == 2 and self.viewer3d.molecule is None:
             t = self.tab()
             if t and t.path and os.path.isfile(t.path):
                 try:
                     self.viewer3d.load_file(t.path)
                 except Exception:
                     pass
+        elif index == 3 and hasattr(self, "batch_view"):
+            self.batch_view.update_counters()
         is_editor = (index == 0)
         is_3d = (index == 2)
         if hasattr(self, "btn_toggle_spectrum") and hasattr(self, "btn_toggle_props"):
@@ -1580,6 +1594,8 @@ class MainWindow(QMainWindow):
         self.log_view.appendPlainText("<<< " + msg)
         self.statusBar().showMessage(msg, 10000)
         if os.path.exists(out):
+            if hasattr(self, "summary_view"):
+                self.summary_view.add_out_file(out)
             i = self.find_tab(out)
             if i >= 0:
                 self.tab(i).load()

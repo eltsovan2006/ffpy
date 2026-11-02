@@ -392,20 +392,30 @@ QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
     border-color: {p['accent']};
 }}
 
-QTreeView, QListView, QListWidget, QPlainTextEdit, QTextEdit, QTextBrowser {{
+QTreeView, QListView, QListWidget, QTableWidget, QPlainTextEdit, QTextEdit, QTextBrowser {{
     background-color: {p['surface']};
     color: {p['text']};
     border: 1px solid {p['border']};
     border-radius: 6px;
 }}
 
-QTreeView::item:hover, QListView::item:hover, QListWidget::item:hover {{
+QTreeView::item:hover, QListView::item:hover, QListWidget::item:hover, QTableWidget::item:hover {{
     background-color: {p['hover']};
 }}
 
-QTreeView::item:selected, QListView::item:selected, QListWidget::item:selected {{
+QTreeView::item:selected, QListView::item:selected, QListWidget::item:selected, QTableWidget::item:selected {{
     background-color: {p['accentSoft']};
     color: {p['accentText']};
+}}
+
+QHeaderView::section {{
+    background-color: {p['surface']};
+    color: {p['muted']};
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    border-bottom: 1px solid {p['border']};
+    padding: 8px 12px;
 }}
 
 QScrollBar:vertical {{
