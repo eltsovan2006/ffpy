@@ -32,7 +32,7 @@ Cnv 2
     assert meta["scftyp"] == "RHF"
     assert meta["runtyp"] == "OPTIMIZE"
     assert meta["coord"] == "ZMT"
-    assert "Z-matrix (COORD=ZMT)" in meta["unsupported_features"]
+    assert "Z-matrix (COORD=ZMT)" not in meta["unsupported_features"]
 
 
 def test_parse_inp_comment_mp2():

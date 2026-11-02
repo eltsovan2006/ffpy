@@ -73,6 +73,50 @@ def test_unsupported_group():
         deck(" $XMCQDPT NSTATE=1 $END\n")
 
 
+def test_zmat_schema_and_options():
+    # Valid ZMAT with Cartesian coords
+    d = deck(" $CONTRL NZVAR=3 $END\n"
+             " $ZMAT DLC=.T. AUTO=.T. $END\n"
+             " $BASIS GBASIS=STO NGAUSS=3 $END\n")
+    job = build_job(d)
+    assert job.coord == "UNIQUE"
+    assert job.nzvar == 3
+    assert job.dlc is True
+    assert job.auto is True
+
+    # Valid ZMAT with COORD=ZMT
+    z_inp = (" $CONTRL COORD=ZMT NZVAR=3 $END\n"
+             " $ZMAT DLC=.T. AUTO=.T. $END\n"
+             " $BASIS GBASIS=STO NGAUSS=3 $END\n"
+             " $DATA\nH2O\nC1\nO\nH 1 0.96\nH 1 0.96 2 104.5\n $END\n")
+    job_z = build_job(parse_input(z_inp))
+    assert job_z.coord == "ZMT"
+    assert job_z.nzvar == 3
+
+    # COORD=ZMTMPC
+    mpc_inp = (" $CONTRL COORD=ZMTMPC $END\n"
+               " $BASIS GBASIS=STO NGAUSS=3 $END\n"
+               " $DATA\nH2O\nC1\nO\nH 0.96 0\nH 0.96 0 104.5 0 1 2\n $END\n")
+    job2 = build_job(parse_input(mpc_inp))
+    assert job2.coord == "ZMTMPC"
+
+    # Unsupported IFREEZ in ZMAT
+    with pytest.raises(UnsupportedError, match="IFREEZ"):
+        d_f = deck(" $ZMAT IFREEZ(1)=1,2 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        build_job(d_f)
+
+    # Unsupported SCAN in ZMAT
+    with pytest.raises(UnsupportedError, match="SCAN"):
+        d_s = deck(" $ZMAT SCAN=BOND $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        build_job(d_s)
+
+    # Negative NZVAR
+    with pytest.raises(InputError, match="NZVAR"):
+        d_n = deck(" $CONTRL NZVAR=-1 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        build_job(d_n)
+
+
+
 def test_ignored_key_warns():
     d = deck(" $CONTRL NPRINT=7 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     assert any("NPRINT" in n for _, n in d.notes)
@@ -304,13 +348,11 @@ def test_strict_rejection_of_unsupported_physics():
     with pytest.raises(InputError, match="MPLEVL"):
         deck(" $CONTRL MPLEVL=3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="COORD"):
-        deck(" $CONTRL COORD=ZMT $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        deck(" $CONTRL COORD=FOO $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="NZVAR"):
-        deck(" $CONTRL NZVAR=3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        build_job(deck(" $CONTRL NZVAR=-1 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"))
     with pytest.raises(InputError, match="DFTTYP"):
         deck(" $CONTRL DFTTYP=D-PBEP86 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(UnsupportedError, match=r"\$ECP"):
         deck(" $ECP $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
-    with pytest.raises(UnsupportedError, match=r"\$ZMAT"):
-        deck(" $ZMAT $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
 

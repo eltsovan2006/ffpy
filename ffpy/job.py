@@ -15,6 +15,7 @@ from ffpy.constants import ANG_BOHR
 from ffpy.errors import InputError, UnsupportedError
 from ffpy.schema import SOLVENTS
 from ffpy.xc_map import xc_for
+from ffpy.zmatrix import parse_zmatrix
 
 ELEMENTS = [
     "X", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P",
@@ -61,6 +62,10 @@ class Job:
     temps: List[float]
     exetyp: str
     projct: bool = True
+    coord: str = "UNIQUE"
+    nzvar: int = 0
+    dlc: bool = False
+    auto: bool = False
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
 
@@ -92,7 +97,7 @@ class Job:
         return "%s/%s" % (ref, self.basis.upper())
 
 
-def _parse_data(lines, units):
+def _parse_data(lines, units, coord="UNIQUE"):
     body = [l for l in lines]
     while body and not body[0].strip():
         body.pop(0)
@@ -112,6 +117,13 @@ def _parse_data(lines, units):
     rest = body[2:]
     if group != "C1" and rest and not rest[0].strip():
         rest = rest[1:]     # the blank line after a non-C1 group
+
+    grp_name = group if order is None else "%s %d" % (group, order)
+
+    if coord in ("ZMT", "ZMTMPC"):
+        atoms, _ = parse_zmatrix(rest, units, coord_style=coord)
+        return title, grp_name, atoms, 1
+
     unique = []
     scale = ANG_BOHR if units == "ANGS" else 1.0
     for i, line in enumerate(rest):
@@ -140,7 +152,6 @@ def _parse_data(lines, units):
     if not unique:
         raise InputError("$DATA: no atoms found")
     atoms, nops = symmetry.expand(unique, group, order)
-    grp_name = group if order is None else "%s %d" % (group, order)
     return title, grp_name, atoms, nops
 
 
@@ -188,12 +199,27 @@ def build_job(deck):
     mplevl = g("CONTRL", "MPLEVL", report_default=False)
     cityp = g("CONTRL", "CITYP", report_default=False)
     tddft = g("CONTRL", "TDDFT", report_default=False)
-    if deck.explicit("CONTRL", "COORD"):
-        g("CONTRL", "COORD")
+    coord = g("CONTRL", "COORD")
+    nzvar = g("CONTRL", "NZVAR")
+    if nzvar < 0:
+        raise InputError("$CONTRL NZVAR must be non-negative")
+
+    dlc = False
+    auto = False
+    if deck.has("ZMAT"):
+        if deck.explicit("ZMAT", "IFREEZ"):
+            raise UnsupportedError("$ZMAT IFREEZ: coordinate freezing is not supported by ffpy")
+        if deck.explicit("ZMAT", "SCAN"):
+            raise UnsupportedError("$ZMAT SCAN: potential energy surface scans are not supported by ffpy")
+        dlc = g("ZMAT", "DLC", False)
+        auto = g("ZMAT", "AUTO", False)
+    if deck.has("STATPT") and deck.explicit("STATPT", "IFREEZ"):
+        raise UnsupportedError("$STATPT IFREEZ: coordinate freezing is not supported by ffpy")
+
     scftyp, runtyp = contrl["SCFTYP"], contrl["RUNTYP"]
     xc = None if dfttyp == "NONE" else xc_for(dfttyp)
 
-    title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"])
+    title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"], coord=coord)
 
     if not deck.has("BASIS") or not deck.explicit("BASIS", "GBASIS"):
         raise InputError("$BASIS GBASIS=... is required (basis sets inside $DATA are not supported)")
@@ -338,5 +364,6 @@ def build_job(deck):
         damp=g("SCF", "DAMP", False), shift=g("SCF", "SHIFT", False),
         memory_mb=memory_mb, timlim_s=timlim, grid=grid, mp2_frozen=mp2_frozen,
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
-        temps=temps, exetyp=contrl["EXETYP"], projct=projct, defaults=list(deck.defaults_used),
-        nsym_ops=nops)
+        temps=temps, exetyp=contrl["EXETYP"], projct=projct,
+        coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
+        defaults=list(deck.defaults_used), nsym_ops=nops)
