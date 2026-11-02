@@ -199,3 +199,73 @@ def test_ffpy_command(monkeypatch):
     monkeypatch.setattr(sys, "executable", "/Applications/ffpy.app/Contents/MacOS/ffpy-gui")
     monkeypatch.setattr(sys, "platform", "darwin")
     assert ffpy_command() == [os.path.join(os.path.dirname("/Applications/ffpy.app/Contents/MacOS/ffpy-gui"), "ffpy")]
+
+
+def test_compact_path_label():
+    from ffpy.gui.app import compact_path_label
+    assert compact_path_label("/home/user/calc/water.inp") == "water.inp   —   calc"
+    assert compact_path_label("/calc/water.inp") == "water.inp   —   calc"
+    cur_parent = os.path.basename(os.path.abspath("."))
+    assert compact_path_label("water.inp") == f"water.inp   —   {cur_parent}"
+
+
+def test_window_fit_to_screen(app):
+    from PySide6.QtCore import QRect
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    screen_rect = QRect(0, 0, 1024, 768)
+    # Exceeding size
+    w.setGeometry(QRect(0, 0, 1600, 1200))
+    w.ensure_within_screen(screen_rect)
+    geo = w.geometry()
+    assert geo.width() <= screen_rect.width()
+    assert geo.height() <= screen_rect.height()
+    assert geo.right() <= screen_rect.right()
+    assert geo.bottom() <= screen_rect.bottom()
+    assert geo.left() >= screen_rect.left()
+    assert geo.top() >= screen_rect.top()
+
+    # Position outside screen
+    w.setGeometry(QRect(1200, 900, 800, 600))
+    w.ensure_within_screen(screen_rect)
+    geo2 = w.geometry()
+    assert screen_rect.contains(geo2)
+    w.close()
+
+
+def test_results_panel_narrow_dock(app):
+    from ffpy.gui.results import ResultsPanel
+    p = ResultsPanel()
+    p.show()
+    app.processEvents()
+    assert p.minimumSizeHint().width() <= 260
+    for width in (260, 280, 320):
+        p.resize(width, 400)
+        app.processEvents()
+        for btn in (p.b_copy, p.b_folder, p.b_molden, p.b_docx):
+            assert btn.isVisible()
+            assert btn.width() > 0
+            assert btn.height() > 0
+            assert btn.geometry().right() <= p.width()
+    p.close()
+
+
+def test_recent_files_formatting(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f1 = tmp_path / "water.inp"
+    f1.write_text("test")
+    w = MainWindow()
+    w._add_recent(str(f1))
+    w._fill_recent()
+    assert w.recent_list.count() >= 1
+    item = w.recent_list.item(0)
+    assert item.text().startswith("water.inp   —   ")
+    assert item.toolTip() == str(f1)
+
+    w._fill_recent_menu()
+    actions = w.recent_menu.actions()
+    assert len(actions) >= 1
+    assert actions[0].text().startswith("water.inp   —   ")
+    assert actions[0].toolTip() == str(f1)
+    w.close()
+

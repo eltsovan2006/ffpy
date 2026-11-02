@@ -4,14 +4,14 @@ import os
 import shutil
 import sys
 
-from PySide6.QtCore import QDir, QFile, QFileSystemWatcher, QSettings, QSize, Qt, QTimer, QUrl, qVersion
+from PySide6.QtCore import QDir, QFile, QFileSystemWatcher, QRect, QSettings, QSize, Qt, QTimer, QUrl, qVersion
 from PySide6.QtGui import (QAction, QColor, QDesktopServices, QIcon, QKeySequence, QPainter, QPen,
                            QPixmap)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QFileSystemModel,
-                               QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
-                               QListWidgetItem, QMainWindow, QMenu, QMessageBox, QPushButton,
-                               QSpinBox, QTabBar, QTabWidget, QToolButton, QTreeView,
-                               QVBoxLayout, QWidget)
+                               QHeaderView, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+                               QListWidget, QListWidgetItem, QMainWindow, QMenu, QMessageBox,
+                               QPushButton, QSpinBox, QStyle, QTabBar, QTabWidget, QToolButton,
+                               QTreeView, QVBoxLayout, QWidget)
 
 from ffpy import __version__
 from ffpy.gui.builder import NewJobDialog
@@ -36,6 +36,18 @@ H  1.0   0.000   0.757  -0.467
 H  1.0   0.000  -0.757  -0.467
  $END
 """
+
+
+def compact_path_label(path):
+    """Format path as 'filename   —   parent_dir' with fallback for root."""
+    if not path:
+        return ""
+    norm = os.path.abspath(path)
+    name = os.path.basename(norm)
+    parent = os.path.basename(os.path.dirname(norm))
+    if parent:
+        return f"{name}   —   {parent}"
+    return name
 
 
 def app_icon():
@@ -67,7 +79,7 @@ class MainWindow(QMainWindow):
         self.font_size = int(self.settings.value("font_size", 10))
         self.setWindowTitle("ffpy %s" % __version__)
         self.setWindowIcon(app_icon())
-        self.resize(1400, 860)
+        self.resize(1280, 800)
         self.setAcceptDrops(True)
 
         self.runner = RunManager(self)
@@ -95,9 +107,15 @@ class MainWindow(QMainWindow):
         geom = self.settings.value("geometry")
         if geom is not None:
             self.restoreGeometry(geom)
+            self.ensure_within_screen()
+        else:
+            self.set_default_geometry()
         state = self.settings.value("window_state")
         if state is not None:
             self.restoreState(state)
+        else:
+            self.resizeDocks([self.files_dock, self.results_dock], [280, 300], Qt.Horizontal)
+            self.resizeDocks([self.log_dock, self.problems_dock], [140, 140], Qt.Vertical)
         folder = self.settings.value("folder") or self._default_folder()
         self.set_folder(folder)
         for f in files:
@@ -111,6 +129,44 @@ class MainWindow(QMainWindow):
             if os.path.isdir(ex):
                 return ex
         return os.path.expanduser("~")
+
+    def set_default_geometry(self, avail=None):
+        if avail is None:
+            screen = self.screen() or QApplication.primaryScreen()
+            avail = screen.availableGeometry() if screen else None
+        if not avail or avail.isEmpty():
+            self.resize(1280, 800)
+            return
+        margin_w = min(40, max(0, avail.width() - 200))
+        margin_h = min(60, max(0, avail.height() - 200))
+        w = min(1280, max(400, avail.width() - margin_w))
+        h = min(800, max(300, avail.height() - margin_h))
+        x = avail.x() + max(0, (avail.width() - w) // 2)
+        y = avail.y() + max(0, (avail.height() - h) // 2)
+        self.setGeometry(x, y, w, h)
+
+    def ensure_within_screen(self, avail=None):
+        if avail is None:
+            screen = self.screen() or QApplication.primaryScreen()
+            if not screen:
+                return
+            avail = screen.availableGeometry()
+        if not avail or avail.isEmpty():
+            return
+        geo = self.geometry()
+        margin_w = min(40, max(0, avail.width() - 200))
+        margin_h = min(60, max(0, avail.height() - 200))
+        max_w = max(300, avail.width() - margin_w)
+        max_h = max(200, avail.height() - margin_h)
+
+        w = min(geo.width(), max_w)
+        h = min(geo.height(), max_h)
+
+        x = max(avail.left(), min(geo.x(), avail.right() - w + 1))
+        y = max(avail.top(), min(geo.y(), avail.bottom() - h + 1))
+
+        if (x, y, w, h) != (geo.x(), geo.y(), geo.width(), geo.height()):
+            self.setGeometry(x, y, w, h)
 
     def _build_tabs(self):
         self.tabs = QTabWidget()
@@ -211,7 +267,8 @@ class MainWindow(QMainWindow):
         self.tree.doubleClicked.connect(self._tree_open)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._tree_menu)
-        self.tree.header().resizeSection(0, 230)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.tree.header().resizeSection(0, 260)
         v.addWidget(self.tree, 1)
         dock.setWidget(w)
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
@@ -263,7 +320,7 @@ class MainWindow(QMainWindow):
         dock.raise_()
         self.problems_dock = pdock
 
-    def _act(self, text, slot, shortcut=None, tip=None):
+    def _act(self, text, slot, shortcut=None, tip=None, icon=None, icon_text=None):
         a = QAction(text, self)
         a.triggered.connect(slot)
         if shortcut:
@@ -271,24 +328,37 @@ class MainWindow(QMainWindow):
         if tip:
             a.setToolTip(tip)
             a.setStatusTip(tip)
+        if icon:
+            a.setIcon(icon)
+        if icon_text:
+            a.setIconText(icon_text)
         return a
 
     def _build_actions(self):
         A = self._act
-        self.a_new_job = A("Новый расчёт…", self.new_job, "Ctrl+Shift+N", "Конструктор входного файла")
+        st = self.style()
+        self.a_new_job = A("Новый расчёт…", self.new_job, "Ctrl+Shift+N", "Конструктор входного файла",
+                           st.standardIcon(QStyle.SP_FileIcon), "Новый…")
         self.a_new = A("Пустой .inp", self.new_empty, "Ctrl+N")
-        self.a_open = A("Открыть…", self.open_dialog, "Ctrl+O")
+        self.a_open = A("Открыть…", self.open_dialog, "Ctrl+O", "Открыть файл",
+                        st.standardIcon(QStyle.SP_DialogOpenButton), "Открыть")
         self.a_folder = A("Открыть папку…", self.choose_folder, "Ctrl+Shift+O")
-        self.a_save = A("Сохранить", self.save_current, "Ctrl+S")
+        self.a_save = A("Сохранить", self.save_current, "Ctrl+S", "Сохранить файл",
+                        st.standardIcon(QStyle.SP_DialogSaveButton), "Сохранить")
         self.a_save_as = A("Сохранить как…", self.save_as, "Ctrl+Shift+S")
         self.a_save_all = A("Сохранить все", self.save_all)
         self.a_close = A("Закрыть вкладку", lambda: self.close_tab(self.tabs.currentIndex()), "Ctrl+W")
         self.a_quit = A("Выход", self.close, "Ctrl+Q")
-        self.a_run = A("▶  Запустить", self.run_current, "F5", "Сохранить и запустить текущий .inp (F5)")
+        self.a_run = A("▶  Запустить", self.run_current, "F5", "Сохранить и запустить текущий .inp (F5)",
+                       st.standardIcon(QStyle.SP_MediaPlay), "Запуск")
         self.a_run_folder = A("Запустить все .inp в папке", self.run_folder)
-        self.a_stop = A("■  Остановить", self.stop_run, "Shift+F5", "Остановить расчёт и очистить очередь")
-        self.a_open_out = A("Открыть .out", self.open_out_of_current, "F6", "Открыть лог для текущего .inp")
-        self.a_molden = A("Открыть .molden внешней программой", self.open_molden_of_current, "F7")
+        self.a_stop = A("■  Остановить", self.stop_run, "Shift+F5", "Остановить расчёт и очистить очередь",
+                        st.standardIcon(QStyle.SP_MediaStop), "Стоп")
+        self.a_open_out = A("Открыть .out", self.open_out_of_current, "F6", "Открыть лог для текущего .inp",
+                            st.standardIcon(QStyle.SP_FileDialogContentsView), ".out")
+        self.a_molden = A("Открыть .molden внешней программой", self.open_molden_of_current, "F7",
+                          "Открыть .molden во внешней программе",
+                          st.standardIcon(QStyle.SP_FileDialogInfoView), ".molden")
         self.a_find = A("Найти…", lambda: self._with_tab(lambda t: t.findbar.open()), "Ctrl+F")
         self.a_replace = A("Заменить…", lambda: self._with_tab(lambda t: t.findbar.open(True)), "Ctrl+H")
         self.a_goto = A("Перейти к строке…", self.goto_line, "Ctrl+G")
@@ -302,6 +372,7 @@ class MainWindow(QMainWindow):
         self.a_about = A("О программе", self.about)
 
         mb = self.menuBar()
+        mb.setNativeMenuBar(True)
         m = mb.addMenu("&Файл")
         for a in (self.a_new_job, self.a_new, None, self.a_open, self.a_folder):
             m.addSeparator() if a is None else m.addAction(a)
@@ -341,7 +412,7 @@ class MainWindow(QMainWindow):
         tb = self.addToolBar("Основное")
         tb.setObjectName("main_toolbar")
         tb.setMovable(False)
-        tb.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         for a in (self.a_new_job, self.a_open, self.a_save, None, self.a_run, self.a_stop, None,
                   self.a_open_out, self.a_molden):
             tb.addSeparator() if a is None else tb.addAction(a)
@@ -909,7 +980,10 @@ class MainWindow(QMainWindow):
     def _fill_recent_menu(self):
         self.recent_menu.clear()
         for p in self._recent():
-            self.recent_menu.addAction(p, lambda p=p: self.open_path(p))
+            label = compact_path_label(p)
+            a = self.recent_menu.addAction(label, lambda p=p: self.open_path(p))
+            a.setToolTip(p)
+            a.setStatusTip(p)
         if not self._recent():
             self.recent_menu.addAction("(пусто)").setEnabled(False)
 
@@ -917,7 +991,8 @@ class MainWindow(QMainWindow):
         self.recent_list.clear()
         for p in self._recent():
             if os.path.exists(p):
-                it = QListWidgetItem(os.path.basename(p) + "   —   " + os.path.dirname(p))
+                it = QListWidgetItem(compact_path_label(p))
+                it.setToolTip(p)
                 it.setData(Qt.UserRole, p)
                 self.recent_list.addItem(it)
 
