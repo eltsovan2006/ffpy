@@ -26,6 +26,7 @@ from ffpy.gui.runner import RunManager
 from ffpy.gui.settings import SettingsDialog
 from ffpy.gui.theme import app_font, build_qss, get_theme_bus, hex_color, set_theme_mode
 from ffpy.gui.validate import check_text
+from ffpy.gui.viewer3d import Molecule, MoleculeViewer3D
 
 FILE_FILTERS = ["*.inp", "*.out", "*.molden", "*.dat", "*.xyz", "*.log", "*.txt"]
 OPEN_FILTER = ("Файлы ffpy (*.inp *.out *.dat *.xyz *.log);;Входные файлы (*.inp);;"
@@ -626,15 +627,16 @@ class MainWindow(QMainWindow):
         self.editor_layout.addWidget(self.tabs, 1)
         self.editor_layout.addItem(self.right_spacer)
 
-        # Pages 1-3: stubs
+        # Page 1: results stub; Page 2: 3D viewer; Page 3: batch stub
         self.stub_results = self._make_stub_page("Итоги", "Сводная таблица и графики расчётов появятся здесь")
-        self.stub_3d = self._make_stub_page("3D", "Интерактивная 3D-визуализация молекулярных структур")
+        self.viewer3d = MoleculeViewer3D(self)
+        self.stub_3d = self.viewer3d
         self.stub_batch = self._make_stub_page("Пакеты", "Пакетная обработка и управление очередью расчётов")
 
         self.stack = QStackedWidget(self)
         self.stack.addWidget(self.editor_page)
         self.stack.addWidget(self.stub_results)
-        self.stack.addWidget(self.stub_3d)
+        self.stack.addWidget(self.viewer3d)
         self.stack.addWidget(self.stub_batch)
         self.setCentralWidget(self.stack)
 
@@ -713,6 +715,13 @@ class MainWindow(QMainWindow):
         btn = self.rail_group.button(index)
         if btn and not btn.isChecked():
             btn.setChecked(True)
+        if index == 2 and self.viewer3d.molecule is None:
+            t = self.tab()
+            if t and t.path and os.path.isfile(t.path):
+                try:
+                    self.viewer3d.load_file(t.path)
+                except Exception:
+                    pass
         is_editor = (index == 0)
         if not is_editor:
             self.files_dock.hide()
@@ -1062,6 +1071,8 @@ class MainWindow(QMainWindow):
         tb.addWidget(self.btn_open)
         self.btn_save = make_flat_tb_btn("Сохранить", self.save_current, self.a_save.toolTip())
         tb.addWidget(self.btn_save)
+        self.btn_export_png = make_flat_tb_btn("Экспорт PNG", self.export_png_dialog, "Экспорт 3D-изображения в формате PNG")
+        tb.addWidget(self.btn_export_png)
 
         # 3. Vertical separator
         sep = QFrame()
@@ -1520,6 +1531,32 @@ class MainWindow(QMainWindow):
         elif code == 0:
             self.results_dock.show()
             self.results_dock.raise_()
+
+        if code == 0:
+            xyz = os.path.splitext(path)[0] + ".xyz"
+            opt_molden = os.path.splitext(path)[0] + "_opt.molden"
+            molden = os.path.splitext(path)[0] + ".molden"
+            if os.path.exists(xyz):
+                try:
+                    self.viewer3d.load_file(xyz)
+                except Exception:
+                    pass
+            elif os.path.exists(opt_molden):
+                try:
+                    self.viewer3d.load_file(opt_molden)
+                except Exception:
+                    pass
+            elif os.path.exists(molden):
+                try:
+                    self.viewer3d.load_file(molden)
+                except Exception:
+                    pass
+            elif os.path.exists(out):
+                try:
+                    self.viewer3d.load_file(out)
+                except Exception:
+                    pass
+
         self.resizeDocks([self.log_dock, self.problems_dock], [150, 150], Qt.Vertical)
         self._update_run_state()
         self._update_actions()
@@ -1578,6 +1615,24 @@ class MainWindow(QMainWindow):
             if os.path.exists(m):
                 open_external(m)
 
+    def open_in_3d(self, path):
+        if not path or not os.path.isfile(path):
+            return
+        try:
+            self.viewer3d.load_file(path)
+            self.set_mode(2)
+        except Exception as e:
+            self.statusBar().showMessage("Ошибка открытия 3D: %s" % e, 5000)
+
+    def export_png_dialog(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Экспорт PNG", "", "PNG файлы (*.png)")
+        if path:
+            if not path.lower().endswith(".png"):
+                path += ".png"
+            ok = self.viewer3d.export_png(path)
+            if ok:
+                self.statusBar().showMessage("Изображение экспортировано: %s" % os.path.basename(path), 5000)
+
     # ---------- file tree ----------
     def _tree_paths(self):
         rows = {i.row(): i for i in self.tree.selectionModel().selectedRows(0)}
@@ -1586,6 +1641,10 @@ class MainWindow(QMainWindow):
     def _tree_open(self, index):
         path = self.fs.filePath(index)
         if os.path.isfile(path):
+            ext = os.path.splitext(path)[1].lower()
+            if ext in (".xyz", ".molden"):
+                self.open_in_3d(path)
+                return
             self.open_path(path)
 
     def _tree_menu(self, pos):
@@ -1602,6 +1661,9 @@ class MainWindow(QMainWindow):
                             lambda: self._run_from_tree(inps))
             if len(paths) == 1:
                 p = paths[0]
+                ext = os.path.splitext(p)[1].lower()
+                if ext in (".xyz", ".molden", ".out", ".inp"):
+                    m.addAction("Открыть в 3D", lambda: self.open_in_3d(p))
                 if os.path.isdir(p):
                     m.addAction("Сделать корневой папкой", lambda: self.set_folder(p))
                 m.addAction("Открыть внешней программой", lambda: open_external(p))
