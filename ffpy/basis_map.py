@@ -1,5 +1,8 @@
 """$BASIS (GBASIS/NGAUSS/NDFUNC/...) -> PySCF basis name."""
 
+import copy
+from typing import Any, Optional, Set
+
 from ffpy.errors import InputError, UnsupportedError
 
 POPLE = {"STO", "N21", "N31", "N311"}
@@ -10,6 +13,105 @@ NAMED = {
     "DEF2SVP": "def2-svp", "DEF2TZVP": "def2-tzvp",
 }
 VALID_NGAUSS = {"STO": (2, 3, 4, 5, 6), "N21": (3, 6), "N31": (4, 5, 6), "N311": (6,)}
+
+# Fully optimized 6-31G sp basis set for Silicon (Si).
+# Ref: M. S. Gordon, Chem. Phys. Lett. 76, 163-168 (1980).
+# Exponents and contraction coefficients as used in GAMESS/Firefly.
+GORDON_SI_631G_SP = [
+    [0,  # 1s
+        [16192.1, 0.001949],
+        [2436.09, 0.014856],
+        [556.001, 0.072569],
+        [156.813, 0.245655],
+        [50.1692, 0.486060],
+        [17.0300, 0.325720],
+    ],
+    [0,  # 2s
+        [293.350, -0.002830],
+        [70.1173, -0.036074],
+        [22.4301, -0.116808],
+        [8.19425,  0.093577],
+        [3.14768,  0.601705],
+        [1.21515,  0.422072],
+    ],
+    [1,  # 2p
+        [293.350,  0.004433],
+        [70.1173,  0.032440],
+        [22.4301,  0.133719],
+        [8.19425,  0.326780],
+        [3.14768,  0.451139],
+        [1.21515,  0.264105],
+    ],
+    [0,  # 3s (inner)
+        [1.653700, -0.240600],
+        [0.540760,  0.073795],
+        [0.204406,  1.040940],
+    ],
+    [1,  # 3p (inner)
+        [1.653700, -0.015177],
+        [0.540760,  0.275139],
+        [0.204406,  0.783008],
+    ],
+    [0,  # 3s (outer)
+        [0.072384, 1.000000],
+    ],
+    [1,  # 3p (outer)
+        [0.072384, 1.000000],
+    ],
+]
+
+# Polarization d exponent for Silicon in GAMESS/Firefly: zeta = 0.395
+# (Ref: M. S. Gordon, Chem. Phys. Lett. 76, 163 (1980); Firefly manual POLAR=POPLE table)
+GORDON_SI_D_EXP = 0.395
+
+
+class BasisDict(dict):
+    """Dictionary mapping element symbols to PySCF basis sets, with a canonical name."""
+
+    def __init__(self, mapping: dict, name: str):
+        super().__init__(mapping)
+        self.name = name
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return self.name
+
+    def upper(self) -> str:
+        return self.name.upper()
+
+    def lower(self) -> str:
+        return self.name.lower()
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, str):
+            return self.name == other or self.name.upper() == other.upper()
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+
+def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,
+                       ngauss: Optional[int], ndfunc: int = 0) -> Any:
+    """Return PySCF basis specification (str or BasisDict) considering GAMESS/Firefly defaults.
+
+    For Silicon with 6-31G (GBASIS=N31, NGAUSS=6), GAMESS/Firefly uses Mark Gordon's
+    fully optimized sp basis set (1980) and d-polarization exponent 0.395, unlike Pople's
+    re-used 6-21G core and d-exponent 0.45 used in Gaussian/PySCF.
+    """
+    g = gbasis.upper()
+    if "Si" in elements and g == "N31" and ngauss == 6:
+        si_shells = copy.deepcopy(GORDON_SI_631G_SP)
+        if ndfunc == 1:
+            si_shells.append([2, [GORDON_SI_D_EXP, 1.0]])
+        mapping = {"default": canonical_name, "Si": si_shells}
+        for el in elements:
+            if el != "Si":
+                mapping[el] = canonical_name
+        return BasisDict(mapping, canonical_name)
+    return canonical_name
 
 
 def _mult(n, letter):

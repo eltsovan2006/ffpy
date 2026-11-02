@@ -155,3 +155,43 @@ H 1.0 0 -0.757 -0.467
     assert os.path.exists(str(tmp_path / "water_proj_freq.molden"))
     assert "[FREQ]" in open(str(tmp_path / "water_proj_freq.molden")).read()
     assert "[FREQ]" not in open(str(tmp_path / "water_proj.molden")).read()
+
+
+def test_bench_nuc_and_nao(tmp_path):
+    """Test nuclear repulsion energy and AO count for bench01 and bench04."""
+    import re
+
+    for name, expected_nuc, expected_nao in [
+        ("bench01", 106.3765167161, 61),
+        ("bench04", 167.7269657162, 80),
+    ]:
+        code, out = run(name, tmp_path)
+        assert code == 0
+        text = open(os.path.join(str(tmp_path), name + ".out")).read()
+        m_nuc = re.search(r"NUCLEAR REPULSION ENERGY\s+([\d.]+)", text)
+        assert m_nuc is not None
+        assert float(m_nuc.group(1)) == pytest.approx(expected_nuc, abs=1e-6)
+        m_nao = re.search(r"(\d+)\s+basis functions", text)
+        assert m_nao is not None
+        assert int(m_nao.group(1)) == expected_nao
+
+
+def test_silicon_3p_exam16(tmp_path):
+    """Silicon atom 3-P state from Firefly exam16: ROHF/6-31G, MULT=3."""
+    inp = tmp_path / "si_3p.inp"
+    inp.write_text(""" $CONTRL SCFTYP=ROHF MULT=3 RUNTYP=ENERGY ISPHER=-1 $END
+ $BASIS GBASIS=N31 NGAUSS=6 $END
+ $DATA
+Si 3-P term
+C1
+Silicon 14.0 0.0 0.0 0.0
+ $END
+""")
+    assert main([str(inp), "-o", str(tmp_path), "-q"]) == 0
+    out = parse_out(str(tmp_path / "si_3p.out"))
+    assert out["normal"]
+    # Firefly exam16 reference: -288.828573 Eh (spherical Kh symmetry average).
+    # In PySCF ROHF in C1, degeneracy is un-averaged, giving -288.828592 Eh (delta = 1.9e-5 Eh,
+    # whereas standard Pople basis gives -288.828405 / -288.828425 Eh, delta ~ 1.5e-4 Eh).
+    assert out["energy"] == pytest.approx(-288.828573, abs=2e-5)
+
