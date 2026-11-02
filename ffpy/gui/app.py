@@ -50,6 +50,22 @@ def compact_path_label(path):
     return name
 
 
+class LogEditor(CodeEditor):
+    def minimumSizeHint(self):
+        return QSize(80, 40)
+
+    def sizeHint(self):
+        return QSize(200, 70)
+
+
+class ProblemsList(QListWidget):
+    def minimumSizeHint(self):
+        return QSize(80, 40)
+
+    def sizeHint(self):
+        return QSize(200, 70)
+
+
 def app_icon():
     """A small water-molecule glyph; also used to make packaging/ffpy.ico."""
     pm = QPixmap(256, 256)
@@ -114,13 +130,27 @@ class MainWindow(QMainWindow):
         if state is not None:
             self.restoreState(state)
         else:
-            self.resizeDocks([self.files_dock, self.results_dock], [280, 300], Qt.Horizontal)
-            self.resizeDocks([self.log_dock, self.problems_dock], [140, 140], Qt.Vertical)
+            self.apply_default_dock_sizes()
         folder = self.settings.value("folder") or self._default_folder()
         self.set_folder(folder)
         for f in files:
             self.open_path(os.path.abspath(f))
         self._update_actions()
+
+    def apply_default_dock_sizes(self):
+        self.resizeDocks([self.files_dock, self.results_dock], [255, 295], Qt.Horizontal)
+        self.resizeDocks([self.log_dock, self.problems_dock], [150, 150], Qt.Vertical)
+
+    def showEvent(self, e):
+        super().showEvent(e)
+        if not getattr(self, "_dock_sizes_applied", False):
+            self._dock_sizes_applied = True
+            state = self.settings.value("window_state")
+            if (state is None or self.files_dock.width() < 240 or self.files_dock.width() > 280
+                    or self.results_dock.width() < 280 or self.results_dock.width() > 360
+                    or self.tabs.width() < int(self.width() * 0.55)
+                    or self.log_dock.height() > 180):
+                self.apply_default_dock_sizes()
 
     # ---------- layout ----------
     def _default_folder(self):
@@ -267,9 +297,11 @@ class MainWindow(QMainWindow):
         self.tree.doubleClicked.connect(self._tree_open)
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._tree_menu)
+        self.tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.tree.header().setStretchLastSection(True)
         self.tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.tree.header().resizeSection(0, 260)
         v.addWidget(self.tree, 1)
+        w.setMinimumWidth(240)
         dock.setWidget(w)
         self.addDockWidget(Qt.LeftDockWidgetArea, dock)
         self.files_dock = dock
@@ -278,6 +310,7 @@ class MainWindow(QMainWindow):
         dock = QDockWidget("Результаты", self)
         dock.setObjectName("results")
         self.results = ResultsPanel()
+        self.results.setMinimumWidth(260)
         self.results.open_file.connect(self.open_path)
         dock.setWidget(self.results)
         self.addDockWidget(Qt.RightDockWidgetArea, dock)
@@ -287,8 +320,9 @@ class MainWindow(QMainWindow):
         dock = QDockWidget("Журнал запуска", self)
         dock.setObjectName("log")
         w = QWidget()
-        v = QVBoxLayout(w)
-        v.setContentsMargins(4, 2, 4, 4)
+        v = QVBoxLayout(cw := w)
+        v.setContentsMargins(4, 2, 4, 2)
+        v.setSpacing(2)
         row = QHBoxLayout()
         self.run_label = QLabel("Нет запущенных расчётов")
         b_copy = QToolButton()
@@ -301,7 +335,7 @@ class MainWindow(QMainWindow):
         row.addWidget(b_copy)
         row.addWidget(b_clear)
         v.addLayout(row)
-        self.log_view = CodeEditor(read_only=True)
+        self.log_view = LogEditor(read_only=True)
         self.log_view.set_font_size(self.font_size - 1)
         self.log_view.setMaximumBlockCount(200000)
         OutHighlighter(self.log_view.document())
@@ -312,7 +346,7 @@ class MainWindow(QMainWindow):
 
         pdock = QDockWidget("Проверка входа", self)
         pdock.setObjectName("problems")
-        self.problems = QListWidget()
+        self.problems = ProblemsList()
         self.problems.itemActivated.connect(self._goto_problem)
         pdock.setWidget(self.problems)
         self.addDockWidget(Qt.BottomDockWidgetArea, pdock)
@@ -768,6 +802,9 @@ class MainWindow(QMainWindow):
         self.log_view.appendPlainText(">>> %s" % path)
         self.run_timer.start()
         self._update_run_state()
+        self.log_dock.raise_()
+        target_h = max(200, int(self.height() * 0.3))
+        self.resizeDocks([self.log_dock], [target_h], Qt.Vertical)
 
     def _on_run_line(self, line):
         self.log_view.appendPlainText(line)
@@ -791,6 +828,7 @@ class MainWindow(QMainWindow):
                 self.open_path(out, focus=False)
             self.results.set_out(out)
             self.results_dock.raise_()
+        self.resizeDocks([self.log_dock, self.problems_dock], [150, 150], Qt.Vertical)
         self._update_run_state()
         self._update_actions()
         if not self.isActiveWindow():

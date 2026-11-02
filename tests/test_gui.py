@@ -269,3 +269,69 @@ def test_recent_files_formatting(app, tmp_path):
     assert actions[0].toolTip() == str(f1)
     w.close()
 
+
+def test_files_tree_and_dock_layout(app, tmp_path):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QHeaderView
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    w.set_folder(str(tmp_path))
+    w.show()
+    app.processEvents()
+
+    assert w.files_dock.widget().minimumWidth() >= 240
+    assert w.tree.horizontalScrollBarPolicy() == Qt.ScrollBarAlwaysOff
+    assert not w.tree.horizontalScrollBar().isVisible()
+    assert w.tree.isColumnHidden(1)
+    assert w.tree.isColumnHidden(2)
+    assert w.tree.isColumnHidden(3)
+    assert w.tree.header().sectionResizeMode(0) == QHeaderView.Stretch
+    w.close()
+
+
+def test_dock_proportions_and_editor_width(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f = tmp_path / "water_opt.inp"
+    f.write_text("! water\n $DATA\nTitle\nC1\nO 8.0 0 0 0\n $END\n")
+
+    for w_res, h_res in ((1280, 800), (1440, 900)):
+        w = MainWindow()
+        w.set_folder(str(tmp_path))
+        w.open_path(str(f))
+        w.resize(w_res, h_res)
+        w.show()
+        for _ in range(10):
+            app.processEvents()
+
+        assert w.tabs.width() >= int(w.width() * 0.55), f"Editor width {w.tabs.width()} < 55% of {w.width()}"
+        assert 240 <= w.files_dock.width() <= 280, f"Files dock width {w.files_dock.width()} not ~260 px"
+        assert 270 <= w.results_dock.width() <= 350, f"Results dock width {w.results_dock.width()} not ~300-340 px"
+        assert 100 <= w.log_dock.height() <= 150, f"Log dock height {w.log_dock.height()} not ~110-130 px"
+        w.close()
+
+
+def test_log_dock_expansion_on_run(app, tmp_path):
+    from ffpy.gui.app import MainWindow
+    f = tmp_path / "water_opt.inp"
+    f.write_text("! water\n $DATA\nTitle\nC1\nO 8.0 0 0 0\n $END\n")
+    w = MainWindow()
+    w.resize(1280, 800)
+    w.show()
+    for _ in range(5):
+        app.processEvents()
+
+    initial_h = w.log_dock.height()
+    assert initial_h <= 140
+
+    w._on_run_started(str(f))
+    app.processEvents()
+    running_h = w.log_dock.height()
+    assert running_h > initial_h
+    assert running_h >= 200
+
+    w._on_run_finished(str(f), 0)
+    app.processEvents()
+    finished_h = w.log_dock.height()
+    assert finished_h <= 140
+    w.close()
+

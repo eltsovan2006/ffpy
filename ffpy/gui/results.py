@@ -4,7 +4,7 @@ excited states, warnings) and links to the output files."""
 import html
 import os
 
-from PySide6.QtCore import QUrl, Signal
+from PySide6.QtCore import QSize, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QGridLayout, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
@@ -54,6 +54,9 @@ class ResultsPanel(QWidget):
         grid.addWidget(self.b_docx, 1, 1)
         lay.addLayout(grid)
         self.clear()
+
+    def sizeHint(self):
+        return QSize(300, 350)
 
     def clear(self):
         self.out_path, self.data = None, None
