@@ -2,6 +2,7 @@
   "tolerances": {
     "energy_hf_mp2": 1e-06,
     "energy_dft": 0.0001,
+    "energy_pcm": 0.0005,
     "bond": 0.001,
     "angle": 0.1,
     "freq": 5.0,
@@ -60,6 +61,31 @@
     "ch4_zmt": {
       "source": "pyscf",
       "energy": -40.1950932006
+    },
+    "exam31": {
+      "source": "firefly",
+      "energy": -74.9715549922,
+      "pcm": true,
+      "bonds": {
+        "O1-H2": 0.987133,
+        "O1-H3": 0.986946
+      },
+      "angles": {
+        "H2-O1-H3": 100.0002
+      }
+    },
+    "exam67": {
+      "source": "firefly",
+      "energy": -75.2594552102,
+      "dft": true,
+      "pcm": true,
+      "bonds": {
+        "O1-H2": 1.015861,
+        "O1-H3": 1.015815
+      },
+      "angles": {
+        "H2-O1-H3": 97.395
+      }
     },
     "h2_rhf_opt": {
       "source": "ffpy-regression",
@@ -165,4 +191,4 @@
       }
     }
   }
-}
+}
