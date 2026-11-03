@@ -75,6 +75,8 @@ def build_mol(job, ctx, coords=None):
     mol.atom = [(s, tuple(float(x) for x in c)) for s, c in zip(job.atom_tags or job.symbols, coords)]
     mol.unit = "Bohr"
     mol.basis = job.basis
+    if job.ecp:
+        mol.ecp = job.ecp
     mol.charge = job.charge
     mol.spin = job.mult - 1
     mol.cart = job.cart

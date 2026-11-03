@@ -58,6 +58,7 @@ SCHEMA = {
         "UNITS": K("str", "ANGS", ("ANGS", "BOHR"), "units of $DATA coordinates"),
         "MAXIT": K("int", 30, None, "max SCF iterations"),
         "DFTNL": K("bool", False, None, "add the non-self-consistent VV10 nonlocal term (DFT-NL)"),
+        "ECP": K("str", "NONE", ("NONE", "SBK"), "effective core potentials (SBK = SBKJC)"),
         "D5": K("bool", False, None, "spherical (pure) d and f functions, like ISPHER=1"),
         "ISPHER": K("int", -1, (-1, 0, 1), "-1/0 Cartesian d,f; 1 spherical"),
         "COORD": K("str", "UNIQUE", ("UNIQUE", "CART", "ZMT", "ZMTMPC"), "coordinate input style"),

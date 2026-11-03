@@ -396,3 +396,33 @@ def test_explicit_basis_in_data_and_tdhf_keywords():
 def test_cityp_tddft_needs_dfttyp():
     with pytest.raises(InputError):
         build_job(parse_input(EXPLICIT_BASIS.replace("CITYP=TDHF", "CITYP=TDDFT")))
+
+
+def test_sto2g_hydrogen_matches_published_fit():
+    from ffpy.basis_map import sto2g_shells
+    (shell,) = sto2g_shells("H")
+    exps = [e for e, _ in shell[1:]]
+    coefs = [c for _, c in shell[1:]]
+    assert exps == pytest.approx([1.309756377, 0.2331359749], rel=1e-5)
+    assert coefs == pytest.approx([0.4301284983, 0.6789135305], rel=1e-6)
+
+
+def test_basis_library_keyword_and_extra_shells_in_data():
+    text = """ $CONTRL SCFTYP=RHF ICHARG=-1 $END
+ $DATA
+t
+C1
+Oxygen 8.0 0 0 0
+   N21 3
+   D 1
+     1 0.8 1.0
+
+Hydrogen 1.0 0 0 1.8
+   N21 3
+
+ $END
+"""
+    job = build_job(parse_input(text))
+    # 3-21G oxygen (3 s + 2 p shells) plus one added d shell
+    assert [sh[0] for sh in job.basis["O1"]] == [0, 0, 0, 1, 1, 2]
+    assert job.atom_tags == ["O1", "H2"]

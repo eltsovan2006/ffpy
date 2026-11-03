@@ -69,6 +69,7 @@ class Job:
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
     dftnl: Optional[Tuple[float, float]] = None   # VV10 (b, C)
+    ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
 
     @property
@@ -105,19 +106,41 @@ _VV10_B = {"PBE0": 6.9}
 _SHELL_L = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
 
 
+_LIBRARY_KEYS = {"SBK": "sbkjc", "N21": "%d-21g", "N31": "%d-31g", "N311": "%d-311g", "STO": "sto-%dg"}
+
+
 def _shell_header(tok):
+    if len(tok) == 1 and tok[0].upper() == "SBK":
+        return True
+    if len(tok) == 2 and tok[0].upper() in _LIBRARY_KEYS and tok[1].isdigit():
+        return True
     return (len(tok) in (2, 3) and tok[0].upper() in _SHELL_L.keys() | {"L"} and tok[1].isdigit())
 
 
-def _read_shells(rest, i):
-    """Read the shells of one atom starting at rest[i]; returns (pyscf shells, next index)."""
+def _read_shells(rest, i, z):
+    """Read the shells of one atom starting at rest[i]; returns (pyscf shells, next index).
+    A library line such as 'N21 3' loads that basis for the element; shells after it are added."""
     shells = []
     n = len(rest)
     while i < n and rest[i].strip():
         tok = rest[i].split()
         if not _shell_header(tok):
             raise InputError("$DATA: bad shell header '%s'" % rest[i].strip())
-        kind, nprim = tok[0].upper(), int(tok[1])
+        kind = tok[0].upper()
+        nprim = int(tok[1]) if len(tok) > 1 else 0
+        if kind in _LIBRARY_KEYS:
+            name = _LIBRARY_KEYS[kind] if kind == "SBK" else _LIBRARY_KEYS[kind] % nprim
+            if name in ("sto-4g", "sto-5g"):
+                raise UnsupportedError("basis %s is not supported by PySCF" % name)
+            try:
+                from pyscf import gto
+                shells.extend(gto.basis.load(name, ELEMENTS[z]))
+            except ImportError:
+                raise UnsupportedError("library basis %s in $DATA needs PySCF" % name)
+            except Exception as e:
+                raise InputError("$DATA: basis %s is not available for %s: %s" % (name, ELEMENTS[z], e))
+            i += 1
+            continue
         if len(tok) == 3:
             raise UnsupportedError("$DATA: scale factors on shell lines are not supported")
         rows = []
@@ -197,7 +220,7 @@ def _parse_data(lines, units, coord="UNIQUE", custom=None):
                                    "(dummy/ghost atoms and Z>54 are not supported)" % (tok[1], tok[0]))
         unique.append((tok[0], int(round(z)), xyz))
         if i < len(rest) and _shell_header(rest[i].split()):
-            sh, i = _read_shells(rest, i)
+            sh, i = _read_shells(rest, i, int(round(z)))
             shells_of.append(sh)
         else:
             shells_of.append(None)
@@ -292,7 +315,7 @@ def build_job(deck):
         b = deck.groups["BASIS"].keys
         canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
                                b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
-        if canonical in ("sto-2g", "sto-4g", "sto-5g"):
+        if canonical in ("sto-4g", "sto-5g"):
             raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
         elements = {ELEMENTS[z] for _, z, _ in atoms}
         basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
@@ -309,7 +332,15 @@ def build_job(deck):
         dftnl = (b, g("DFTNL", "C"))
 
     mult, charge = contrl["MULT"], contrl["ICHARG"]
-    nelec = sum(z for _, z, _ in atoms) - charge
+    ecp = g("CONTRL", "ECP", report_default=False)
+    ecp = None if ecp == "NONE" else "sbkjc"
+    ncore_ecp = 0
+    if ecp:
+        from pyscf import gto
+        for _, z, _ in atoms:
+            e = gto.basis.load_ecp(ecp, ELEMENTS[z])
+            ncore_ecp += e[0] if e else 0
+    nelec = sum(z for _, z, _ in atoms) - charge - ncore_ecp
     if mult < 1:
         raise InputError("$CONTRL MULT must be >= 1")
     if (nelec + mult - 1) % 2 != 0 or mult - 1 > nelec:
@@ -460,4 +491,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp)

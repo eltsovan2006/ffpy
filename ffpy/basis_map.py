@@ -10,7 +10,7 @@ NAMED = {
     "CCD": "cc-pvdz", "CCT": "cc-pvtz", "CCQ": "cc-pvqz", "CC5": "cc-pv5z",
     "ACCD": "aug-cc-pvdz", "ACCT": "aug-cc-pvtz", "ACCQ": "aug-cc-pvqz",
     "PCSEG0": "pcseg-0", "PCSEG1": "pcseg-1", "PCSEG2": "pcseg-2",
-    "DEF2SVP": "def2-svp", "DEF2TZVP": "def2-tzvp",
+    "SBKJC": "sbkjc", "DEF2SVP": "def2-svp", "DEF2TZVP": "def2-tzvp",
 }
 VALID_NGAUSS = {"STO": (2, 3, 4, 5, 6), "N21": (3, 6), "N31": (4, 5, 6), "N311": (6,)}
 
@@ -95,6 +95,31 @@ class BasisDict(dict):
 
 # d polarization exponents that Firefly adds for GBASIS=N21 NGAUSS=3 NDFUNC=1 on heavy atoms
 # which PySCF's 3-21G* lacks (read from a Firefly run; only elements actually seen are listed)
+# STO-2G is not shipped with PySCF. Unit-zeta least-squares fits of the Slater functions
+# (1s; 2s and 2p sharing exponents), obtained with the Hehre-Stewart-Pople procedure and checked
+# by reproducing the published STO-3G/H STO-2G numbers; scaled by the STO-3G molecular zetas.
+_STO2G_1S = ([0.8518185619823503, 0.15162328426962016], [0.4301285328254816, 0.6789134933079246])
+_STO2G_2SP = ([0.38426410316066784, 0.09745773505350928],
+              [0.04944777653285292, 0.9638005400057365], [0.5115174801401234, 0.6128447583597149])
+_STO3G_1S_EXP = 2.227660584      # unit-zeta first exponents of the published STO-3G fits
+_STO3G_2SP_EXP = 0.9942027296
+
+
+def sto2g_shells(element):
+    """STO-2G shells for H-Ne in PySCF format, zetas taken from PySCF's STO-3G."""
+    from pyscf import gto
+    ref = gto.basis.load("sto-3g", element)
+    if element not in ("H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"):
+        raise UnsupportedError("basis STO-2G is available for H-Ne only, not %s" % element)
+    z1 = ref[0][1][0] / _STO3G_1S_EXP
+    out = [[0] + [[e * z1, c] for e, c in zip(*_STO2G_1S)]]
+    if len(ref) > 1:
+        z2 = ref[1][1][0] / _STO3G_2SP_EXP
+        out.append([0] + [[e * z2, c] for e, c in zip(_STO2G_2SP[0], _STO2G_2SP[1])])
+        out.append([1] + [[e * z2, c] for e, c in zip(_STO2G_2SP[0], _STO2G_2SP[2])])
+    return out
+
+
 GAMESS_321G_D = {"Sb": 0.211}
 
 
@@ -115,6 +140,11 @@ def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,
         for el in elements:
             if el != "Si":
                 mapping[el] = canonical_name
+        return BasisDict(mapping, canonical_name)
+    if canonical_name == "sto-2g":
+        mapping = {"default": canonical_name}
+        for el in elements:
+            mapping[el] = sto2g_shells(el)
         return BasisDict(mapping, canonical_name)
     if g == "N21" and ngauss == 3 and ndfunc == 1:
         extra = {el: exp for el, exp in GAMESS_321G_D.items() if el in elements}
