@@ -10,7 +10,7 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 
 from ffpy import symmetry
-from ffpy.basis_map import basis_name, make_element_basis
+from ffpy.basis_map import BasisDict, basis_name, make_element_basis
 from ffpy.constants import ANG_BOHR
 from ffpy.errors import InputError, UnsupportedError
 from ffpy.schema import SOLVENTS
@@ -68,6 +68,7 @@ class Job:
     auto: bool = False
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
+    atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
 
     @property
     def symbols(self):
@@ -97,7 +98,48 @@ class Job:
         return "%s/%s" % (ref, self.basis.upper())
 
 
-def _parse_data(lines, units, coord="UNIQUE"):
+_SHELL_L = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
+
+
+def _shell_header(tok):
+    return (len(tok) in (2, 3) and tok[0].upper() in _SHELL_L.keys() | {"L"} and tok[1].isdigit())
+
+
+def _read_shells(rest, i):
+    """Read the shells of one atom starting at rest[i]; returns (pyscf shells, next index)."""
+    shells = []
+    n = len(rest)
+    while i < n and rest[i].strip():
+        tok = rest[i].split()
+        if not _shell_header(tok):
+            raise InputError("$DATA: bad shell header '%s'" % rest[i].strip())
+        kind, nprim = tok[0].upper(), int(tok[1])
+        if len(tok) == 3:
+            raise UnsupportedError("$DATA: scale factors on shell lines are not supported")
+        rows = []
+        for j in range(nprim):
+            i += 1
+            if i >= n or not rest[i].strip():
+                raise InputError("$DATA: shell %s %d has fewer than %d primitives" % (kind, nprim, nprim))
+            f = rest[i].replace("D", "E").replace("d", "e").split()
+            try:
+                vals = [float(x) for x in f[1:]]
+            except ValueError:
+                raise InputError("$DATA: cannot read primitive: %s" % rest[i].strip())
+            if len(vals) != (3 if kind == "L" else 2):
+                raise InputError("$DATA: primitive needs %d numbers: %s"
+                                 % (3 if kind == "L" else 2, rest[i].strip()))
+            rows.append(vals)
+        if kind == "L":
+            shells.append([0] + [[r[0], r[1]] for r in rows])
+            shells.append([1] + [[r[0], r[2]] for r in rows])
+        else:
+            shells.append([_SHELL_L[kind]] + [[r[0], r[1]] for r in rows])
+        i += 1
+    return shells, i + 1
+
+
+def _parse_data(lines, units, coord="UNIQUE", custom=None):
     body = [l for l in lines]
     while body and not body[0].strip():
         body.pop(0)
@@ -124,15 +166,16 @@ def _parse_data(lines, units, coord="UNIQUE"):
         atoms, _ = parse_zmatrix(rest, units, coord_style=coord)
         return title, grp_name, atoms, 1
 
-    unique = []
+    unique, shells_of = [], []
     scale = ANG_BOHR if units == "ANGS" else 1.0
-    for i, line in enumerate(rest):
+    i = 0
+    while i < len(rest):
+        line = rest[i]
         if not line.strip():
             if any(l.strip() for l in rest[i + 1:]):
-                raise UnsupportedError(
-                    "$DATA: blank line between atoms. Basis sets written inside $DATA are "
-                    "not supported; use the $BASIS group")
+                raise InputError("$DATA: blank line between atoms")
             break
+        i += 1
         tok = line.split()
         if len(tok) < 2:
             raise InputError("$DATA: atom line must be 'name Z [x [y [z]]]': %s" % line.strip())
@@ -149,9 +192,21 @@ def _parse_data(lines, units, coord="UNIQUE"):
             raise UnsupportedError("$DATA: nuclear charge %s of atom %s is not supported "
                                    "(dummy/ghost atoms and Z>54 are not supported)" % (tok[1], tok[0]))
         unique.append((tok[0], int(round(z)), xyz))
+        if i < len(rest) and _shell_header(rest[i].split()):
+            sh, i = _read_shells(rest, i)
+            shells_of.append(sh)
+        else:
+            shells_of.append(None)
     if not unique:
         raise InputError("$DATA: no atoms found")
     atoms, nops = symmetry.expand(unique, group, order)
+    if any(s is not None for s in shells_of):
+        if any(s is None for s in shells_of):
+            raise InputError("$DATA: basis functions must be given for all atoms or for none")
+        if custom is not None:
+            for k, (u, sh) in enumerate(zip(unique, shells_of)):
+                n_img = len(symmetry.expand([u], group, order)[0])
+                custom.extend([(k + 1, sh)] * n_img)   # symmetry images share one basis tag
     return title, grp_name, atoms, nops
 
 
@@ -219,17 +274,24 @@ def build_job(deck):
     scftyp, runtyp = contrl["SCFTYP"], contrl["RUNTYP"]
     xc = None if dfttyp == "NONE" else xc_for(dfttyp, g("DFT", "B3LYP", report_default=False))
 
-    title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"], coord=coord)
+    custom = []
+    title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"], coord=coord,
+                                             custom=custom)
 
-    if not deck.has("BASIS") or not deck.explicit("BASIS", "GBASIS"):
-        raise InputError("$BASIS GBASIS=... is required (basis sets inside $DATA are not supported)")
-    b = deck.groups["BASIS"].keys
-    canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
-                           b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
-    if canonical in ("sto-2g", "sto-4g", "sto-5g"):
-        raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
-    elements = {ELEMENTS[z] for _, z, _ in atoms}
-    basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
+    atom_tags = None
+    if custom:
+        atom_tags = ["%s%d" % (ELEMENTS[a[1]], c[0]) for a, c in zip(atoms, custom)]
+        basis = BasisDict({t: c[1] for t, c in zip(atom_tags, custom)}, "CUSTOM")
+    else:
+        if not deck.has("BASIS") or not deck.explicit("BASIS", "GBASIS"):
+            raise InputError("$BASIS GBASIS=... is required (or give basis functions in $DATA)")
+        b = deck.groups["BASIS"].keys
+        canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
+                               b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
+        if canonical in ("sto-2g", "sto-4g", "sto-5g"):
+            raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
+        elements = {ELEMENTS[z] for _, z, _ in atoms}
+        basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
 
     mult, charge = contrl["MULT"], contrl["ICHARG"]
     nelec = sum(z for _, z, _ in atoms) - charge
@@ -246,7 +308,14 @@ def build_job(deck):
     if guess == "MOREAD":
         if "VEC" not in deck.groups:
             raise InputError("GUESS=MOREAD requires a $VEC group")
-        vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
+        if any("D" in l.upper()[5:] for l in deck.groups["VEC"].lines):
+            # Firefly/GAMESS punch format: coefficients are in GAMESS AO order and cannot be
+            # mapped onto PySCF's AO order; start from the default guess instead
+            deck.notes.append(("warning", "$VEC from Firefly/GAMESS is not read (AO order differs): "
+                                          "using the HUCKEL guess; the SCF should converge to the same state"))
+            guess = "HUCKEL"
+        else:
+            vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
     elif "VEC" in deck.groups:
         deck.notes.append(("warning", "$VEC is present but GUESS is not MOREAD; it is ignored"))
 
@@ -286,12 +355,22 @@ def build_job(deck):
         tda = g("TDDFT", "TDA")
         excited = {"kind": ("TDA" if tda else "TDDFT") if xc else ("CIS" if tda else "TDHF"),
                    "nstate": g("TDDFT", "NSTATE"), "iroot": g("TDDFT", "IROOT"),
-                   "triplet": g("TDDFT", "MULT") == 3, "tda": tda}
+                   "triplet": g("TDDFT", "MULT") == 3, "tda": tda, "istsym": g("TDDFT", "ISTSYM")}
+    elif cityp in ("TDHF", "TDDFT"):
+        if cityp == "TDDFT" and not xc:
+            raise InputError("CITYP=TDDFT needs DFTTYP")
+        if cityp == "TDHF" and xc:
+            raise InputError("CITYP=TDHF cannot be combined with DFTTYP; use CITYP=TDDFT")
+        grp = cityp
+        tda = g(grp, "TDA")
+        excited = {"kind": ("TDA" if tda else "TDDFT") if xc else ("CIS" if tda else "TDHF"),
+                   "nstate": g(grp, "NSTATE"), "iroot": abs(g(grp, "ISTATE")) or 1,
+                   "triplet": g(grp, "MULT") == 3, "tda": tda, "istsym": g(grp, "ISTSYM")}
     elif cityp == "CIS":
         if xc:
             raise InputError("CITYP=CIS cannot be combined with DFTTYP; use $TDDFT TDA=.TRUE.")
         excited = {"kind": "CIS", "nstate": g("CIS", "NSTATE"), "iroot": g("CIS", "IROOT"),
-                   "triplet": g("CIS", "MULT") == 3, "tda": True}
+                   "triplet": g("CIS", "MULT") == 3, "tda": True, "istsym": g("CIS", "ISTSYM")}
     if excited:
         if excited["nstate"] < 1:
             raise InputError("NSTATE must be >= 1")
@@ -358,7 +437,7 @@ def build_job(deck):
         charges=[a[1] for a in atoms], coords=np.array([a[2] for a in atoms], float),
         charge=charge, mult=mult, scftyp=scftyp, runtyp=runtyp,
         dfttyp=None if dfttyp == "NONE" else dfttyp, xc=xc, mplevl=mplevl,
-        basis=basis, cart=contrl["ISPHER"] != 1, guess=guess, vec=vec,
+        basis=basis, cart=contrl["ISPHER"] != 1 and not g("CONTRL", "D5", report_default=False), guess=guess, vec=vec,
         maxit=contrl["MAXIT"], nconv_density=nconv, direct=g("SCF", "DIRSCF"),
         diis=g("SCF", "DIIS", False), soscf=g("SCF", "SOSCF", False),
         damp=g("SCF", "DAMP", False), shift=g("SCF", "SHIFT", False),
@@ -366,4 +445,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags)

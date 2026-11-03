@@ -48,16 +48,38 @@ class Result:
     e_tot: float
 
 
+# Firefly numbering of irreps (ISTSYM) for the abelian point groups: PySCF group, irrep names
+_IRREPS = {
+    "C1": ("C1", ["A"]),
+    "CS": ("Cs", ["A'", 'A"']),
+    "CI": ("Ci", ["Ag", "Au"]),
+    "C2": ("C2", ["A", "B"]),
+    "CNV 2": ("C2v", ["A1", "A2", "B1", "B2"]),
+    "CNH 2": ("C2h", ["Ag", "Au", "Bu", "Bg"]),
+    "DN 2": ("D2", ["A", "B1", "B2", "B3"]),
+    "DNH 2": ("D2h", ["Ag", "B1g", "B2g", "B3g", "Au", "B1u", "B2u", "B3u"]),
+}
+
+
+def _irrep_table(job):
+    key = job.point_group.upper()
+    if key not in _IRREPS:
+        raise UnsupportedError("ISTSYM is not supported for point group %s" % job.point_group)
+    return _IRREPS[key]
+
+
 def build_mol(job, ctx, coords=None):
     coords = job.coords if coords is None else coords
     mol = gto.Mole()
-    mol.atom = [(s, tuple(float(x) for x in c)) for s, c in zip(job.symbols, coords)]
+    mol.atom = [(s, tuple(float(x) for x in c)) for s, c in zip(job.atom_tags or job.symbols, coords)]
     mol.unit = "Bohr"
     mol.basis = job.basis
     mol.charge = job.charge
     mol.spin = job.mult - 1
     mol.cart = job.cart
     mol.symmetry = False
+    if job.excited and job.excited.get("istsym"):
+        mol.symmetry = _irrep_table(job)[0]
     if job.memory_mb:
         mol.max_memory = job.memory_mb
     if ctx.pyscf_fh:
@@ -185,6 +207,12 @@ def build_td(job, mf):
     ex = job.excited
     td = tdscf.TDA(mf) if ex["tda"] else tdscf.TDDFT(mf)
     td.nstates = ex["nstate"]
+    td.conv_tol = 1e-9
+    if ex.get("istsym"):
+        names = _irrep_table(job)[1]
+        if not 1 <= ex["istsym"] <= len(names):
+            raise InputError("ISTSYM=%d: point group %s has %d irreps" % (ex["istsym"], job.point_group, len(names)))
+        td.wfnsym = names[ex["istsym"] - 1]
     if job.scftyp == "RHF":
         td.singlet = not ex["triplet"]
     return td

@@ -361,3 +361,38 @@ def test_strict_rejection_of_unsupported_physics():
     with pytest.raises(UnsupportedError, match=r"\$ECP"):
         deck(" $ECP $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
 
+
+
+EXPLICIT_BASIS = """ $CONTRL SCFTYP=RHF D5=.T. CITYP=TDHF $END
+ $TDHF NSTATE=3 ISTSYM=1 ISTATE=-2 MULT=3 $END
+ $DATA
+H2O
+CNV 2
+
+O 8.0 0.0 0.0 0.0
+   S 1
+     1  5.0  1.0
+   L 2
+     1  2.0  0.5  0.6
+     2  0.5  0.5  0.4
+
+H 1.0 0.0 0.76 0.59
+   S 1
+     1  1.0  1.0
+
+ $END
+"""
+
+
+def test_explicit_basis_in_data_and_tdhf_keywords():
+    job = build_job(parse_input(EXPLICIT_BASIS))
+    assert job.atom_tags == ["O1", "H2", "H2"]          # symmetry images share a basis tag
+    assert job.basis["O1"] == [[0, [5.0, 1.0]], [0, [2.0, 0.5], [0.5, 0.5]], [1, [2.0, 0.6], [0.5, 0.4]]]
+    assert job.cart is False                              # D5=.T.
+    ex = job.excited
+    assert (ex["kind"], ex["nstate"], ex["iroot"], ex["triplet"], ex["istsym"]) == ("TDHF", 3, 2, True, 1)
+
+
+def test_cityp_tddft_needs_dfttyp():
+    with pytest.raises(InputError):
+        build_job(parse_input(EXPLICIT_BASIS.replace("CITYP=TDHF", "CITYP=TDDFT")))
