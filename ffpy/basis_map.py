@@ -93,6 +93,11 @@ class BasisDict(dict):
         return hash(self.name)
 
 
+# d polarization exponents that Firefly adds for GBASIS=N21 NGAUSS=3 NDFUNC=1 on heavy atoms
+# which PySCF's 3-21G* lacks (read from a Firefly run; only elements actually seen are listed)
+GAMESS_321G_D = {"Sb": 0.211}
+
+
 def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,
                        ngauss: Optional[int], ndfunc: int = 0) -> Any:
     """Return PySCF basis specification (str or BasisDict) considering GAMESS/Firefly defaults.
@@ -111,6 +116,16 @@ def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,
             if el != "Si":
                 mapping[el] = canonical_name
         return BasisDict(mapping, canonical_name)
+    if g == "N21" and ngauss == 3 and ndfunc == 1:
+        extra = {el: exp for el, exp in GAMESS_321G_D.items() if el in elements}
+        if extra:
+            from pyscf import gto
+            mapping = {"default": canonical_name}
+            for el in elements:
+                mapping[el] = canonical_name
+            for el, exp in extra.items():
+                mapping[el] = gto.basis.load("3-21g", el) + [[2, [exp, 1.0]]]
+            return BasisDict(mapping, canonical_name)
     return canonical_name
 
 
@@ -150,4 +165,6 @@ def basis_name(gbasis, ngauss=None, ndfunc=0, npfunc=0, nffunc=0,
     pol = ""
     if heavy:
         pol = "(%s,%s)" % (heavy, light) if light else "(%s)" % heavy
-    return "%s%sg%s" % (base, plus, pol)
+    name = "%s%sg%s" % (base, plus, pol)
+    # PySCF ships 3-21G* only under its file name
+    return {"3-21g(d)": "3-21gs", "3-21++g(d)": "3-21++gs"}.get(name, name)

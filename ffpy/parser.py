@@ -13,7 +13,7 @@ Rules:
 import re
 
 from ffpy.errors import InputError, UnsupportedError
-from ffpy.schema import IGNORED, RAW_GROUPS, SCHEMA, UNSUPPORTED_GROUPS
+from ffpy.schema import IGNORED, IGNORED_GROUPS, RAW_GROUPS, SCHEMA, UNSUPPORTED_GROUPS
 
 _GROUP_RE = re.compile(r"\$(\w+)")
 _END_RE = re.compile(r"\$END\b", re.I)
@@ -122,18 +122,31 @@ def _typed(group, key, value, raw):
     return v
 
 
+_CONT_RE = re.compile(r"^[-+0-9.,DdEe]+$")
+
+
 def _parse_keywords(group, deck):
     text = " ".join(group._text)
     text = re.sub(r"\s*=\s*", "=", text)
     text = re.sub(r"\s*,\s*", ",", text)
     schema = SCHEMA[group.name]
+    in_ignored_array = False
+    last_list = None
     for tok in text.split():
         m = _PAIR_RE.match(tok)
+        if not m and in_ignored_array:
+            continue            # continuation of an ignored array such as IZMAT(1)=1,1,2 1,2,3
+        if not m and last_list is not None and _CONT_RE.match(tok):
+            last_list[0].keys[last_list[1]].extend(_convert(p) for p in tok.split(",") if p != "")
+            group.raw[last_list[1]] += " " + tok
+            continue        # more numbers of an array key written over several blanks
         if not m:
             raise InputError("$%s (line %d): cannot read '%s', expected KEY=VALUE"
                              % (group.name, group.line, tok))
         key, index, rawval = m.group(1).upper(), m.group(2), m.group(3)
+        in_ignored_array = False
         if key in IGNORED.get(group.name, ()):
+            in_ignored_array = index is not None
             deck.notes.append(("warning", "$%s %s=%s is accepted but has no effect in ffpy"
                                % (group.name, key, rawval)))
             continue
@@ -149,6 +162,7 @@ def _parse_keywords(group, deck):
                                    % (group.name, key, index))
         group.keys[key] = _typed(group.name, key, value, rawval)
         group.raw[key] = rawval
+        last_list = (group, key) if schema[key].type == "floatlist" else None
 
 
 def parse_input(text):
@@ -189,13 +203,20 @@ def parse_input(text):
                 if name in UNSUPPORTED_GROUPS:
                     raise UnsupportedError("$%s (%s) is not supported by ffpy"
                                            % (name, UNSUPPORTED_GROUPS[name]))
-                if name not in SCHEMA and name not in RAW_GROUPS:
+                if name in IGNORED_GROUPS:
+                    deck.notes.append(("warning", "line %d: group $%s is ignored" % (lineno, name)))
+                if name not in SCHEMA and name not in RAW_GROUPS and name not in IGNORED_GROUPS:
                     raise InputError("line %d: unknown group $%s. Supported groups: %s"
                                      % (lineno, name, ", ".join(
                                          "$" + g for g in sorted(set(SCHEMA) | RAW_GROUPS))))
-                if name in deck.groups:
+                if name in deck.groups and name in RAW_GROUPS:
                     raise InputError("line %d: group $%s given twice" % (lineno, name))
-                current = Group(name, lineno)
+                if name in deck.groups:
+                    # Firefly lets a group be repeated; its keywords are merged
+                    current = deck.groups[name]
+                    current._text = []
+                else:
+                    current = Group(name, lineno)
                 if name in RAW_GROUPS:
                     # the rest of the $DATA/$VEC line is not used
                     break
@@ -210,8 +231,9 @@ def parse_input(text):
                     current._text.append(line[pos:])
                     break
                 current._text.append(line[pos:m.start()])
-                deck.groups[current.name] = current
-                _parse_keywords(current, deck)
+                if current.name not in IGNORED_GROUPS:
+                    deck.groups[current.name] = current
+                    _parse_keywords(current, deck)
                 current = None
                 pos = m.end()
     if current is not None:

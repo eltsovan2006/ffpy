@@ -29,6 +29,9 @@ def report(job, ctx, res, title_suffix=""):
     if job.pcm and "e_solvent" in summ:
         rows.append(("SOLVATION ENERGY (PCM)", summ["e_solvent"]))
     rows.append(("TOTAL %s ENERGY" % ref, res.e_scf))
+    if job.dftnl:
+        rows.append(("VV10 NONLOCAL ENERGY (DFT-NL)", res.e_nl))
+        rows.append(("TOTAL DFT-NL ENERGY", res.e_tot))
     m = job.method
     if m == "MP2":
         rows.append(("MP2 CORRELATION ENERGY", res.post.e_corr))

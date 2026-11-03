@@ -68,6 +68,7 @@ class Job:
     auto: bool = False
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
+    dftnl: Optional[Tuple[float, float]] = None   # VV10 (b, C)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
 
     @property
@@ -97,6 +98,9 @@ class Job:
             ref = "CASSCF(%d,%d)" % (self.cas["nels"], self.cas["nact"])
         return "%s/%s" % (ref, self.basis.upper())
 
+
+# optimized VV10 b (Hujo & Grimme); only values confirmed against Firefly output are listed
+_VV10_B = {"PBE0": 6.9}
 
 _SHELL_L = {"S": 0, "P": 1, "D": 2, "F": 3, "G": 4}
 
@@ -293,6 +297,17 @@ def build_job(deck):
         elements = {ELEMENTS[z] for _, z, _ in atoms}
         basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
 
+    dftnl = None
+    if g("CONTRL", "DFTNL", report_default=False):
+        if not xc:
+            raise InputError("DFTNL=.T. needs DFTTYP")
+        b = g("DFTNL", "B", report_default=False)
+        if b is None:
+            b = _VV10_B.get(dfttyp, 4.8 if dfttyp in ("B3LYP", "B3LYP1") else None)
+            if b is None:
+                raise UnsupportedError("DFTNL: no optimized VV10 b value known for DFTTYP=%s; set $DFTNL B=" % dfttyp)
+        dftnl = (b, g("DFTNL", "C"))
+
     mult, charge = contrl["MULT"], contrl["ICHARG"]
     nelec = sum(z for _, z, _ in atoms) - charge
     if mult < 1:
@@ -445,4 +460,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl)

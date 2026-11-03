@@ -87,6 +87,8 @@ def select(job):
         raise UnsupportedError("HSSEND=.TRUE. needs an analytic hessian (HF or DFT only)")
     if job.hssend and job.scftyp == "ROHF":
         raise UnsupportedError("HSSEND=.TRUE.: analytic hessian for ROHF/ROKS is not supported")
+    if job.dftnl and (job.method != "DFT" or job.runtyp != "ENERGY" or job.pcm):
+        raise UnsupportedError("DFTNL=.T. is available for plain DFT ENERGY runs only (no gradients, TD or PCM)")
     if job.pcm and job.method not in ("HF", "DFT", "TDHF", "TDDFT"):
         raise UnsupportedError("$PCM is supported only with HF and DFT (and TDHF/TDDFT energies)")
     if job.pcm and job.method in ("TDHF", "TDDFT") and job.runtyp != "ENERGY":

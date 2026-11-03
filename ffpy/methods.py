@@ -46,6 +46,7 @@ class Result:
     post: Optional[Any]      # MP2 / CASSCF / TD object
     e_scf: float
     e_tot: float
+    e_nl: float = 0.0       # VV10 term of DFT-NL (already included in e_tot)
 
 
 # Firefly numbering of irreps (ISTSYM) for the abelian point groups: PySCF group, irrep names
@@ -218,6 +219,20 @@ def build_td(job, mf):
     return td
 
 
+def vv10_energy(job, mol, mf):
+    """Non-self-consistent VV10 nonlocal correlation on the converged density (Firefly DFT-NL)."""
+    b, c = job.dftnl
+    grids = dft.gen_grid.Grids(mol)
+    grids.atom_grid = (75, 302)
+    grids.build()
+    ni = mf._numint
+    ni.nlc_coeff = lambda xc: [((b, c), 1.0)]
+    dm = mf.make_rdm1()
+    if getattr(dm, "ndim", 2) == 3:
+        dm = dm[0] + dm[1]
+    return float(ni.nr_nlc_vxc(mol, grids, "VV10", dm)[1])
+
+
 def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
     """Build and run the full method at the given geometry."""
     mol = build_mol(job, ctx, coords)
@@ -245,7 +260,11 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         if not all(np.atleast_1d(post.converged)):
             ctx.log.warning("some excited states did not converge")
         e_tot = e_scf
-    return Result(mol=mol, mf=mf, post=post, e_scf=e_scf, e_tot=e_tot)
+    e_nl = 0.0
+    if job.dftnl:
+        e_nl = vv10_energy(job, mol, mf)
+        e_tot += e_nl
+    return Result(mol=mol, mf=mf, post=post, e_scf=e_scf, e_tot=e_tot, e_nl=e_nl)
 
 
 def gradient_scanner(job, res):

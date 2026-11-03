@@ -57,6 +57,7 @@ SCHEMA = {
         "MULT": K("int", 1, None, "spin multiplicity"),
         "UNITS": K("str", "ANGS", ("ANGS", "BOHR"), "units of $DATA coordinates"),
         "MAXIT": K("int", 30, None, "max SCF iterations"),
+        "DFTNL": K("bool", False, None, "add the non-self-consistent VV10 nonlocal term (DFT-NL)"),
         "D5": K("bool", False, None, "spherical (pure) d and f functions, like ISPHER=1"),
         "ISPHER": K("int", -1, (-1, 0, 1), "-1/0 Cartesian d,f; 1 spherical"),
         "COORD": K("str", "UNIQUE", ("UNIQUE", "CART", "ZMT", "ZMTMPC"), "coordinate input style"),
@@ -90,6 +91,10 @@ SCHEMA = {
         "SOSCF": K("bool", False, None, "second-order SCF (PySCF newton)"),
         "DAMP": K("bool", False, None, "density damping"),
         "SHIFT": K("bool", False, None, "level shift"),
+    },
+    "DFTNL": {
+        "B": K("float", None, None, "VV10 b parameter (default: optimized value of the functional, else 4.8)"),
+        "C": K("float", 0.0093, None, "VV10 C parameter"),
     },
     "DFT": {
         "NRAD": K("int", None, None, "radial points per atom (with NLEB)"),
@@ -163,7 +168,8 @@ SCHEMA = {
 
 IGNORED = {
     "CONTRL": {"NPRINT", "ICUT", "ITOL", "INTTYP", "QMTTOL", "NOSYM", "NORMF",
-               "NORMP", "MOLPLT", "PLTORB", "AIMPAC", "FRIEND", "NUMGRD", "WIDE"},
+               "NORMP", "MOLPLT", "PLTORB", "AIMPAC", "FRIEND", "NUMGRD", "WIDE",
+               "NUMDER", "LOCAL"},
     "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"},
     "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
     "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS"},
@@ -183,6 +189,9 @@ IGNORED = {
     "ZMAT": {"NONVDW", "AUTOFV", "DLCTOL", "IFRZAT", "SIJ", "IJS", "FVALUE", "IXZMAT", "IRZMAT", "IFZMAT"},
 }
 
+# whole groups that only tune Firefly's parallel runtime / memory: accepted with a WARNING
+IGNORED_GROUPS = {"P2P", "TRANS"}
+
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
     "FMO": "FMO", "XMCQDPT": "XMCQDPT2", "MCQDPT": "MCQDPT",
@@ -190,7 +199,7 @@ UNSUPPORTED_GROUPS = {
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
-    "LIBE": "LIBE", "P2P": "P2P parallelism", "DRT": "GUGA",
+    "LIBE": "LIBE", "DRT": "GUGA",
     "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis", "MP4": "MP4",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
     "MOROKM": "Morokuma", "DFTD": "dispersion DFT", "SCRF": "SCRF", "CPHF": "CPHF",
