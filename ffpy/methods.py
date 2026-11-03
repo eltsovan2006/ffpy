@@ -353,6 +353,92 @@ def run_mpn(job, mf, mol):
     return MPn(mf.e_tot, parts)
 
 
+class MRPTResult:
+    def __init__(self, e_ref, e2):
+        self.e_ref, self.e_corr = e_ref, e2
+        self.e_tot = e_ref + e2
+
+
+def run_mrmp2(job, mf, mc, mol):
+    """One-state MCQDPT2: second-order multireference PT for a CASSCF state.
+
+    H0 is the one-electron operator built from the generalized Fock matrix of the state-averaged
+    density; orbitals are canonicalized inside the frozen/inactive, active and external blocks, so
+    H0 is diagonal in determinants (sum of orbital energies). The first-order wavefunction lies in
+    the determinants outside the CAS space, with denominators E0 - E_K (E0 = <Psi0|H0|Psi0>).
+    """
+    from pyscf import ao2mo
+    from pyscf.fci import addons, cistring, direct_spin1
+
+    ncore, nact = job.cas["ncore"], job.cas["nact"]
+    na_el, nb_el = mc.nelecas
+    C = mc.mo_coeff
+    nmo = C.shape[1]
+    nfz = min(chemcore(mol), ncore)
+    nin = ncore - nfz
+    ci = mc.ci
+    dm_act = mc.fcisolver.make_rdm1(ci, nact, mc.nelecas)
+    D = np.zeros((nmo, nmo))
+    D[:ncore, :ncore] = 2.0 * np.eye(ncore)
+    D[ncore:ncore + nact, ncore:ncore + nact] = dm_act
+    dmao = C @ D @ C.T
+    vj, vk = scf.hf.get_jk(mol, dmao)
+    F = C.T @ (mf.get_hcore() + vj - 0.5 * vk) @ C
+    blocks = [slice(0, nfz), slice(nfz, ncore), slice(ncore, ncore + nact), slice(ncore + nact, nmo)]
+    U = np.zeros((nmo, nmo))
+    for b in blocks:
+        if b.stop > b.start:
+            U[b, b] = np.linalg.eigh(F[b, b])[1]
+    eps = np.diag(U.T @ F @ U).copy()
+    C2 = C @ U
+    u_act = U[ncore:ncore + nact, ncore:ncore + nact]
+    ci2 = addons.transform_ci_for_orbital_rotation(ci, nact, mc.nelecas, u_act)
+
+    ncorr = nmo - nfz
+    na, nb = na_el + nin, nb_el + nin
+    from math import comb
+    if comb(ncorr, na) * comb(ncorr, nb) > 4_000_000:
+        raise UnsupportedError("MCQDPT2: the correlated space (%d orbitals) is too large for this implementation" % ncorr)
+    # frozen-core Hamiltonian over the correlated orbitals
+    cfz = C2[:, :nfz]
+    dmc = 2 * cfz @ cfz.T
+    vjc, vkc = scf.hf.get_jk(mol, dmc)
+    cc = C2[:, nfz:]
+    h1 = cc.T @ (mf.get_hcore() + vjc - 0.5 * vkc) @ cc
+    eri = ao2mo.restore(1, ao2mo.kernel(mol, cc), ncorr)
+    h2e = direct_spin1.absorb_h1e(h1, eri, ncorr, (na, nb), 0.5)
+
+    def strings(nel):
+        return cistring.make_strings(range(ncorr), nel)
+
+    sa, sb = strings(na), strings(nb)
+    inact_bits = (1 << nin) - 1
+    act_mask_bits = ((1 << nact) - 1) << nin
+
+    def in_cas(s):
+        return (int(s) & inact_bits) == inact_bits and (int(s) & ~(inact_bits | act_mask_bits)) == 0
+
+    cas_a = np.array([in_cas(s) for s in sa])
+    cas_b = np.array([in_cas(s) for s in sb])
+    sa_act = cistring.make_strings(range(nact), na_el)
+    sb_act = cistring.make_strings(range(nact), nb_el)
+    ia = np.array([cistring.str2addr(ncorr, na, (int(s) << nin) | inact_bits) for s in sa_act])
+    ib = np.array([cistring.str2addr(ncorr, nb, (int(s) << nin) | inact_bits) for s in sb_act])
+    psi = np.zeros((len(sa), len(sb)))
+    psi[np.ix_(ia, ib)] = ci2
+    hpsi = np.asarray(direct_spin1.contract_2e(h2e, psi, ncorr, (na, nb))).reshape(psi.shape)
+    cas = np.outer(cas_a, cas_b)
+    hq = np.where(cas, 0.0, hpsi)
+    e_corr = eps[nfz:]
+    ea = np.array([sum(e_corr[p] for p in range(ncorr) if (int(s) >> p) & 1) for s in sa])
+    eb = np.array([sum(e_corr[p] for p in range(ncorr) if (int(s) >> p) & 1) for s in sb])
+    ek = ea[:, None] + eb[None, :]
+    e0 = float(np.sum(psi ** 2 * ek))
+    den = e0 - ek
+    sel = ~cas
+    return MRPTResult(mc.e_tot, float(np.sum(hq[sel] ** 2 / den[sel])))
+
+
 def build_cas(job, mf):
     c = job.cas
     s = job.mult - 1
@@ -484,6 +570,9 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
             ctx.log.warning(msg)
             ctx.soft_fail(SCFNotConverged.code, msg)
         e_tot = post.e_tot if job.cas["nstate"] == 1 else post.e_average
+        if job.mrpt:
+            post.pt2 = run_mrmp2(job, mf, post, mol)
+            e_tot = post.pt2.e_tot
     elif m in ("TDDFT", "TDHF"):
         post = build_td(job, mf)
         post.kernel()

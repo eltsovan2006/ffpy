@@ -537,3 +537,27 @@ def test_irc_input():
     assert job.irc == {"stride": 0.3, "npoint": 3, "forward": False}
     with pytest.raises(UnsupportedError, match="saddle"):
         build_job(parse_input(txt.replace("SADDLE=.TRUE.", "SADDLE=.FALSE.")))
+
+
+def test_mrmp2_vanishes_for_a_complete_active_space():
+    from pyscf import gto, mcscf, scf
+    from ffpy.methods import run_mrmp2
+
+    class J:
+        cas = {"ncore": 0, "nact": 2}
+        mrpt = True
+
+    mol = gto.M(atom="H 0 0 0; H 0 0 0.8", basis="sto-3g", verbose=0)
+    mf = scf.RHF(mol).run()
+    mc = mcscf.CASSCF(mf, 2, 2)
+    mc.kernel()
+    assert run_mrmp2(J(), mf, mc, mol).e_corr == pytest.approx(0.0, abs=1e-10)
+
+
+def test_mcqdpt_input():
+    txt = (" $CONTRL SCFTYP=MCSCF MPLEVL=2 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
+           " $DET NCORE=0 NACT=2 NELS=2 $END\n $MCQDPT NSTATE=1 ISTSYM=1 EDSHFT=0.02 $END\n"
+           " $DATA\nt\nC1\nH 1.0 0 0 0\nH 1.0 0 0 0.8\n $END\n")
+    assert build_job(parse_input(txt)).mrpt
+    with pytest.raises(UnsupportedError, match="one state"):
+        build_job(parse_input(txt.replace("NCORE=0 NACT=2 NELS=2", "NCORE=0 NACT=2 NELS=2 NSTATE=2")))

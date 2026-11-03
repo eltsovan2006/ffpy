@@ -69,6 +69,9 @@ def report(job, ctx, res, title_suffix=""):
             rows.append(("STATE-AVERAGED CASSCF ENERGY", mc.e_average))
         else:
             rows.append(("TOTAL CASSCF ENERGY", mc.e_tot))
+        if job.mrpt:
+            rows.append(("MCQDPT2 CORRELATION ENERGY", mc.pt2.e_corr))
+            rows.append(("TOTAL MCQDPT2 ENERGY", mc.pt2.e_tot))
     out.energies(log, "energies (hartree)%s" % title_suffix, rows)
     if niter:
         log("  SCF converged in %d iterations" % niter if mf.converged

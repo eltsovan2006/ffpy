@@ -78,6 +78,7 @@ class Job:
     surface: Optional[list] = None                # rigid scan coordinates ($SURF)
     trudge: Optional[dict] = None                 # exponent optimization
     irc: Optional[dict] = None                    # reaction path
+    mrpt: bool = False                            # MCQDPT2 on top of CASSCF
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -537,6 +538,7 @@ def build_job(deck):
                 raise InputError("SCFTYP=NONE requires a $VEC1 group with the orbitals")
             vec1 = _parse_vec(deck.groups["VEC1"].lines, None)[0]
     cas = None
+    mrpt = False
     if scftyp == "GVB":
         # one perfect-pairing geminal = full CI in two orbitals = CASSCF(2,2)
         nco, nseto, npair = g("SCF", "NCO"), g("SCF", "NSETO"), g("SCF", "NPAIR")
@@ -587,8 +589,15 @@ def build_job(deck):
                              % (cas["nels"], cas["nact"], mult))
         if cas["wstate"] is not None and len(cas["wstate"]) != cas["nstate"]:
             raise InputError("$DET WSTATE must have NSTATE values")
-        if xc or mplevl or excited:
-            raise UnsupportedError("SCFTYP=MCSCF cannot be combined with DFTTYP/MPLEVL/TDDFT/CIS")
+        if xc or excited or (mplevl and mplevl != 2):
+            raise UnsupportedError("SCFTYP=MCSCF cannot be combined with DFTTYP/MPLEVL>2/TDDFT/CIS")
+        if mplevl == 2:
+            # MCQDPT2 for one state: second-order multireference PT with a one-electron zeroth-order H
+            if g("MCQDPT", "NSTATE", False) not in (None, 1) or cas["nstate"] != 1:
+                raise UnsupportedError("MCQDPT2 is supported only for one state (NSTATE=1)")
+            if runtyp != "ENERGY":
+                raise UnsupportedError("MCQDPT2 is supported only for RUNTYP=ENERGY")
+            mrpt = True
     elif deck.has("DET") or deck.has("MCSCF"):
         deck.notes.append(("warning", "$DET/$MCSCF given but SCFTYP is not MCSCF; ignored"))
 
@@ -680,4 +689,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)

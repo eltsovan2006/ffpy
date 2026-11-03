@@ -154,6 +154,10 @@ SCHEMA = {
         "SADDLE": K("bool", False, None, "start from a saddle point (required)"),
         "FORWRD": K("bool", True, None, "follow the forward direction of the imaginary mode"),
     },
+    "MCQDPT": {
+        "NSTATE": K("int", 1, None, "states of the effective Hamiltonian (only 1)"),
+        "ISTSYM": K("int", 1, None, "irrep of the states"),
+    },
     "SCRF": {
         "DIELEC": K("float", 78.39, None, "solvent dielectric constant"),
         "RADIUS": K("float", None, None, "cavity radius, angstrom (required)"),
@@ -275,6 +279,7 @@ IGNORED = {
     "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"},
     "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
     "IRC": {"TSENGY", "EVIB", "FREQ", "STABLZ", "ELBOW", "DELTA", "NEXTPT", "STOTAL", "SAB", "NPRT", "NPUN", "NRUN", "CNVRGE", "OPTTOL", "ITOPT", "ECORR"},
+    "MCQDPT": {"EDSHFT", "THRGEN", "GENZRO", "THRERI", "THRCON", "THRENE", "THRWGT", "IFORB", "INORB", "IROT", "ISELCT", "AVECOE", "WSTATE", "KSTATE", "NSOLUT", "MAXCSF", "MAXERI", "LENGTH", "MXBASE", "MXTRFR", "MDI", "NSTOP"},
     "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS", "PURIFY", "NORDER", "IORDER"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
@@ -303,7 +308,7 @@ IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "E
 
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
-    "FMO": "FMO", "XMCQDPT": "XMCQDPT2", "MCQDPT": "MCQDPT",
+    "FMO": "FMO", "XMCQDPT": "XMCQDPT2",
     "ECP": "effective core potentials",
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman",
