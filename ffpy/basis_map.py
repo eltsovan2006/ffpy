@@ -130,6 +130,19 @@ def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,
     re-used 6-21G core and d-exponent 0.45 used in Gaussian/PySCF.
     """
     g = gbasis.upper()
+    if g in ("DH", "DZV"):
+        from ffpy import dh_basis
+        mapping = {"default": canonical_name}
+        for el in elements:
+            if el not in dh_basis.DZ:
+                raise UnsupportedError("GBASIS=%s is not available for %s" % (g, el))
+            sh = dh_basis.shells(el)
+            if "d" in canonical_name[2:] and el in dh_basis.D_EXP:
+                sh.append([2, [dh_basis.D_EXP[el], 1.0]])
+            if "p" in canonical_name[2:] and el == "H":
+                sh.append([1, [dh_basis.P_EXP["H"], 1.0]])
+            mapping[el] = sh
+        return BasisDict(mapping, canonical_name)
     if "Si" in elements and g == "N31" and ngauss == 6:
         si_shells = copy.deepcopy(GORDON_SI_631G_SP)
         if ndfunc == 1:
@@ -169,6 +182,10 @@ def basis_name(gbasis, ngauss=None, ndfunc=0, npfunc=0, nffunc=0,
             raise InputError("NDFUNC/NPFUNC/NFFUNC/DIFFSP/DIFFS cannot be combined "
                              "with GBASIS=%s" % g)
         return NAMED[g]
+    if g in ("DH", "DZV"):
+        if nffunc or diffsp or diffs or ndfunc > 1 or npfunc > 1:
+            raise UnsupportedError("GBASIS=%s supports only NDFUNC<=1, NPFUNC<=1 without f/diffuse functions" % g)
+        return "dh%s%s" % ("d" if ndfunc else "", "p" if npfunc else "")
     if g not in POPLE:
         raise UnsupportedError(
             "GBASIS=%s is not supported. Supported: %s"

@@ -160,13 +160,29 @@ def build_scf(job, mol, ctx, tight=False):
     return mf
 
 
-def moread_dm(job, mf, mol):
+def read_vec(job, mol):
+    """The $VEC orbitals (alpha, beta) in PySCF AO order; a Firefly-order $VEC is converted and
+    orthonormalized (it may come from a slightly different geometry)."""
     Ca, Cb = job.vec
-    nao = mol.nao
-    if Ca.shape[0] != nao:
+    if Ca.shape[0] != mol.nao:
         raise InputError("$VEC has %d AO coefficients per orbital, the basis has %d "
                          "(the $VEC must come from an ffpy .dat with the same basis and ISPHER)"
-                         % (Ca.shape[0], nao))
+                         % (Ca.shape[0], mol.nao))
+    if job.vec_firefly:
+        s1 = mol.intor("int1e_ovlp")
+
+        def conv(C):
+            if C is None:
+                return None
+            C = firefly_vec_to_pyscf(job, mol, C)
+            w, u = np.linalg.eigh(C.T @ s1 @ C)
+            return C @ (u / np.sqrt(w)) @ u.T
+        Ca, Cb = conv(Ca), conv(Cb)
+    return Ca, Cb
+
+
+def moread_dm(job, mf, mol):
+    Ca, Cb = read_vec(job, mol)
     na, nb = mol.nelec
     if job.scftyp == "UHF":
         Cb = Ca if Cb is None else Cb
@@ -174,6 +190,20 @@ def moread_dm(job, mf, mol):
     if job.scftyp == "ROHF" or (job.scftyp == "MCSCF" and job.mult > 1):
         return np.array([Ca[:, :na] @ Ca[:, :na].T, Ca[:, :nb] @ Ca[:, :nb].T])
     return 2.0 * Ca[:, :na] @ Ca[:, :na].T
+
+
+def casscf_guess(job, mf, mol):
+    """Orbitals for CASSCF from MOREAD: the $VEC orbitals first (in their order), completed
+    with the remaining SCF orbitals projected out of their span."""
+    Ca, _ = read_vec(job, mol)
+    s1 = mol.intor("int1e_ovlp")
+    k = Ca.shape[1]
+    rest = mf.mo_coeff
+    rest = rest - Ca @ (Ca.T @ s1 @ rest)
+    w, u = np.linalg.eigh(rest.T @ s1 @ rest)
+    keep = w > 1e-6
+    extra = rest @ u[:, keep] / np.sqrt(w[keep])
+    return np.hstack([Ca, extra])[:, :mol.nao]
 
 
 def _escape_saddle(mf, log):
@@ -491,13 +521,20 @@ def vv10_energy(job, mol, mf):
     return float(ni.nr_nlc_vxc(mol, grids, "VV10", dm)[1])
 
 
+_GAMESS_CART_D = {0: (0, 1.0), 1: (3, 1 / 3.0), 2: (4, 1 / 3.0), 3: (1, 1.0), 4: (5, 1 / 3.0), 5: (2, 1.0)}
+
+
 def firefly_vec_to_pyscf(job, mol, C):
-    """Rows of a Firefly $VEC (GAMESS AO order, Firefly atom order) -> PySCF AO order (s and p only)."""
+    """Rows of a Firefly $VEC (GAMESS AO order, Firefly atom order) -> PySCF AO order.
+
+    s, p and Cartesian d are handled. GAMESS lists d as XX YY ZZ XY XZ YZ with every function
+    normalized like XX, which makes the XY-type overlap one third of XX; PySCF orders XX XY XZ YY YZ ZZ.
+    """
     if mol.nao != C.shape[0]:
-        raise InputError("$VEC1 has %d AOs per orbital, the basis has %d" % (C.shape[0], mol.nao))
-    if any(mol.bas_angular(i) > 1 for i in range(mol.nbas)):
-        raise UnsupportedError("a Firefly $VEC with d or higher functions is not supported")
-    # Firefly lists the images of a symmetry-unique atom with the smaller coordinates first
+        raise InputError("$VEC has %d AOs per orbital, the basis has %d" % (C.shape[0], mol.nao))
+    if any(mol.bas_angular(i) > 2 for i in range(mol.nbas)) or (
+            not mol.cart and any(mol.bas_angular(i) == 2 for i in range(mol.nbas))):
+        raise UnsupportedError("a Firefly $VEC with spherical d or f functions is not supported")
     coords = mol.atom_coords()
     z = [mol.atom_charge(i) for i in range(mol.natm)]
     order, i = [], 0
@@ -505,12 +542,28 @@ def firefly_vec_to_pyscf(job, mol, C):
         j = i
         while j < mol.natm and z[j] == z[i]:
             j += 1
-        order += sorted(range(i, j), key=lambda k: tuple(np.round(coords[k], 6)))
+        # Firefly lists the images of a symmetry-unique atom with the smaller coordinates first
+        order += sorted(range(i, j), key=lambda k: tuple(np.round(coords[k], 6))) if job.nsym_ops > 1 \
+            else range(i, j)
         i = j
-    ao = mol.aoslice_by_atom()
-    rows = [r for a in order for r in range(ao[a, 2], ao[a, 3])]
     out = np.zeros_like(C)
-    out[rows] = C
+    ovl = np.diag(mol.intor("int1e_ovlp"))
+    loc = mol.ao_loc_nr()
+    src = 0  # GAMESS position, atoms in Firefly order
+    for a in order:
+        for ib in range(mol.nbas):
+            if mol.bas_atom(ib) != a:
+                continue
+            l = mol.bas_angular(ib)
+            n = (l + 1) * (l + 2) // 2 if mol.cart else 2 * l + 1
+            for k in range(n):
+                row = loc[ib] + k
+                if l == 2:
+                    g, rel = _GAMESS_CART_D[k]
+                    out[row] = C[src + g] * np.sqrt(rel / ovl[row])
+                else:
+                    out[row] = C[src + k]
+            src += n
     return out
 
 
@@ -562,7 +615,10 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         e_tot = e_scf + post.e_corr
     elif m == "CASSCF":
         post = build_cas(job, mf)
-        post.kernel()
+        if job.guess == "MOREAD" and job.vec_firefly and job.cas["nstate"] == 1:
+            post.kernel(casscf_guess(job, mf, mol))
+        else:
+            post.kernel()
         if not post.converged:
             msg = "CASSCF did not converge in %d macro-iterations" % job.cas["maxit"]
             if strict:

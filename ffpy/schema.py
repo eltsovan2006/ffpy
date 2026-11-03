@@ -79,7 +79,7 @@ SCHEMA = {
         "NPFUNC": K("int", 0, (0, 1, 2, 3), "p functions on H"),
         "DIFFSP": K("bool", False, None, "diffuse sp on heavy atoms"),
         "DIFFS": K("bool", False, None, "diffuse s on H"),
-        "POLAR": K("str", "POPLE", ("POPLE",), "polarization exponents"),
+        "POLAR": K("str", "POPLE", ("POPLE", "POPN311", "DUNNING", "HUZINAGA", "HONDO7"), "polarization exponent set (only the one native to GBASIS is available)"),
     },
     "GUESS": {
         "GUESS": K("str", "HUCKEL", ("HUCKEL", "HCORE", "MOREAD"), "initial orbitals"),

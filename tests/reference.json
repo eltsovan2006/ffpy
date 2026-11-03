@@ -21,6 +21,18 @@
       "source": "firefly",
       "energy": -37.2778767104
     },
+    "bench09": {
+      "source": "firefly",
+      "energy": -231.8224047364
+    },
+    "bench05": {
+      "source": "firefly",
+      "energy": -115.7534036778
+    },
+    "bench10": {
+      "source": "firefly",
+      "energy": -683.4533488546
+    },
     "bench02": {
       "source": "firefly",
       "energy": -290.0124281398

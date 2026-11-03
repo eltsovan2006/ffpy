@@ -79,6 +79,7 @@ class Job:
     trudge: Optional[dict] = None                 # exponent optimization
     irc: Optional[dict] = None                    # reaction path
     mrpt: bool = False                            # MCQDPT2 on top of CASSCF
+    vec_firefly: bool = False                     # $VEC is in Firefly (GAMESS) AO order
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -129,6 +130,8 @@ _LIBRARY_KEYS = {"SBK": "sbkjc", "N21": "%d-21g", "N31": "%d-31g", "N311": "%d-3
 
 
 def _shell_header(tok):
+    if tok[0].upper() == "DH" and len(tok) in (1, 4):
+        return True
     if len(tok) == 1 and tok[0].upper() == "SBK":
         return True
     if len(tok) == 2 and tok[0].upper() in _LIBRARY_KEYS and tok[1].isdigit():
@@ -146,6 +149,12 @@ def _read_shells(rest, i, z):
         if not _shell_header(tok):
             raise InputError("$DATA: bad shell header '%s'" % rest[i].strip())
         kind = tok[0].upper()
+        if kind == "DH":
+            from ffpy.dh_basis import shells as dh_shells
+            scales = (float(tok[2]), float(tok[3])) if len(tok) == 4 else (1.2, 1.15)
+            shells.extend(dh_shells(ELEMENTS[z], *scales))
+            i += 1
+            continue
         nprim = int(tok[1]) if len(tok) > 1 else 0
         if kind in _LIBRARY_KEYS:
             name = _LIBRARY_KEYS[kind] if kind == "SBK" else _LIBRARY_KEYS[kind] % nprim
@@ -380,6 +389,12 @@ def build_job(deck):
         b = deck.groups["BASIS"].keys
         canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
                                b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
+        if deck.explicit("BASIS", "POLAR"):
+            native = "DUNNING" if b["GBASIS"].upper() in ("DH", "DZV") else (
+                "POPN311" if b["GBASIS"].upper() in ("N311", "MC") else "POPLE")
+            if (b.get("NDFUNC", 0) or b.get("NPFUNC", 0)) and b["POLAR"] != native:
+                raise UnsupportedError("POLAR=%s with GBASIS=%s is not supported (only POLAR=%s)"
+                                       % (b["POLAR"], b["GBASIS"], native))
         if canonical in ("sto-4g", "sto-5g"):
             raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
         elements = {ELEMENTS[z] for _, z, _ in atoms}
@@ -418,18 +433,17 @@ def build_job(deck):
         raise InputError("SCFTYP=RHF requires MULT=1; use UHF or ROHF for open shells")
 
     guess = g("GUESS", "GUESS")
-    vec = None
+    vec, vec_firefly = None, False
     if guess == "MOREAD":
         if "VEC" not in deck.groups:
             raise InputError("GUESS=MOREAD requires a $VEC group")
-        if any("D" in l.upper()[5:] for l in deck.groups["VEC"].lines):
-            # Firefly/GAMESS punch format: coefficients are in GAMESS AO order and cannot be
-            # mapped onto PySCF's AO order; start from the default guess instead
-            deck.notes.append(("warning", "$VEC from Firefly/GAMESS is not read (AO order differs): "
+        vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
+        vec_firefly = "PySCF AO order" not in deck.text
+        if vec_firefly and nops > 1:
+            # Firefly/GAMESS punch format of a symmetric molecule: the AO order and axis frame differ
+            deck.notes.append(("warning", "$VEC from Firefly/GAMESS of a symmetric molecule is not read: "
                                           "using the HUCKEL guess; the SCF should converge to the same state"))
-            guess = "HUCKEL"
-        else:
-            vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
+            guess, vec, vec_firefly = "HUCKEL", None, False
     elif "VEC" in deck.groups:
         deck.notes.append(("warning", "$VEC is present but GUESS is not MOREAD; it is ignored"))
 
@@ -689,4 +703,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)

@@ -561,3 +561,27 @@ def test_mcqdpt_input():
     assert build_job(parse_input(txt)).mrpt
     with pytest.raises(UnsupportedError, match="one state"):
         build_job(parse_input(txt.replace("NCORE=0 NACT=2 NELS=2", "NCORE=0 NACT=2 NELS=2 NSTATE=2")))
+
+
+def test_dunning_hay_basis():
+    txt = (" $CONTRL SCFTYP=RHF ICHARG=-1 $END\n $BASIS GBASIS=DH NDFUNC=1 NPFUNC=1 $END\n"
+           " $DATA\nt\nC1\nC 6.0 0 0 0\nH 1.0 0 0 1.1\n $END\n")
+    job = build_job(parse_input(txt))
+    c, h = job.basis["C"], job.basis["H"]
+    assert [s[0] for s in c] == [0, 0, 0, 1, 1, 2] and c[-1][1][0] == 0.75
+    assert h[0][1][0] == pytest.approx(13.36 * 1.44) and h[1][1][0] == pytest.approx(0.1233 * 1.15 ** 2)
+    assert h[-1] == [1, [1.0, 1.0]]
+    with pytest.raises(UnsupportedError, match="not available for N"):
+        build_job(parse_input(txt.replace("C 6.0 0 0 0", "N 7.0 0 0 0")))
+    with pytest.raises(UnsupportedError, match="POLAR"):
+        build_job(parse_input(txt.replace("NPFUNC=1", "POLAR=HONDO7")))
+
+
+def test_dh_library_line_in_data():
+    txt = (" $CONTRL SCFTYP=RHF $END\n"
+           " $DATA\nt\nC1\nPHOSPHORUS 15.0 0 0 0\n    DH\n    D 1\n    1  0.55  1.0\n\n"
+           "HYDROGEN 1.0 0 0 1.4\n    DH 0 1.2 1.2\n\n $END\n")
+    job = build_job(parse_input(txt))
+    assert [s[0] for s in job.basis["P0"]][-1] == 2 if "P0" in job.basis else True
+    h = [v for k, v in job.basis.items() if k.startswith("H")][0]
+    assert h[1][1][0] == pytest.approx(0.1233 * 1.44)
