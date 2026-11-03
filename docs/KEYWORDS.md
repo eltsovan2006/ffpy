@@ -320,6 +320,7 @@ $ZMAT (internal coordinates), $EFRAG (EFP), $EFP (EFP), $FMO (FMO), $XMCQDPT (XM
 | `$CONTRL D5=.T.` | сферические d-функции |
 | базис в `$DATA` | оболочки S/P/D/L и библиотечные строки (`N21 3`, `SBK`) после атома |
 | `GBASIS=STO NGAUSS=2` | STO-2G для H–Ne по опубликованной таблице |
+| `DFTTYP=D-PBEP86` + `$DFT HFX CPT2 SCS`, `$CONTRL DFTD=.T.` + `$DFTD VERSN=4 S6 RS6 S18 RS18 ALP` | двойной гибрид DSD-PBEP86 с D3BJ (только ENERGY; нужен `pip install dftd3`); `$MP2 RI=.T.` с базисом из `$AUXBAS` для PT2-части |
 | `ffpy --json`, `ffpy-mcp` | машиночитаемый вывод и MCP-сервер (см. README) |
 
 Принимаются без эффекта: группы `$P2P`, `$TRANS`, `$GUGEM`, `$MCQFIT`; ключи

@@ -57,6 +57,16 @@
       "source": "firefly",
       "energy": -37.2562020654
     },
+    "exam50": {
+      "source": "firefly",
+      "energy": -408.1304748355,
+      "dft": true
+    },
+    "exam51": {
+      "source": "firefly",
+      "energy": -408.1304160858,
+      "dft": true
+    },
     "exam52": {
       "source": "firefly",
       "energy": -408.253629225662,

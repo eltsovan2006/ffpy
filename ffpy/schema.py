@@ -43,13 +43,13 @@ SOLVENTS = {
     "DMF": 37.219,
 }
 
-RAW_GROUPS = {"DATA", "VEC"}
+RAW_GROUPS = {"DATA", "VEC", "AUXBAS"}
 
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB"), "reference wavefunction"),
         "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD"), "job type"),
-        "DFTTYP": K("str", "NONE", ("NONE",) + tuple(sorted(XC_MAP)), "DFT functional"),
+        "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT"), "CIS/TDHF/TDDFT excited states"),
         "TDDFT": K("str", "NONE", ("NONE", "EXCITE"), "TDDFT excited states"),
@@ -58,6 +58,7 @@ SCHEMA = {
         "UNITS": K("str", "ANGS", ("ANGS", "BOHR"), "units of $DATA coordinates"),
         "MAXIT": K("int", 30, None, "max SCF iterations"),
         "DFTNL": K("bool", False, None, "add the non-self-consistent VV10 nonlocal term (DFT-NL)"),
+        "DFTD": K("bool", False, None, "empirical dispersion (only D3BJ with explicit $DFTD parameters)"),
         "ECP": K("str", "NONE", ("NONE", "SBK"), "effective core potentials (SBK = SBKJC)"),
         "D5": K("bool", False, None, "spherical (pure) d and f functions, like ISPHER=1"),
         "ISPHER": K("int", -1, (-1, 0, 1), "-1/0 Cartesian d,f; 1 spherical"),
@@ -97,6 +98,14 @@ SCHEMA = {
         "NPAIR": K("int", 0, None, "GVB: geminal pairs (only 1 supported, = CASSCF(2,2))"),
         "CICOEF": K("floatlist", None, None, "GVB: initial pair CI coefficients (ignored)"),
     },
+    "DFTD": {
+        "VERSN": K("int", 3, (3, 4), "DFT-D version; only 4 (D3 with Becke-Johnson damping) is supported"),
+        "S6": K("float", None, None, "D3BJ s6"),
+        "RS6": K("float", None, None, "D3BJ a1"),
+        "S18": K("float", None, None, "D3BJ s8"),
+        "RS18": K("float", None, None, "D3BJ a2 (bohr)"),
+        "ALP": K("float", 14.0, None, "D3BJ alpha6"),
+    },
     "DFTNL": {
         "B": K("float", None, None, "VV10 b parameter (default: optimized value of the functional, else 4.8)"),
         "C": K("float", 0.0093, None, "VV10 C parameter"),
@@ -105,14 +114,20 @@ SCHEMA = {
         "NRAD": K("int", None, None, "radial points per atom (with NLEB)"),
         "NLEB": K("int", None, None, "Lebedev angular points (with NRAD)"),
         "B3LYP": K("str", "NWCHEM", ("NWCHEM", "GAMESS"), "VWN formula of DFTTYP=B3LYP: NWCHEM = 1 RPA (default), GAMESS = 5"),
+        "HFX": K("floatlist", None, None, "double hybrid (D-PBEP86): fraction of exact exchange"),
+        "CPT2": K("float", None, None, "double hybrid: total weight of the MP2-like term"),
+        "SCS": K("floatlist", None, None, "double hybrid: opposite-spin and same-spin scaling of CPT2"),
     },
     "MP4": {
         "SDTQ": K("bool", False, None, "MP4(SDTQ) instead of MP4(SDQ)"),
         "TONLY": K("bool", False, None, "only the MP4(T) triples term"),
     },
+    "RIMP2": {
+        "AUXBAS": K("str", None, None, "name of the auxiliary basis given in $AUXBAS"),
+    },
     "MP2": {
         "NACORE": K("int", None, None, "frozen core orbitals; not set = chemical core"),
-        "RI": K("bool", False, None, "RI-MP2 (not supported)"),
+        "RI": K("bool", False, None, "RI-MP2 with the auxiliary basis from $AUXBAS"),
     },
     "STATPT": {
         "NSTEP": K("int", 20, None, "max optimization steps"),
@@ -229,7 +244,6 @@ UNSUPPORTED_GROUPS = {
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
     "LIBE": "LIBE",
-    "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
-    "MOROKM": "Morokuma", "DFTD": "dispersion DFT", "SCRF": "SCRF", "CPHF": "CPHF",
+    "MOROKM": "Morokuma", "SCRF": "SCRF", "CPHF": "CPHF",
 }

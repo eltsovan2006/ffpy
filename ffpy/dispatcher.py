@@ -19,6 +19,7 @@ def _run(module, job, ctx):
 def energy_hf(job, ctx): return _run("energy", job, ctx)
 def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
+def energy_dh(job, ctx): return _run("energy", job, ctx)
 def energy_mp3(job, ctx): return _run("energy", job, ctx)
 def energy_mp4(job, ctx): return _run("energy", job, ctx)
 def energy_casscf(job, ctx): return _run("energy", job, ctx)
@@ -51,6 +52,7 @@ HANDLERS = {
     ("DFT", "ENERGY"): energy_dft,
     ("MP2", "ENERGY"): energy_mp2,
     ("MP3", "ENERGY"): energy_mp3,
+    ("DH", "ENERGY"): energy_dh,
     ("HF", "NUMGRAD"): numgrad,
     ("DFT", "NUMGRAD"): numgrad,
     ("MP2", "NUMGRAD"): numgrad,

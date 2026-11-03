@@ -357,7 +357,7 @@ def test_strict_rejection_of_unsupported_physics():
     with pytest.raises(InputError, match="NZVAR"):
         build_job(deck(" $CONTRL NZVAR=-1 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"))
     with pytest.raises(InputError, match="DFTTYP"):
-        deck(" $CONTRL DFTTYP=D-PBEP86 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        deck(" $CONTRL DFTTYP=XYG3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(UnsupportedError, match=r"\$ECP"):
         deck(" $ECP $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
 
@@ -444,3 +444,18 @@ def test_gvb_one_pair_is_cas22():
     assert job.method == "CASSCF" and (job.cas["nact"], job.cas["nels"], job.cas["ncore"]) == (2, 2, 4)
     with pytest.raises(UnsupportedError, match="NPAIR"):
         build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=2 NPAIR=2 $END\n" + base))
+
+
+def test_double_hybrid_and_auxbas_parsing():
+    from ffpy.job import _parse_auxbas
+    aux = _parse_auxbas(["H    def2-TZVPP/C", "  S  1", "   9.3  1.0E+00", "  P  1", "   2.4  1.0", "C  x", "  S 1", "  5.0 1.0"])
+    assert aux["H"] == [[0, [9.3, 1.0]], [1, [2.4, 1.0]]] and aux["C"] == [[0, [5.0, 1.0]]]
+    base = (" $BASIS GBASIS=STO NGAUSS=3 $END\n $DATA\nt\nC1\nHe 2.0 0 0 0\n $END\n")
+    with pytest.raises(UnsupportedError, match="D-PBEP86"):
+        build_job(parse_input(" $CONTRL DFTTYP=D-PBEP86 $END\n" + base))
+    deck_txt = (" $CONTRL DFTTYP=D-PBEP86 MPLEVL=2 DFTD=.T. $END\n $DFT HFX(1)=0.70 CPT2=0.57 "
+                "SCS(1)=0.9298245614035088,0.4385964912280702 $END\n"
+                " $DFTD VERSN=4 S6=0.418 RS6=0.0 S18=0.25 RS18=5.65 ALP=14.0 $END\n" + base)
+    job = build_job(parse_input(deck_txt))
+    assert job.method == "DH" and job.disp["a2"] == 5.65
+    assert job.dh["os"] == pytest.approx(0.53) and job.dh["ss"] == pytest.approx(0.25)

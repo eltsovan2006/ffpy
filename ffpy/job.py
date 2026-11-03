@@ -70,6 +70,9 @@ class Job:
     defaults: List[str] = field(default_factory=list)
     nsym_ops: int = 1
     dftnl: Optional[Tuple[float, float]] = None   # VV10 (b, C)
+    dh: Optional[dict] = None                     # double hybrid: hfx, cpt2, os, ss
+    disp: Optional[dict] = None                   # D3BJ parameters
+    auxbas: Optional[dict] = None                 # RI-MP2 auxiliary basis {element: shells}
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
 
@@ -82,6 +85,8 @@ class Job:
         """Key used by the dispatcher."""
         if self.scftyp == "MCSCF":
             return "CASSCF"
+        if self.dh:
+            return "DH"
         if self.mplevl == 2:
             return "MP2"
         if self.mplevl in (3, 4):
@@ -167,6 +172,27 @@ def _read_shells(rest, i, z):
             shells.append([_SHELL_L[kind]] + [[r[0], r[1]] for r in rows])
         i += 1
     return shells, i + 1
+
+
+def _parse_auxbas(lines):
+    """$AUXBAS: 'El  name' header, then shells 'S n' followed by n 'exponent coefficient' lines."""
+    basis, sym, i = {}, None, 0
+    lines = [l for l in lines if l.strip()]
+    while i < len(lines):
+        parts = lines[i].split()
+        if len(parts) == 2 and parts[0].upper() in "SPDFGHIL" and parts[1].isdigit() and sym:
+            l = "SPDFGHI".index(parts[0].upper())
+            n = int(parts[1])
+            rows = [lines[i + 1 + k].replace("D", "E").replace("d", "e").split() for k in range(n)]
+            basis[sym].append([l] + [[float(r[0]), float(r[1])] for r in rows])
+            i += n + 1
+        else:
+            sym = parts[0].capitalize()
+            if sym not in ELEMENTS:
+                raise InputError("$AUXBAS: unknown element %r" % parts[0])
+            basis.setdefault(sym, [])
+            i += 1
+    return basis
 
 
 def _parse_data(lines, units, coord="UNIQUE", custom=None):
@@ -302,7 +328,30 @@ def build_job(deck):
         raise UnsupportedError("$STATPT IFREEZ: coordinate freezing is not supported by ffpy")
 
     scftyp, runtyp = contrl["SCFTYP"], contrl["RUNTYP"]
-    xc = None if dfttyp == "NONE" else xc_for(dfttyp, g("DFT", "B3LYP", report_default=False))
+    dh = None
+    if dfttyp == "DPBEP86":
+        hfx, cpt2, scs = (g("DFT", k, report_default=False) for k in ("HFX", "CPT2", "SCS"))
+        if hfx is None or cpt2 is None or scs is None or len(scs) != 2:
+            raise UnsupportedError("DFTTYP=D-PBEP86 is supported only with explicit $DFT HFX(1)=, CPT2= and "
+                                   "SCS(1)=os,ss (DSD-PBEP86 parameters) and $DFTD VERSN=4")
+        cx, cc = 1.0 - hfx[0], 1.0 - cpt2
+        # PBE exchange; P86 correlation with the modified Perdew-Zunger local part (matches Firefly)
+        xc = ("%.10g*HF + %.10g*GGA_X_PBE + %.10g*GGA_C_P86 + %.10g*LDA_C_PZ_MOD - %.10g*LDA_C_PZ"
+              % (hfx[0], cx, cc, cc, cc))
+        dh = {"hfx": hfx[0], "cpt2": cpt2, "os": cpt2 * scs[0], "ss": cpt2 * scs[1]}
+    else:
+        xc = None if dfttyp == "NONE" else xc_for(dfttyp, g("DFT", "B3LYP", report_default=False))
+    disp = None
+    if g("CONTRL", "DFTD", report_default=False):
+        if not xc:
+            raise InputError("DFTD=.T. needs DFTTYP")
+        pars = [g("DFTD", k, report_default=False) for k in ("S6", "RS6", "S18", "RS18")]
+        if g("DFTD", "VERSN", report_default=False) != 4 or None in pars:
+            raise UnsupportedError("DFTD=.T. is supported only as D3BJ: $DFTD VERSN=4 with S6, RS6, S18, RS18 "
+                                   "(and ALP) given explicitly")
+        disp = {"s6": pars[0], "a1": pars[1], "s8": pars[2], "a2": pars[3], "alp": g("DFTD", "ALP")}
+        if runtyp != "ENERGY":
+            raise UnsupportedError("DFT-D is supported only for RUNTYP=ENERGY")
 
     custom = []
     title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"], coord=coord,
@@ -390,6 +439,7 @@ def build_job(deck):
             grid = (nrad, nleb)
 
     mp2_frozen = None
+    auxbas = None
     mp4 = {}
     if mplevl in (3, 4):
         if scftyp != "RHF":
@@ -399,9 +449,12 @@ def build_job(deck):
         mp2_frozen = g("MP2", "NACORE", False)
         if mplevl == 4:
             mp4 = {"sdtq": g("MP4", "SDTQ", False), "tonly": g("MP4", "TONLY", False)}
-    if mplevl == 2:
+    if mplevl == 2 or dh:
         if deck.has("MP2") and g("MP2", "RI", report_default=False):
-            raise UnsupportedError("RI-MP2 ($MP2 RI=.TRUE.) is not supported")
+            if "AUXBAS" not in deck.groups:
+                raise UnsupportedError("RI-MP2 ($MP2 RI=.TRUE.) is supported only with the auxiliary basis "
+                                       "written out in an $AUXBAS group")
+            auxbas = _parse_auxbas(deck.groups["AUXBAS"].lines)
         mp2_frozen = g("MP2", "NACORE", False)
 
     excited = None
@@ -532,4 +585,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas)

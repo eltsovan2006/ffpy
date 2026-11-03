@@ -32,7 +32,15 @@ def report(job, ctx, res, title_suffix=""):
     if job.dftnl:
         rows.append(("VV10 NONLOCAL ENERGY (DFT-NL)", res.e_nl))
         rows.append(("TOTAL DFT-NL ENERGY", res.e_tot))
+    if job.disp:
+        rows.append(("DFT-D3(BJ) DISPERSION ENERGY", res.e_disp))
     m = job.method
+    if m == "DH":
+        d = res.post
+        rows.append(("MP2-LIKE OPPOSITE-SPIN ENERGY", d.e_os))
+        rows.append(("MP2-LIKE SAME-SPIN ENERGY", d.e_ss))
+        rows.append(("SCALED MP2-LIKE CORRECTION", d.e_corr))
+        rows.append(("TOTAL DOUBLE-HYBRID ENERGY", res.e_tot))
     if m == "MP2":
         rows.append(("MP2 CORRELATION ENERGY", res.post.e_corr))
         rows.append(("TOTAL MP2 ENERGY", res.post.e_tot))

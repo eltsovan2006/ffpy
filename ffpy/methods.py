@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from pyscf import dft, fci, gto, lib, mcscf, mp, scf, tdscf
+from pyscf import df, dft, fci, gto, lib, mcscf, mp, scf, tdscf
 from pyscf.data.elements import chemcore
 
 from ffpy.errors import InputError, SCFNotConverged, TimeLimitExceeded, UnsupportedError
@@ -47,6 +47,7 @@ class Result:
     e_scf: float
     e_tot: float
     e_nl: float = 0.0       # VV10 term of DFT-NL (already included in e_tot)
+    e_disp: float = 0.0     # D3BJ dispersion (already included in e_tot)
 
 
 # Firefly numbering of irreps (ISTSYM) for the abelian point groups: PySCF group, irrep names
@@ -193,6 +194,41 @@ def build_mp2(job, mf, mol):
     return pt, nfrz
 
 
+def d3bj_energy(job, mol):
+    """Grimme D3 with Becke-Johnson damping (no three-body term), parameters from $DFTD."""
+    try:
+        from dftd3.interface import DispersionModel, RationalDampingParam
+    except ImportError:
+        raise UnsupportedError("DFT-D needs the 'dftd3' package: pip install dftd3")
+    p = job.disp
+    model = DispersionModel(np.array(mol.atom_charges()), np.array(mol.atom_coords()))
+    par = RationalDampingParam(s6=p["s6"], s8=p["s8"], a1=p["a1"], a2=p["a2"], alp=p["alp"], s9=0.0)
+    return float(model.get_dispersion(par, grad=False)["energy"])
+
+
+class DHResult:
+    """Scaled opposite- and same-spin MP2 terms of a double hybrid (canonical, frozen core)."""
+
+    def __init__(self, e_os, e_ss, c_os, c_ss):
+        self.e_os, self.e_ss, self.c_os, self.c_ss = e_os, e_ss, c_os, c_ss
+        self.e_corr = c_os * e_os + c_ss * e_ss
+
+
+def _ri_mp2(job, mf, mol, nfrz):
+    from pyscf.mp import dfmp2
+    pt = dfmp2.DFMP2(mf, frozen=nfrz if nfrz else None)
+    pt.with_df = df.DF(mol, auxbasis=job.auxbas)
+    return pt
+
+
+def run_dh(job, mf, mol):
+    nfrz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
+    pt = _ri_mp2(job, mf, mol, nfrz) if job.auxbas else mp.MP2(mf, frozen=nfrz if nfrz else None)
+    pt.verbose = 0
+    pt.kernel(with_t2=False) if job.auxbas else pt.kernel()
+    return DHResult(float(pt.e_corr_os), float(pt.e_corr_ss), job.dh["os"], job.dh["ss"])
+
+
 class MPn:
     """MP3 / MP4 energies of a closed-shell reference (spin-adapted, from CC pieces)."""
 
@@ -323,6 +359,9 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
     elif m in ("MP3", "MP4"):
         post = run_mpn(job, mf, mol)
         e_tot = post.e_tot
+    elif m == "DH":
+        post = run_dh(job, mf, mol)
+        e_tot = e_scf + post.e_corr
     elif m == "CASSCF":
         post = build_cas(job, mf)
         post.kernel()
@@ -339,11 +378,15 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         if not all(np.atleast_1d(post.converged)):
             ctx.log.warning("some excited states did not converge")
         e_tot = e_scf
+    e_disp = 0.0
+    if job.disp:
+        e_disp = d3bj_energy(job, mol)
+        e_tot += e_disp
     e_nl = 0.0
     if job.dftnl:
         e_nl = vv10_energy(job, mol, mf)
         e_tot += e_nl
-    return Result(mol=mol, mf=mf, post=post, e_scf=e_scf, e_tot=e_tot, e_nl=e_nl)
+    return Result(mol=mol, mf=mf, post=post, e_scf=e_scf, e_tot=e_tot, e_nl=e_nl, e_disp=e_disp)
 
 
 class NumGradScanner(lib.GradScanner):
