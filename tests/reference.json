@@ -46,6 +46,10 @@
       "energy": -38.333472478,
       "freqs": [1224.19, 3563.44, 3896.23]
     },
+    "exam34": {
+      "source": "firefly",
+      "energy": -94.2293209707
+    },
     "exam27": {
       "source": "firefly",
       "energy": -9.1287351998

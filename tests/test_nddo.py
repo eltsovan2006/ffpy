@@ -99,3 +99,30 @@ HYDROGEN    1.0   0.9765921567   0.0000000000   0.0000000000
     assert len(totals) == 11 and max(totals) - min(totals) < 1e-6
     out = parse_out(str(tmp_path / "nh3.out"))
     assert out["energy"] == pytest.approx(-9.1287351998, abs=1e-6)
+
+
+def test_zapt2_methylnitrene_energy(tmp_path):
+    """ZAPT2/6-31G* single point of triplet CH3N at the exam34 starting geometry (Firefly: E(ZAPT) -0.2336161903)."""
+    inp = tmp_path / "ch3n.inp"
+    inp.write_text(""" $CONTRL SCFTYP=ROHF MULT=3 RUNTYP=ENERGY MPLEVL=2 COORD=ZMT $END
+ $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 NPFUNC=0 $END
+ $GUESS  GUESS=HUCKEL $END
+ $MP2 OSPT=ZAPT $END
+ $DATA
+Methylnitrene
+Cnv 3
+
+N
+C  1  rCN
+H  2  rCH  1  aHCN
+H  2  rCH  1  aHCN  3  120.0
+H  2  rCH  1  aHCN  3 -120.0
+
+rCN=1.4329216
+rCH=1.0876477
+aHCN=110.21928
+ $END
+""")
+    assert main([str(inp), "-o", str(tmp_path), "-q"]) == 0
+    out = parse_out(str(tmp_path / "ch3n.out"))
+    assert out["energy"] == pytest.approx(-93.9955428414 - 0.2336161903, abs=3e-7)

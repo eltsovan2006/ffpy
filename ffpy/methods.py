@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from pyscf import df, dft, fci, gto, lib, mcscf, mp, scf, tdscf
+from pyscf import ao2mo, df, dft, fci, gto, lib, mcscf, mp, scf, tdscf
 from pyscf.data.elements import chemcore
 
 from ffpy.errors import InputError, SCFNotConverged, TimeLimitExceeded, UnsupportedError
@@ -275,6 +275,58 @@ def run_rmp2(job, mf, mol):
     pt.verbose = 0
     pt.kernel(mo_energy=(ea, eb), mo_coeff=(ca, cb))
     return RMP2Result(mf.e_tot, float(pt.e_corr), float(sa + sb))
+
+
+def run_zapt2(job, mf, mol):
+    """ZAPT2 (Lee & Jayatilaka): spin-orbital second-order perturbation theory on the ROHF
+    determinant.  Doubly occupied and virtual orbitals have spin-independent energies (diagonal of
+    the average Fock matrix); a singly occupied orbital s has eps_s -/+ (F^b_ss - F^a_ss)/2 for its
+    alpha (occupied) and beta (empty) spin orbital.  The occupied-virtual Fock elements of the
+    ROHF orbitals contribute as singles."""
+    c, occ = mf.mo_coeff, mf.mo_occ
+    nmo = c.shape[1]
+    na, nb = int((occ > 0).sum()), int((occ > 1).sum())
+    dma, dmb = c[:, :na] @ c[:, :na].T, c[:, :nb] @ c[:, :nb].T
+    vj, vk = scf.hf.get_jk(mol, [dma, dmb])
+    h = mf.get_hcore()
+    fa = c.T @ (h + vj[0] + vj[1] - vk[0]) @ c
+    fb = c.T @ (h + vj[0] + vj[1] - vk[1]) @ c
+    nfz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
+    act = np.arange(nfz, nmo)
+    eri = ao2mo.restore(1, ao2mo.kernel(mol, c[:, act]), len(act))
+    fa, fb = fa[np.ix_(act, act)], fb[np.ix_(act, act)]
+    favg = 0.5 * (fa + fb)
+    o2 = occ[act]
+    dd = np.flatnonzero(o2 == 2)
+    ss = np.flatnonzero(o2 == 1)
+    vv = np.flatnonzero(o2 == 0)
+
+    def eps(p, spin):
+        if o2[p] == 1:
+            d = fb[p, p] - fa[p, p]
+            return favg[p, p] - 0.5 * d if spin == 0 else favg[p, p] + 0.5 * d
+        return favg[p, p]
+
+    oc = [(p, s) for p in dd for s in (0, 1)] + [(p, 0) for p in ss]
+    vi = [(p, s) for p in vv for s in (0, 1)] + [(p, 1) for p in ss]
+    po, so = np.array([p for p, _ in oc]), np.array([s for _, s in oc])
+    pv, sv = np.array([p for p, _ in vi]), np.array([s for _, s in vi])
+    eo = np.array([eps(p, s) for p, s in oc])
+    ev = np.array([eps(p, s) for p, s in vi])
+    e2 = 0.0
+    e1 = 0.0
+    for i in range(len(oc)):
+        t = eri[po[i]][pv][:, po][:, :, pv]                       # (i a|j b) as [a, j, b]
+        m1 = (sv[:, None, None] == so[i]) & (so[None, :, None] == sv[None, None, :])
+        g = t * m1 - t.transpose(2, 1, 0) * m1.transpose(2, 1, 0)
+        den = eo[i] + eo[None, :, None] - ev[:, None, None] - ev[None, None, :]
+        e2 += 0.25 * np.sum(g * g / den)
+        for a in range(len(vi)):
+            if sv[a] == so[i]:
+                f = (fa if so[i] == 0 else fb)[po[i], pv[a]]
+                if f != 0.0:
+                    e1 += f * f / (eo[i] - ev[a])
+    return RMP2Result(mf.e_tot, float(e2), float(e1))
 
 
 def build_mp2(job, mf, mol):
@@ -669,7 +721,7 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         post = run_ci(job, mf, mol)
         e_tot = post.e_states[job.ci["iroot"] - 1]
     elif m == "MP2" and job.scftyp == "ROHF":
-        post = run_rmp2(job, mf, mol)
+        post = run_zapt2(job, mf, mol) if job.ospt == "ZAPT" else run_rmp2(job, mf, mol)
         e_tot = post.e_tot
     elif m == "MP2":
         post, _ = build_mp2(job, mf, mol)

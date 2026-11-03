@@ -85,6 +85,7 @@ class Job:
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
     drc: Optional[dict] = None                    # classical trajectory ($DRC)
+    ospt: str = "RMP"                              # open-shell MP2 flavour: RMP or ZAPT
     semi: Optional[str] = None                    # MNDO, AM1, PM3 or RM1 (GBASIS of a semiempirical run)
 
     @property
@@ -501,8 +502,11 @@ def build_job(deck):
         mp2_frozen = g("MP2", "NACORE", False)
         if mplevl == 4:
             mp4 = {"sdtq": g("MP4", "SDTQ", False), "tonly": g("MP4", "TONLY", False)}
+    ospt = "RMP"
     if mplevl == 2 and scftyp == "ROHF" and g("MP2", "OSPT", report_default=False) == "ZAPT":
-        raise UnsupportedError("$MP2 OSPT=ZAPT is not supported (only OSPT=RMP for ROHF)")
+        ospt = "ZAPT"
+        if dh or xc:
+            raise UnsupportedError("OSPT=ZAPT is available for ROHF-MP2 only")
     if mplevl == 2 or dh:
         if deck.has("MP2") and g("MP2", "RI", report_default=False):
             if "AUXBAS" not in deck.groups:
@@ -790,4 +794,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi, drc=drc)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi, drc=drc, ospt=ospt)
