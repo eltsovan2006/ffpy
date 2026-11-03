@@ -75,6 +75,7 @@ class Job:
     auxbas: Optional[dict] = None                 # RI-MP2 auxiliary basis {element: shells}
     ci: Optional[dict] = None                     # GUGA CI window ($CIDRT)
     scrf: Optional[dict] = None                   # Onsager reaction field
+    surface: Optional[list] = None                # rigid scan coordinates ($SURF)
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -587,6 +588,26 @@ def build_job(deck):
     elif deck.has("DET") or deck.has("MCSCF"):
         deck.notes.append(("warning", "$DET/$MCSCF given but SCFTYP is not MCSCF; ignored"))
 
+    surface = None
+    if runtyp == "SURFACE":
+        if not deck.has("SURF"):
+            raise InputError("RUNTYP=SURFACE requires a $SURF group")
+        surface = []
+        for n in ("1", "2"):
+            if n == "2" and not deck.explicit("SURF", "IVEC2"):
+                break
+            vals = {k: g("SURF", k + n, False) for k in ("IVEC", "IGRP", "ORIG", "DISP", "NDISP")}
+            if any(v is None for v in vals.values()):
+                raise InputError("$SURF: IVEC%s, IGRP%s, ORIG%s, DISP%s and NDISP%s are all required" % ((n,) * 5))
+            ivec = [int(x) for x in vals["IVEC"]]
+            if len(ivec) != 2:
+                raise InputError("$SURF IVEC%s needs two atom numbers" % n)
+            surface.append({"ivec": ivec, "igrp": [int(x) for x in vals["IGRP"]], "orig": vals["ORIG"],
+                            "disp": vals["DISP"], "n": vals["NDISP"]})
+        natom = len(atoms)
+        for c in surface:
+            if any(a < 1 or a > natom for a in c["ivec"] + c["igrp"]):
+                raise InputError("$SURF: atom number outside 1..%d" % natom)
     scrf = None
     if deck.has("SCRF"):
         if not deck.explicit("SCRF", "RADIUS"):
@@ -635,4 +656,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface)

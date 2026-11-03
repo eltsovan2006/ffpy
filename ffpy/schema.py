@@ -48,7 +48,7 @@ RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS"}
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB", "NONE"), "reference wavefunction (NONE: CI with orbitals from $VEC1)"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN"), "job type"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT", "GUGA"), "CIS/TDHF/TDDFT excited states or GUGA CI"),
@@ -128,6 +128,19 @@ SCHEMA = {
     },
     "TRANST": {
         "IROOTS": K("floatlist", None, None, "CI states between which transition moments are computed"),
+    },
+    "SURF": {
+        "IVEC1": K("floatlist", None, None, "atom pair (from, to) defining scan coordinate 1"),
+        "IGRP1": K("floatlist", None, None, "atoms moved rigidly along coordinate 1"),
+        "ORIG1": K("float", None, None, "first value of coordinate 1, angstrom"),
+        "DISP1": K("float", None, None, "step of coordinate 1, angstrom"),
+        "NDISP1": K("int", None, None, "number of points of coordinate 1"),
+        "IVEC2": K("floatlist", None, None, "atom pair of coordinate 2 (optional)"),
+        "IGRP2": K("floatlist", None, None, "atoms moved along coordinate 2"),
+        "ORIG2": K("float", None, None, "first value of coordinate 2, angstrom"),
+        "DISP2": K("float", None, None, "step of coordinate 2, angstrom"),
+        "NDISP2": K("int", None, None, "number of points of coordinate 2"),
+        "NSURF": K("int", 1, None, "states printed (only the ground state is supported)"),
     },
     "SCRF": {
         "DIELEC": K("float", 78.39, None, "solvent dielectric constant"),
@@ -282,6 +295,6 @@ UNSUPPORTED_GROUPS = {
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group",
-    "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
+    "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", 
     "MOROKM": "Morokuma",
 }

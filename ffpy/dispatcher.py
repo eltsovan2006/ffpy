@@ -19,6 +19,7 @@ def _run(module, job, ctx):
 def energy_hf(job, ctx): return _run("energy", job, ctx)
 def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
+def surface_scan(job, ctx): return _run("surface", job, ctx)
 def energy_ci(job, ctx): return _run("energy", job, ctx)
 def gradient_ci(job, ctx): return _run("gradient", job, ctx)
 def energy_dh(job, ctx): return _run("energy", job, ctx)
@@ -55,6 +56,14 @@ HANDLERS = {
     ("MP2", "ENERGY"): energy_mp2,
     ("MP3", "ENERGY"): energy_mp3,
     ("DH", "ENERGY"): energy_dh,
+    ("HF", "SURFACE"): surface_scan,
+    ("DFT", "SURFACE"): surface_scan,
+    ("MP2", "SURFACE"): surface_scan,
+    ("MP3", "SURFACE"): surface_scan,
+    ("MP4", "SURFACE"): surface_scan,
+    ("DH", "SURFACE"): surface_scan,
+    ("CASSCF", "SURFACE"): surface_scan,
+    ("CI", "SURFACE"): surface_scan,
     ("CI", "ENERGY"): energy_ci,
     ("CI", "TRANSITN"): energy_ci,
     ("CI", "GRADIENT"): gradient_ci,

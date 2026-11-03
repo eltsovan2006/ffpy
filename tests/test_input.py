@@ -504,3 +504,14 @@ def test_scrf_onsager_g_and_energy():
     mf = attach(scf.RHF(mol), reaction_field_g(80.0, 1.93))
     e1 = mf.kernel()
     assert e1 < e0 and mf.converged          # a polar solute is stabilised by its reaction field
+
+
+def test_surface_scan_parsing():
+    txt = (" $CONTRL RUNTYP=SURFACE $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
+           " $SURF IVEC1(1)=2,1 IGRP1=1 ORIG1=-0.1 DISP1=0.1 NDISP1=3 $END\n"
+           " $DATA\nt\nC1\nH 1.0 0 0 0\nH 1.0 0 0 0.8\n $END\n")
+    job = build_job(parse_input(txt))
+    assert job.surface == [{"ivec": [2, 1], "igrp": [1], "orig": -0.1, "disp": 0.1, "n": 3}]
+    with pytest.raises(InputError, match="SURF"):
+        build_job(parse_input(" $CONTRL RUNTYP=SURFACE $END\n" + txt.split("\n", 1)[1].split(" $SURF")[0]
+                              + " $DATA\nt\nC1\nH 1.0 0 0 0\nH 1.0 0 0 0.8\n $END\n"))
