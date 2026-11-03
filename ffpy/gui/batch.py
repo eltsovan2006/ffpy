@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ffpy.gui.i18n import tr
 from ffpy.gui.theme import get_theme_bus, hex_color
 from ffpy.job import build_job
 from ffpy.outparse import parse_out
@@ -152,55 +153,55 @@ class BatchView(QWidget):
         bar = QHBoxLayout()
         bar.setSpacing(10)
 
-        lbl_title = QLabel("Пакет расчётов")
+        lbl_title = QLabel(tr("Пакет расчётов"))
         lbl_title.setStyleSheet("font-size: 15px; font-weight: 700;")
         bar.addWidget(lbl_title)
 
-        self.lbl_subtitle = QLabel("· 0 заданий")
-        self.lbl_subtitle.setStyleSheet(f"color: {hex_color('muted')}; font-size: 12px;")
+        self.lbl_subtitle = QLabel(tr("· 0 заданий"))
+        self.lbl_subtitle.setStyleSheet(f"background: transparent; color: {hex_color('muted')}; font-size: 12px;")
         bar.addWidget(self.lbl_subtitle)
 
         bar.addStretch(1)
 
         # "Добавить .inp" button with dropdown menu
         self.btn_add = QToolButton()
-        self.btn_add.setText("Добавить .inp")
+        self.btn_add.setText(tr("Добавить .inp"))
         self.btn_add.setProperty("flat_btn", "true")
         self.btn_add.setPopupMode(QToolButton.InstantPopup)
         menu_add = QMenu(self.btn_add)
-        act_files = menu_add.addAction("Выбрать файлы .inp...")
+        act_files = menu_add.addAction(tr("Выбрать файлы .inp..."))
         act_files.triggered.connect(self._on_pick_files)
-        act_folder = menu_add.addAction("Выбрать папку с .inp...")
+        act_folder = menu_add.addAction(tr("Выбрать папку с .inp..."))
         act_folder.triggered.connect(self._on_pick_folder)
         self.btn_add.setMenu(menu_add)
         bar.addWidget(self.btn_add)
 
         # "Экспорт таблицы" button with menu
         self.btn_export = QToolButton()
-        self.btn_export.setText("Экспорт таблицы")
+        self.btn_export.setText(tr("Экспорт таблицы"))
         self.btn_export.setProperty("flat_btn", "true")
         self.btn_export.setPopupMode(QToolButton.InstantPopup)
         menu_exp = QMenu(self.btn_export)
-        act_csv = menu_exp.addAction("Экспорт в CSV (.csv)...")
+        act_csv = menu_exp.addAction(tr("Экспорт в CSV (.csv)..."))
         act_csv.triggered.connect(self._on_export_csv_dialog)
-        act_docx = menu_exp.addAction("Экспорт в Word (.docx)...")
+        act_docx = menu_exp.addAction(tr("Экспорт в Word (.docx)..."))
         act_docx.triggered.connect(self._on_export_docx_dialog)
         self.btn_export.setMenu(menu_exp)
         bar.addWidget(self.btn_export)
 
-        self.btn_retry = QPushButton("Повторить")
+        self.btn_retry = QPushButton(tr("Повторить запуск"))
         self.btn_retry.setProperty("flat_btn", "true")
-        self.btn_retry.setToolTip("Повторить выполнение выбранных заданий")
+        self.btn_retry.setToolTip(tr("Повторить выполнение выбранных заданий"))
         self.btn_retry.clicked.connect(self.retry_selected)
         bar.addWidget(self.btn_retry)
 
-        self.btn_remove = QPushButton("Удалить")
+        self.btn_remove = QPushButton(tr("Удалить"))
         self.btn_remove.setProperty("flat_btn", "true")
-        self.btn_remove.setToolTip("Удалить выбранные задания из пакета")
+        self.btn_remove.setToolTip(tr("Удалить выбранные задания из пакета"))
         self.btn_remove.clicked.connect(self.remove_selected)
         bar.addWidget(self.btn_remove)
 
-        self.btn_run_all = QPushButton("Запустить всё")
+        self.btn_run_all = QPushButton(tr("Запустить всё"))
         self.btn_run_all.setObjectName("btn_run_all")
         self._apply_run_button_style()
         self.btn_run_all.clicked.connect(self.run_all)
@@ -212,10 +213,10 @@ class BatchView(QWidget):
         cards_layout = QHBoxLayout()
         cards_layout.setSpacing(12)
 
-        self.card_total = self._create_counter_card("Всего", "0", hex_color("text"))
-        self.card_done = self._create_counter_card("Готово", "0", hex_color("ok"))
-        self.card_running = self._create_counter_card("В работе", "0", hex_color("accent"))
-        self.card_error = self._create_counter_card("Ошибки", "0", hex_color("err"))
+        self.card_total = self._create_counter_card(tr("Всего"), "0", hex_color("text"))
+        self.card_done = self._create_counter_card(tr("Готово"), "0", hex_color("ok"))
+        self.card_running = self._create_counter_card(tr("В работе"), "0", hex_color("accent"))
+        self.card_error = self._create_counter_card(tr("Ошибки"), "0", hex_color("err"))
 
         cards_layout.addWidget(self.card_total["frame"])
         cards_layout.addWidget(self.card_done["frame"])
@@ -226,7 +227,7 @@ class BatchView(QWidget):
         # 3. Main table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ЗАДАНИЕ", "МЕТОД", "БАЗИС", "ЭНЕРГИЯ, Eh", "СТАТУС", "ВРЕМЯ"])
+        self.table.setHorizontalHeaderLabels([tr("ЗАДАНИЕ"), tr("МЕТОД"), tr("БАЗИС"), tr("ЭНЕРГИЯ, Eh"), tr("СТАТУС"), tr("ВРЕМЯ")])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
@@ -250,12 +251,12 @@ class BatchView(QWidget):
         comp_lay.setContentsMargins(20, 14, 20, 14)
         comp_lay.setSpacing(18)
 
-        self.lbl_comp_title = QLabel("Сравнение методов:")
+        self.lbl_comp_title = QLabel(tr("Сравнение методов:"))
         self.lbl_comp_title.setStyleSheet("font-size: 13px; font-weight: 600;")
         comp_lay.addWidget(self.lbl_comp_title)
 
-        self.lbl_comp_diffs = QLabel("Выберите 2 или более завершённых расчёта для сравнения")
-        self.lbl_comp_diffs.setStyleSheet(f"color: {hex_color('muted')}; font-size: 12.5px;")
+        self.lbl_comp_diffs = QLabel(tr("Выберите 2 или более завершённых расчёта для сравнения"))
+        self.lbl_comp_diffs.setStyleSheet(f"background: transparent; color: {hex_color('muted')}; font-size: 12.5px;")
         comp_lay.addWidget(self.lbl_comp_diffs, 1)
 
         root.addWidget(self.comp_card)
@@ -279,9 +280,9 @@ class BatchView(QWidget):
         lay.setSpacing(4)
 
         lbl_t = QLabel(title)
-        lbl_t.setStyleSheet(f"color: {hex_color('muted')}; font-size: 12px; font-weight: 500;")
+        lbl_t.setStyleSheet(f"background: transparent; color: {hex_color('muted')}; font-size: 12px; font-weight: 500;")
         lbl_v = QLabel(init_val)
-        lbl_v.setStyleSheet(f"color: {val_color}; font-size: 26px; font-weight: 700;")
+        lbl_v.setStyleSheet(f"background: transparent; color: {val_color}; font-size: 26px; font-weight: 700;")
 
         lay.addWidget(lbl_t)
         lay.addWidget(lbl_v)
@@ -365,10 +366,10 @@ class BatchView(QWidget):
                 border-radius: 12px;
             }}
         """)
-        self.card_total["val_label"].setStyleSheet(f"color: {hex_color('text')}; font-size: 26px; font-weight: 700;")
-        self.card_done["val_label"].setStyleSheet(f"color: {hex_color('ok')}; font-size: 26px; font-weight: 700;")
-        self.card_running["val_label"].setStyleSheet(f"color: {hex_color('accent')}; font-size: 26px; font-weight: 700;")
-        self.card_error["val_label"].setStyleSheet(f"color: {hex_color('err')}; font-size: 26px; font-weight: 700;")
+        self.card_total["val_label"].setStyleSheet(f"background: transparent; color: {hex_color('text')}; font-size: 26px; font-weight: 700;")
+        self.card_done["val_label"].setStyleSheet(f"background: transparent; color: {hex_color('ok')}; font-size: 26px; font-weight: 700;")
+        self.card_running["val_label"].setStyleSheet(f"background: transparent; color: {hex_color('accent')}; font-size: 26px; font-weight: 700;")
+        self.card_error["val_label"].setStyleSheet(f"background: transparent; color: {hex_color('err')}; font-size: 26px; font-weight: 700;")
         self.update_all_rows()
         self.update_comparison()
 
@@ -409,7 +410,7 @@ class BatchView(QWidget):
             item["energy"] = None
             item["energy_str"] = "—"
             item["status"] = "idle"
-            item["status_text"] = "В очереди"
+            item["status_text"] = tr("В очереди")
             item["wall_time"] = None
             item["exit_code"] = None
 
@@ -453,13 +454,13 @@ class BatchView(QWidget):
                 item["energy"] = d["energy"]
                 item["energy_str"] = f"{d['energy']:.6f}"
                 item["status"] = "done"
-                item["status_text"] = "Готово"
+                item["status_text"] = tr("Готово")
             elif d.get("exit_code") is not None:
                 code = d["exit_code"]
                 item["exit_code"] = code
                 item["status"] = "error"
-                item["status_text"] = f"Ошибка {code}"
-                item["energy_str"] = d.get("error") or "Ошибка"
+                item["status_text"] = tr("Ошибка {code}").format(code=code)
+                item["energy_str"] = d.get("error") or tr("Ошибка")
         except Exception:
             pass
 
@@ -496,7 +497,7 @@ class BatchView(QWidget):
         self.table.setCellWidget(row, 4, chip)
 
         # 5: Time (right aligned, muted)
-        t_str = f"{item['wall_time']:.1f} с" if item["wall_time"] is not None else "—"
+        t_str = tr("{t:.1f} с").format(t=item["wall_time"]) if item["wall_time"] is not None else "—"
         it_t = QTableWidgetItem(t_str)
         it_t.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         it_t.setForeground(QColor(hex_color("muted")))
@@ -518,7 +519,7 @@ class BatchView(QWidget):
         self.card_running["val_label"].setText(str(running))
         self.card_error["val_label"].setText(str(error))
 
-        self.lbl_subtitle.setText(f"· {total} заданий")
+        self.lbl_subtitle.setText(tr("· {n} заданий").format(n=total))
         return {"total": total, "done": done, "running": running, "error": error}
 
     def get_counters(self) -> Dict[str, int]:
@@ -532,7 +533,7 @@ class BatchView(QWidget):
         for r, it in enumerate(self.items):
             if it["path"] == norm_p:
                 it["status"] = "running"
-                it["status_text"] = "Считается"
+                it["status_text"] = tr("Считается")
                 it["energy_str"] = "…"
                 self._fill_row(r, it)
                 break
@@ -547,15 +548,15 @@ class BatchView(QWidget):
                     self._enrich_from_out(it, out_p)
                 elif code == -1:
                     it["status"] = "idle"
-                    it["status_text"] = "Остановлен"
+                    it["status_text"] = tr("Остановлен")
                 else:
                     it["exit_code"] = code
                     it["status"] = "error"
-                    it["status_text"] = f"Ошибка {code}"
+                    it["status_text"] = tr("Ошибка {code}").format(code=code)
                     if os.path.isfile(out_p):
                         self._enrich_from_out(it, out_p)
                     else:
-                        it["energy_str"] = f"Код {code}"
+                        it["energy_str"] = tr("Код {code}").format(code=code)
                 self._fill_row(r, it)
                 break
         self.update_counters()
@@ -581,7 +582,7 @@ class BatchView(QWidget):
         for r in selected_rows:
             item = self.items[r]
             item["status"] = "idle"
-            item["status_text"] = "В очереди"
+            item["status_text"] = tr("В очереди")
             item["energy"] = None
             item["energy_str"] = "—"
             item["wall_time"] = None
@@ -606,26 +607,26 @@ class BatchView(QWidget):
 
     def _on_pick_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Добавить входные файлы .inp", "", "Firefly input files (*.inp *.in);;All files (*)"
+            self, tr("Добавить входные файлы .inp"), "", "Firefly input files (*.inp *.in);;All files (*)"
         )
         if paths:
             self.add_files(paths)
 
     def _on_pick_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Выбрать папку с файлами .inp")
+        folder = QFileDialog.getExistingDirectory(self, tr("Выбрать папку с файлами .inp"))
         if folder:
             self.add_folder(folder)
 
     def _on_export_csv_dialog(self):
         dest, _ = QFileDialog.getSaveFileName(
-            self, "Экспорт таблицы пакета в CSV", "batch_results.csv", "CSV files (*.csv)"
+            self, tr("Экспорт таблицы пакета в CSV"), "batch_results.csv", "CSV files (*.csv)"
         )
         if dest:
             self.export_csv(dest)
 
     def _on_export_docx_dialog(self):
         dest, _ = QFileDialog.getSaveFileName(
-            self, "Экспорт таблицы пакета в Word", "batch_results.docx", "Word documents (*.docx)"
+            self, tr("Экспорт таблицы пакета в Word"), "batch_results.docx", "Word documents (*.docx)"
         )
         if dest:
             self.export_docx(dest)
@@ -633,7 +634,7 @@ class BatchView(QWidget):
     def export_csv(self, file_path: str):
         with open(file_path, "w", newline="", encoding="utf-8-sig") as f:
             writer = csv.writer(f)
-            writer.writerow(["ЗАДАНИЕ", "МЕТОД", "БАЗИС", "ЭНЕРГИЯ (Eh)", "СТАТУС", "ВРЕМЯ (с)", "ПУТЬ"])
+            writer.writerow([tr("ЗАДАНИЕ"), tr("МЕТОД"), tr("БАЗИС"), tr("ЭНЕРГИЯ (Eh)"), tr("СТАТУС"), tr("ВРЕМЯ (с)"), tr("ПУТЬ")])
             for it in self.items:
                 e_val = f"{it['energy']:.8f}" if it["energy"] is not None else it["energy_str"]
                 t_val = f"{it['wall_time']:.1f}" if it["wall_time"] is not None else "—"
@@ -646,25 +647,24 @@ class BatchView(QWidget):
             from docx.shared import Inches, Pt, RGBColor
         except ImportError:
             QMessageBox.warning(
-                self, "Экспорт в .docx", "Библиотека python-docx не найдена. Установите её: pip install python-docx"
+                self, tr("Экспорт в .docx"), tr("Библиотека python-docx не найдена. Установите её: pip install python-docx")
             )
             return
 
         doc = docx.Document()
         title_p = doc.add_paragraph()
-        r = title_p.add_run("Сводная таблица пакета расчётов ffpy")
+        r = title_p.add_run(tr("Сводная таблица пакета расчётов ffpy"))
         r.font.size = Pt(16)
         r.font.bold = True
 
         cnt = self.get_counters()
         stat_p = doc.add_paragraph()
-        stat_p.add_run(f"Всего заданий: {cnt['total']}  |  Готово: {cnt['done']}  |  "
-                       f"В работе: {cnt['running']}  |  Ошибки: {cnt['error']}")
+        stat_p.add_run(tr("Всего заданий: {total}  |  Готово: {done}  |  В работе: {running}  |  Ошибки: {error}").format(**cnt))
 
         tbl = doc.add_table(rows=1, cols=6)
         tbl.style = "Table Grid"
         hdr_cells = tbl.rows[0].cells
-        hdr_titles = ["ЗАДАНИЕ", "МЕТОД", "БАЗИС", "ЭНЕРГИЯ, Eh", "СТАТУС", "ВРЕМЯ"]
+        hdr_titles = [tr("ЗАДАНИЕ"), tr("МЕТОД"), tr("БАЗИС"), tr("ЭНЕРГИЯ, Eh"), tr("СТАТУС"), tr("ВРЕМЯ")]
         for i, t in enumerate(hdr_titles):
             hdr_cells[i].text = t
             for p in hdr_cells[i].paragraphs:
@@ -679,7 +679,7 @@ class BatchView(QWidget):
             e_str = f"{it['energy']:.8f}" if it["energy"] is not None else it["energy_str"]
             row_cells[3].text = e_str
             row_cells[4].text = it["status_text"]
-            t_str = f"{it['wall_time']:.1f} с" if it["wall_time"] is not None else "—"
+            t_str = tr("{t:.1f} с").format(t=it["wall_time"]) if it["wall_time"] is not None else "—"
             row_cells[5].text = t_str
 
         # Add delta E block if comparison available
@@ -687,12 +687,12 @@ class BatchView(QWidget):
         if comp and comp.get("diffs"):
             doc.add_paragraph()
             cp = doc.add_paragraph()
-            cr = cp.add_run(f"Сравнение: {', '.join(comp['methods'])}")
+            cr = cp.add_run(tr("Сравнение: {m}").format(m=", ".join(comp["methods"])))
             cr.font.bold = True
             for d in comp["diffs"]:
                 dp = doc.add_paragraph(
-                    f"ΔE ({d['method']} − {comp['ref_method']}) = {d['delta_eh']:+.6f} Eh  "
-                    f"({d['delta_kcal']:+.2f} ккал/моль)"
+                    tr("ΔE ({m} − {r}) = {eh:+.6f} Eh  ({kc:+.2f} ккал/моль)").format(
+                        m=d["method"], r=comp["ref_method"], eh=d["delta_eh"], kc=d["delta_kcal"])
                 )
                 dp.paragraph_format.left_indent = Inches(0.2)
 
@@ -759,21 +759,21 @@ class BatchView(QWidget):
     def update_comparison(self):
         comp = self.compute_comparison()
         if not comp or not comp["diffs"]:
-            self.lbl_comp_title.setText("Сравнение методов:")
-            self.lbl_comp_diffs.setText("Выберите 2 или более завершённых расчёта для сравнения")
+            self.lbl_comp_title.setText(tr("Сравнение методов:"))
+            self.lbl_comp_diffs.setText(tr("Выберите 2 или более завершённых расчёта для сравнения"))
             return
 
         methods_str = ", ".join(comp["methods"])
-        self.lbl_comp_title.setText(f"Сравнение: {methods_str}")
+        self.lbl_comp_title.setText(tr("Сравнение: {m}").format(m=methods_str))
 
         parts = []
         for d in comp["diffs"]:
             sign_eh = f"{d['delta_eh']:+.6f}"
             sign_kcal = f"{d['delta_kcal']:+.2f}"
             parts.append(
-                f"ΔE ({d['method']} − {comp['ref_method']}) = "
-                f"<b style='color:{hex_color('text')}'>{sign_eh} Eh</b> "
-                f"<span style='color:{hex_color('muted')}'>({sign_kcal} ккал/моль)</span>"
+                tr("ΔE ({m} − {r}) = <b style='color:{c1}'>{eh} Eh</b> <span style='color:{c2}'>({kc} ккал/моль)</span>").format(
+                    m=d["method"], r=comp["ref_method"], c1=hex_color("text"), eh=sign_eh,
+                    c2=hex_color("muted"), kc=sign_kcal)
             )
 
         self.lbl_comp_diffs.setText("&nbsp;&nbsp;·&nbsp;&nbsp;".join(parts))

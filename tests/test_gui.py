@@ -33,6 +33,8 @@ def app(tmp_path_factory):
     QSettings.setDefaultFormat(QSettings.IniFormat)
     QSettings.setPath(QSettings.IniFormat, QSettings.UserScope, str(tmp_path_factory.mktemp("settings")))
     a = QApplication.instance() or QApplication([])
+    from ffpy.gui import i18n
+    i18n._LANG = "ru"
     yield a
 
 
@@ -441,7 +443,7 @@ def test_syntax_highlighter_updates_on_theme_change(app):
     theme.set_theme_mode("system")
 
 
-def test_settings_dialog_and_persistence(app, tmp_path):
+def test_settings_dialog_and_persistence(app, tmp_path, no_modal, monkeypatch):
     from PySide6.QtCore import QSettings
     from ffpy.gui import theme
     from ffpy.gui.settings import SettingsDialog
@@ -450,6 +452,8 @@ def test_settings_dialog_and_persistence(app, tmp_path):
     settings.setValue("theme_mode", "light")
     settings.setValue("language", "ru")
 
+    restarts = []
+    monkeypatch.setattr(SettingsDialog, "_restart_app", lambda self: restarts.append(1))
     dlg = SettingsDialog()
     assert dlg.theme_seg.value() == "light"
     assert dlg.lang_seg.value() == "ru"
@@ -464,6 +468,7 @@ def test_settings_dialog_and_persistence(app, tmp_path):
     dlg.lang_seg.set_value("en")
     dlg.lang_seg._on_btn_clicked("en")
     assert settings.value("language") == "en"
+    assert restarts == [1]          # the dialog offered a restart and the (stubbed) answer was yes
     dlg.close()
 
 
@@ -858,3 +863,24 @@ def test_tab_card_style(app):
 
 
 
+
+
+def test_every_gui_string_has_an_english_translation():
+    import ast
+    import glob
+    from ffpy.gui import i18n
+    missing = []
+    for path in glob.glob(os.path.join(os.path.dirname(i18n.__file__), "*.py")):
+        if path.endswith("i18n.py"):
+            continue
+        tree = ast.parse(open(path, encoding="utf-8").read())
+        for n in ast.walk(tree):
+            if (isinstance(n, ast.Call) and getattr(n.func, "id", "") == "tr" and n.args
+                    and isinstance(n.args[0], ast.Constant) and n.args[0].value not in i18n.EN):
+                missing.append((os.path.basename(path), n.args[0].value))
+    assert not missing, missing
+    i18n._LANG = "en"
+    try:
+        assert i18n.tr("Сохранить") == "Save" and i18n.tr("нет в словаре") == "нет в словаре"
+    finally:
+        i18n._LANG = "ru"

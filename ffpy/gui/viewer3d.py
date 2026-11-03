@@ -47,6 +47,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ffpy.gui.i18n import tr
 from ffpy.constants import BOHR_ANG
 from ffpy.errors import InputError
 from ffpy.gui.theme import get_palette, get_theme_bus, hex_color, is_dark
@@ -785,23 +786,23 @@ class _Viewer3DViewport(QWidget):
 
         self.btn_orbit = QToolButton(self.pill_left)
         self.btn_orbit.setText("⟳")
-        self.btn_orbit.setToolTip("Сброс вращения и ориентации (R / Home / двойной клик)")
+        self.btn_orbit.setToolTip(tr("Сброс вращения и ориентации (R / Home / двойной клик)"))
         self.btn_orbit.clicked.connect(self.reset_view)
 
         self.btn_measure = QToolButton(self.pill_left)
         self.btn_measure.setText("⟷")
         self.btn_measure.setCheckable(True)
-        self.btn_measure.setToolTip("Режим измерений (2 атома: расстояние, 3: угол, 4: диэдр)")
+        self.btn_measure.setToolTip(tr("Режим измерений (2 атома: расстояние, 3: угол, 4: диэдр)"))
         self.btn_measure.toggled.connect(self.set_measurement_mode)
 
         self.btn_labels = QToolButton(self.pill_left)
         self.btn_labels.setText("Aa")
-        self.btn_labels.setToolTip("Подписи атомов (нет / элемент / элемент+номер)")
+        self.btn_labels.setToolTip(tr("Подписи атомов (нет / элемент / элемент+номер)"))
         self.btn_labels.clicked.connect(self._cycle_labels)
 
         self.btn_fit = QToolButton(self.pill_left)
         self.btn_fit.setText("◍")
-        self.btn_fit.setToolTip("Вписать молекулу в окно")
+        self.btn_fit.setToolTip(tr("Вписать молекулу в окно"))
         self.btn_fit.clicked.connect(self.reset_view)
 
         pill_left_v.addWidget(self.btn_orbit)
@@ -825,16 +826,16 @@ class _Viewer3DViewport(QWidget):
         pill_right_h.setContentsMargins(3, 3, 3, 3)
         pill_right_h.setSpacing(4)
 
-        self.btn_style_bs = QPushButton("Шары и палочки", self.pill_right)
+        self.btn_style_bs = QPushButton(tr("Шары и палочки"), self.pill_right)
         self.btn_style_bs.setCheckable(True)
         self.btn_style_bs.setChecked(True)
         self.btn_style_bs.clicked.connect(lambda: self.set_style("ball_and_stick"))
 
-        self.btn_style_sticks = QPushButton("Палочки", self.pill_right)
+        self.btn_style_sticks = QPushButton(tr("Палочки"), self.pill_right)
         self.btn_style_sticks.setCheckable(True)
         self.btn_style_sticks.clicked.connect(lambda: self.set_style("sticks"))
 
-        self.btn_style_vdw = QPushButton("Объёмная", self.pill_right)
+        self.btn_style_vdw = QPushButton(tr("Объёмная"), self.pill_right)
         self.btn_style_vdw.setCheckable(True)
         self.btn_style_vdw.clicked.connect(lambda: self.set_style("vdw"))
 
@@ -867,7 +868,7 @@ class _Viewer3DViewport(QWidget):
         self.btn_play.setStyleSheet("background: #ffffff; color: #13214d; border-radius: 15px; font-size: 11px; font-weight: bold;")
         self.btn_play.clicked.connect(self.toggle_play)
 
-        self.step_label = QLabel("Шаг 1 из 1", self.pill_player)
+        self.step_label = QLabel(tr("Шаг 1 из 1"), self.pill_player)
         self.step_label.setMinimumWidth(80)
 
         self.slider = QSlider(Qt.Horizontal, self.pill_player)
@@ -994,12 +995,12 @@ class _Viewer3DViewport(QWidget):
 
     def _update_player_labels(self):
         if not self.molecule:
-            self.step_label.setText("Шаг 0 из 0")
+            self.step_label.setText(tr("Шаг 0 из 0"))
             self.energy_label.setText("E = —")
             return
         total = len(self.molecule.frames)
         cur = self.molecule.frame_index + 1
-        self.step_label.setText(f"Шаг {cur} из {total}")
+        self.step_label.setText(tr("Шаг {cur} из {total}").format(cur=cur, total=total))
         if self.molecule.energy is not None:
             self.energy_label.setText(f"E = {self.molecule.energy:.6f} Eh")
         else:
@@ -1314,7 +1315,7 @@ class _Viewer3DViewport(QWidget):
             font = painter.font()
             font.setPixelSize(14)
             painter.setFont(font)
-            painter.drawText(rect, Qt.AlignCenter, "Перетащите или откройте .xyz, .molden, .out, .inp файл")
+            painter.drawText(rect, Qt.AlignCenter, tr("Перетащите или откройте .xyz, .molden, .out, .inp файл"))
             return
 
         primitives, screen_pts = self._get_projected_scene(width, height)
@@ -1530,7 +1531,7 @@ class IRSpectrumPlot(QWidget):
             font = painter.font()
             font.setPixelSize(12)
             painter.setFont(font)
-            painter.drawText(self.rect(), Qt.AlignCenter, "Нет данных колебательных частот")
+            painter.drawText(self.rect(), Qt.AlignCenter, tr("Нет данных колебательных частот"))
             painter.end()
             return
 
@@ -1677,7 +1678,7 @@ class ConvergencePlot(QWidget):
             font = painter.font()
             font.setPixelSize(12)
             painter.setFont(font)
-            painter.drawText(self.rect(), Qt.AlignCenter, "Нет данных оптимизации")
+            painter.drawText(self.rect(), Qt.AlignCenter, tr("Нет данных оптимизации"))
             painter.end()
             return
 
@@ -1781,17 +1782,17 @@ class SpectrumPanel(QWidget):
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(6)
 
-        self.btn_tab_ir = QPushButton("ИК-спектр", self.card)
+        self.btn_tab_ir = QPushButton(tr("ИК-спектр"), self.card)
         self.btn_tab_ir.setCheckable(True)
         self.btn_tab_ir.setChecked(True)
         self.btn_tab_ir.clicked.connect(lambda: self.set_tab("ir"))
 
-        self.btn_tab_conv = QPushButton("Сходимость", self.card)
+        self.btn_tab_conv = QPushButton(tr("Сходимость"), self.card)
         self.btn_tab_conv.setCheckable(True)
         self.btn_tab_conv.setChecked(False)
         self.btn_tab_conv.clicked.connect(lambda: self.set_tab("conv"))
 
-        self.btn_hide = QPushButton("Скрыть", self.card)
+        self.btn_hide = QPushButton(tr("Скрыть"), self.card)
         self.btn_hide.setObjectName("btn_hide")
         self.btn_hide.clicked.connect(self.hideRequested.emit)
 
@@ -1843,15 +1844,15 @@ class SpectrumPanel(QWidget):
         stats_v.setAlignment(Qt.AlignVCenter)
 
         # Gmax
-        self.lbl_gmax_title = QLabel("Максимальный градиент", self.conv_stats)
+        self.lbl_gmax_title = QLabel(tr("Максимальный градиент"), self.conv_stats)
         self.lbl_gmax = QLabel("—", self.conv_stats)
         self.lbl_gmax.setStyleSheet("font-family: monospace; font-size: 15px; font-weight: bold;")
         # Steps
-        self.lbl_steps_title = QLabel("Шагов до сходимости", self.conv_stats)
+        self.lbl_steps_title = QLabel(tr("Шагов до сходимости"), self.conv_stats)
         self.lbl_steps = QLabel("—", self.conv_stats)
         self.lbl_steps.setStyleSheet("font-family: monospace; font-size: 15px; font-weight: bold;")
         # Time
-        self.lbl_time_title = QLabel("Время", self.conv_stats)
+        self.lbl_time_title = QLabel(tr("Время"), self.conv_stats)
         self.lbl_time = QLabel("—", self.conv_stats)
         self.lbl_time.setStyleSheet("font-family: monospace; font-size: 15px; font-weight: bold;")
 
@@ -1949,7 +1950,7 @@ class SpectrumPanel(QWidget):
             self.lbl_steps.setText(str(len(mol.frames)))
 
         if mol.wall_time is not None:
-            self.lbl_time.setText(f"{mol.wall_time:.1f} с")
+            self.lbl_time.setText(tr("{t:.1f} с").format(t=mol.wall_time))
         else:
             self.lbl_time.setText("—")
 
@@ -1962,7 +1963,7 @@ class SpectrumPanel(QWidget):
                 w.deleteLater()
 
         if not freqs:
-            lbl = QLabel("Нет мод", self.modes_list)
+            lbl = QLabel(tr("Нет мод"), self.modes_list)
             lbl.setStyleSheet("color: %s; font-size: 12px;" % hex_color("muted"))
             self.modes_v.addWidget(lbl)
             return
@@ -1978,7 +1979,7 @@ class SpectrumPanel(QWidget):
             num_lbl.setFixedWidth(24)
             num_lbl.setStyleSheet("color: %s; font-size: 12px;" % hex_color("muted"))
 
-            freq_lbl = QLabel(f"{int(round(f))} см⁻¹", row_btn)
+            freq_lbl = QLabel(tr("{f} см⁻¹").format(f=int(round(f))), row_btn)
             freq_lbl.setStyleSheet("font-family: monospace; font-size: 13px;")
 
             int_lbl = QLabel(f"I {int(round(intens))}", row_btn)
@@ -2022,7 +2023,7 @@ class PropertiesPanel(QWidget):
         root.setSpacing(10)
 
         # Header Title
-        self.lbl_title = QLabel("СВОЙСТВА", self)
+        self.lbl_title = QLabel(tr("СВОЙСТВА"), self)
         self.lbl_title.setStyleSheet("font-size: 11px; font-weight: 700; letter-spacing: 0.5px;")
         root.addWidget(self.lbl_title)
 
@@ -2033,7 +2034,7 @@ class PropertiesPanel(QWidget):
         geom_v.setContentsMargins(14, 12, 14, 12)
         geom_v.setSpacing(8)
 
-        self.lbl_geom_hdr = QLabel("Геометрия, Å и °", self.card_geom)
+        self.lbl_geom_hdr = QLabel(tr("Геометрия, Å и °"), self.card_geom)
         self.lbl_geom_hdr.setStyleSheet("font-size: 12px; font-weight: 600;")
         geom_v.addWidget(self.lbl_geom_hdr)
 
@@ -2051,7 +2052,7 @@ class PropertiesPanel(QWidget):
         charges_v.setContentsMargins(14, 12, 14, 12)
         charges_v.setSpacing(8)
 
-        self.lbl_charges_hdr = QLabel("Заряды", self.card_charges)
+        self.lbl_charges_hdr = QLabel(tr("Заряды"), self.card_charges)
         self.lbl_charges_hdr.setStyleSheet("font-size: 12px; font-weight: 600;")
         charges_v.addWidget(self.lbl_charges_hdr)
 
@@ -2069,7 +2070,7 @@ class PropertiesPanel(QWidget):
         dipole_v.setContentsMargins(14, 12, 14, 14)
         dipole_v.setSpacing(4)
 
-        self.lbl_dipole_hdr = QLabel("Дипольный момент", self.card_dipole)
+        self.lbl_dipole_hdr = QLabel(tr("Дипольный момент"), self.card_dipole)
         self.lbl_dipole_hdr.setStyleSheet("font-size: 12px; font-weight: 600;")
         self.lbl_dipole_val = QLabel("—", self.card_dipole)
         self.lbl_dipole_val.setStyleSheet("font-family: monospace; font-size: 22px; font-weight: 700;")
@@ -2159,12 +2160,12 @@ class PropertiesPanel(QWidget):
 
         # Header row
         hdr_row = QHBoxLayout()
-        hdr_atom = QLabel("Атом", self.charges_content)
+        hdr_atom = QLabel(tr("Атом"), self.charges_content)
         hdr_atom.setStyleSheet("color: %s; font-size: 11px;" % hex_color("muted"))
-        hdr_mull = QLabel("Малликен", self.charges_content)
+        hdr_mull = QLabel(tr("Малликен"), self.charges_content)
         hdr_mull.setStyleSheet("color: %s; font-size: 11px;" % hex_color("muted"))
         hdr_mull.setAlignment(Qt.AlignRight)
-        hdr_low = QLabel("Лёвдин", self.charges_content)
+        hdr_low = QLabel(tr("Лёвдин"), self.charges_content)
         hdr_low.setStyleSheet("color: %s; font-size: 11px;" % hex_color("muted"))
         hdr_low.setAlignment(Qt.AlignRight)
 

@@ -11,7 +11,7 @@ import argparse
 import os
 import sys
 
-from ffpy import api
+from ffpy import api, inputgen
 
 try:  # mcp 2.x
     from mcp.server.mcpserver import MCPServer as _Server
@@ -20,7 +20,7 @@ except ImportError:  # mcp 1.x
 
 INSTRUCTIONS = (
     "ffpy runs Firefly/GAMESS-style quantum-chemistry inputs (.inp) with PySCF. "
-    "Typical flow: list_keywords to see what is supported, validate_input on the deck text, "
+    "Typical flow: build_input (or write the deck yourself; list_keywords shows what is supported), validate_input, "
     "write_input to save it in the work directory, run_calculation (if enabled), "
     "job_status until finished, then parse_output or read_file for details. "
     "Energies are in hartree, lengths in angstrom unless stated."
@@ -53,6 +53,27 @@ def build_server(workdir, allow_run=False, max_jobs=1, timeout=3600):
         return {"saved": name, "validation": api.validate(text)}
 
     @mcp.tool()
+    def build_input(geometry: str, method: str = "HF", runtyp: str = "ENERGY", basis: str = "6-31G*",
+                    charge: int = 0, mult: int = 1, functional: str = "B3LYP", title: str = "ffpy job",
+                    nstep: int = 50, hssend: bool = False, excited: str = "", nstate: int = 5,
+                    solvent: str = "", ncore: int = 0, nact: int = 2, nels: int = 2) -> dict:
+        """Make an input deck from plain parameters (no Firefly syntax needed). geometry: 'Symbol x y z' lines or .xyz text, angstrom. method HF|DFT|MP2|CASSCF; runtyp ENERGY|GRADIENT|OPTIMIZE|HESSIAN (HESSIAN gives frequencies and thermochemistry); basis e.g. 6-31G*, cc-pVDZ; excited TDDFT|TDA|CIS or empty; solvent a PCM name such as WATER. Returns the deck text and its validation; save it with write_input."""
+        text = inputgen.build_input(geometry, method, runtyp, basis, charge, mult, functional, title,
+                                    nstep=nstep, hssend=hssend, excited=excited or None, nstate=nstate,
+                                    solvent=solvent or None, ncore=ncore, nact=nact, nels=nels)
+        return {"text": text, "validation": api.validate(text)}
+
+    @mcp.tool()
+    def geometry_from_output(name: str) -> str:
+        """Last geometry of a finished .out file as .xyz text (angstrom); use it as the start geometry of the next calculation, e.g. frequencies after an optimization."""
+        return api.geometry_xyz(api.safe_path(jobs.workdir, name))
+
+    @mcp.tool()
+    def compare_outputs(names: list[str]) -> dict:
+        """Energies of several .out files with differences to the first one in hartree and kcal/mol (reaction energies, isomer or method comparison)."""
+        return {"rows": api.compare_energies([api.safe_path(jobs.workdir, n) for n in names])}
+
+    @mcp.tool()
     def list_files() -> list:
         """List files in the work directory (inputs, outputs, molden, restart, trajectories)."""
         res = []
@@ -81,14 +102,19 @@ def build_server(workdir, allow_run=False, max_jobs=1, timeout=3600):
     if allow_run:
         @mcp.tool()
         def run_calculation(name: str, threads: int = 0, timeout_s: int = 0) -> dict:
-            """Start a calculation of an .inp file from the work directory in the background. Returns a job_id; poll job_status. threads 0 = automatic."""
+            """Queue a calculation of an .inp file from the work directory; it runs in the background (several can be queued, max_jobs run at once). Returns a job_id; use wait_for_job. threads 0 = automatic."""
             job_id = jobs.start(name, nproc=threads, timeout=timeout_s or None)
-            return {"job_id": job_id, "state": "running"}
+            return {"job_id": job_id, "state": jobs.status(job_id)["state"]}
 
         @mcp.tool()
         def job_status(job_id: str) -> dict:
-            """State of a started job: running (with the log tail) or finished/cancelled/timeout (with parsed results and exit code)."""
+            """State of a started job: queued, running (with the log tail) or finished/cancelled/timeout (with parsed results, exit code, thermochemistry)."""
             return jobs.status(job_id)
+
+        @mcp.tool()
+        def wait_for_job(job_id: str, timeout_s: int = 50) -> dict:
+            """Wait up to timeout_s seconds (max 300) for a job to finish and return its status; call again if it is still running. Prefer this over polling job_status."""
+            return jobs.wait(job_id, timeout_s)
 
         @mcp.tool()
         def cancel_job(job_id: str) -> dict:

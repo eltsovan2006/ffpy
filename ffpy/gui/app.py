@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (QApplication, QButtonGroup, QDockWidget, QFileDia
                                QWidget)
 
 from ffpy import __version__
+from ffpy.gui.i18n import tr
 from ffpy.gui.batch import BatchView
 from ffpy.gui.builder import NewJobDialog
 from ffpy.gui.editor import CodeEditor, FileTab
@@ -31,8 +32,8 @@ from ffpy.gui.validate import check_text
 from ffpy.gui.viewer3d import Molecule, MoleculeViewer3D
 
 FILE_FILTERS = ["*.inp", "*.out", "*.molden", "*.dat", "*.xyz", "*.log", "*.txt"]
-OPEN_FILTER = ("Файлы ffpy (*.inp *.out *.dat *.xyz *.log);;Входные файлы (*.inp);;"
-               "Логи (*.out *.log);;Все файлы (*)")
+OPEN_FILTER = (tr("Файлы ffpy (*.inp *.out *.dat *.xyz *.log);;Входные файлы (*.inp);;"
+               "Логи (*.out *.log);;Все файлы (*)"))
 EMPTY_INP = """! new input
  $CONTRL SCFTYP=RHF RUNTYP=ENERGY ICHARG=0 MULT=1 $END
  $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 $END
@@ -701,11 +702,11 @@ class MainWindow(QMainWindow):
             b.setFont(font)
             return b
 
-        self.btn_mode_editor = make_btn("Редактор", "editor")
-        self.btn_mode_results = make_btn("Итоги", "results")
+        self.btn_mode_editor = make_btn(tr("Редактор"), "editor")
+        self.btn_mode_results = make_btn(tr("Итоги"), "results")
         self.btn_mode_3d = make_btn("3D", "3d")
-        self.btn_mode_batch = make_btn("Пакеты", "batch")
-        self.btn_mode_settings = make_btn("Настройки", "settings", is_check=False)
+        self.btn_mode_batch = make_btn(tr("Пакеты"), "batch")
+        self.btn_mode_settings = make_btn(tr("Настройки"), "settings", is_check=False)
         self.btn_mode_settings.clicked.connect(self.open_settings)
         self.settings_btn = self.btn_mode_settings
 
@@ -725,7 +726,7 @@ class MainWindow(QMainWindow):
         layout.addStretch(1)
         layout.addWidget(self.btn_mode_settings)
 
-        self.rail_toolbar = QToolBar("Режимы", self)
+        self.rail_toolbar = QToolBar(tr("Режимы"), self)
         self.rail_toolbar.setObjectName("rail_toolbar")
         self.rail_toolbar.setMovable(False)
         self.rail_toolbar.setFloatable(False)
@@ -810,13 +811,13 @@ class MainWindow(QMainWindow):
         w = QWidget()
         v = QVBoxLayout(w)
         v.addStretch(1)
-        t = QLabel("<h2>ffpy %s</h2><p>Входные файлы Firefly/GAMESS, расчёт через PySCF</p>" % __version__)
+        t = QLabel(tr("<h2>ffpy %s</h2><p>Входные файлы Firefly/GAMESS, расчёт через PySCF</p>") % __version__)
         t.setAlignment(Qt.AlignCenter)
         v.addWidget(t)
         row = QHBoxLayout()
         row.addStretch(1)
-        for text, slot in (("Новый расчёт…", self.new_job), ("Открыть файл…", self.open_dialog),
-                           ("Открыть папку…", self.choose_folder)):
+        for text, slot in ((tr("Новый расчёт…"), self.new_job), (tr("Открыть файл…"), self.open_dialog),
+                           (tr("Открыть папку…"), self.choose_folder)):
             b = QPushButton(text)
             b.setMinimumSize(QSize(160, 36))
             b.clicked.connect(slot)
@@ -827,13 +828,13 @@ class MainWindow(QMainWindow):
         self.recent_list.setMaximumWidth(620)
         self.recent_list.setMaximumHeight(220)
         self.recent_list.itemActivated.connect(lambda it: self.open_path(it.data(Qt.UserRole)))
-        lab = QLabel("Недавние файлы:")
+        lab = QLabel(tr("Недавние файлы:"))
         lab.setAlignment(Qt.AlignCenter)
         v.addSpacing(16)
         v.addWidget(lab)
         v.addWidget(self.recent_list, 0, Qt.AlignHCenter)
-        hint = QLabel("F5 — запустить расчёт · Ctrl+F — поиск · Ctrl+/ — закомментировать строки · "
-                      "файлы можно перетаскивать в окно")
+        hint = QLabel(tr("F5 — запустить расчёт · Ctrl+F — поиск · Ctrl+/ — закомментировать строки · "
+                      "файлы можно перетаскивать в окно"))
         hint.setAlignment(Qt.AlignCenter)
         hint.setStyleSheet("color:%s" % hex_color("muted"))
         v.addSpacing(10)
@@ -844,7 +845,7 @@ class MainWindow(QMainWindow):
     def _show_welcome(self):
         if self.tabs.count() == 0:
             self._fill_recent()
-            self.tabs.addTab(self.welcome, "Начало")
+            self.tabs.addTab(self.welcome, tr("Начало"))
             for side in (QTabBar.RightSide, QTabBar.LeftSide):
                 self.tabs.tabBar().setTabButton(0, side, None)
 
@@ -854,14 +855,14 @@ class MainWindow(QMainWindow):
             self.tabs.removeTab(i)
 
     def _build_files_dock(self):
-        dock = QDockWidget("Файлы", self)
+        dock = QDockWidget(tr("Файлы"), self)
         dock.setObjectName("files")
         title_bar = QWidget()
         title_bar.setObjectName("files_dock_title")
         th = QHBoxLayout(title_bar)
         th.setContentsMargins(14, 10, 14, 4)
         th.setSpacing(8)
-        lbl_files = QLabel("ФАЙЛЫ")
+        lbl_files = QLabel(tr("ФАЙЛЫ"))
         lbl_files.setProperty("dock_label", "true")
         self.lbl_folder_name = QLabel()
         self.lbl_folder_name.setProperty("dock_sub", "true")
@@ -877,17 +878,17 @@ class MainWindow(QMainWindow):
         row = QHBoxLayout()
         row.setSpacing(4)
         self.folder_edit = QLineEdit()
-        self.folder_edit.setPlaceholderText("Поиск по файлам или путь...")
+        self.folder_edit.setPlaceholderText(tr("Поиск по файлам или путь..."))
         self.folder_edit.setFixedHeight(30)
         self.folder_edit.returnPressed.connect(self._on_folder_edit_return)
         up = QToolButton()
         up.setText("↑")
-        up.setToolTip("Папка выше")
+        up.setToolTip(tr("Папка выше"))
         up.setFixedSize(28, 30)
         up.clicked.connect(lambda: self.set_folder(os.path.dirname(self.folder)))
         browse = QToolButton()
         browse.setText("…")
-        browse.setToolTip("Выбрать папку")
+        browse.setToolTip(tr("Выбрать папку"))
         browse.setFixedSize(28, 30)
         browse.clicked.connect(self.choose_folder)
         row.addWidget(self.folder_edit, 1)
@@ -923,13 +924,13 @@ class MainWindow(QMainWindow):
         self.files_dock = dock
 
     def _build_results_dock(self):
-        dock = QDockWidget("Результаты", self)
+        dock = QDockWidget(tr("Результаты"), self)
         dock.setObjectName("results")
         res_title = QWidget()
         res_title.setObjectName("results_dock_title")
         rh = QHBoxLayout(res_title)
         rh.setContentsMargins(14, 10, 14, 4)
-        lbl_res = QLabel("РЕЗУЛЬТАТЫ")
+        lbl_res = QLabel(tr("РЕЗУЛЬТАТЫ"))
         lbl_res.setProperty("dock_label", "true")
         rh.addWidget(lbl_res)
         rh.addStretch(1)
@@ -942,7 +943,7 @@ class MainWindow(QMainWindow):
         self.results_dock = dock
 
     def _build_log_dock(self):
-        dock = QDockWidget("Журнал запуска", self)
+        dock = QDockWidget(tr("Журнал запуска"), self)
         dock.setObjectName("log")
         dock.setTitleBarWidget(QWidget())
         w = QWidget()
@@ -950,12 +951,12 @@ class MainWindow(QMainWindow):
         v.setContentsMargins(4, 2, 4, 2)
         v.setSpacing(2)
         row = QHBoxLayout()
-        self.run_label = QLabel("Нет запущенных расчётов")
+        self.run_label = QLabel(tr("Нет запущенных расчётов"))
         b_copy = QToolButton()
-        b_copy.setText("Копировать")
+        b_copy.setText(tr("Копировать"))
         b_copy.clicked.connect(lambda: QApplication.clipboard().setText(self.log_view.toPlainText()))
         b_clear = QToolButton()
-        b_clear.setText("Очистить")
+        b_clear.setText(tr("Очистить"))
         b_clear.clicked.connect(lambda: self.log_view.clear())
         row.addWidget(self.run_label, 1)
         row.addWidget(b_copy)
@@ -970,7 +971,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, dock)
         self.log_dock = dock
 
-        pdock = QDockWidget("Проверка входа", self)
+        pdock = QDockWidget(tr("Проверка входа"), self)
         pdock.setObjectName("problems")
         pdock.setTitleBarWidget(QWidget())
         self.problems = ProblemsList()
@@ -998,55 +999,55 @@ class MainWindow(QMainWindow):
     def _build_actions(self):
         A = self._act
         st = self.style()
-        self.a_new_job = A("Новый расчёт…", self.new_job, "Ctrl+Shift+N", "Конструктор входного файла",
-                           st.standardIcon(QStyle.SP_FileIcon), "Новый…")
-        self.a_new = A("Пустой .inp", self.new_empty, "Ctrl+N")
-        self.a_open = A("Открыть…", self.open_dialog, "Ctrl+O", "Открыть файл",
-                        st.standardIcon(QStyle.SP_DialogOpenButton), "Открыть")
-        self.a_folder = A("Открыть папку…", self.choose_folder, "Ctrl+Shift+O")
-        self.a_save = A("Сохранить", self.save_current, "Ctrl+S", "Сохранить файл",
-                        st.standardIcon(QStyle.SP_DialogSaveButton), "Сохранить")
-        self.a_save_as = A("Сохранить как…", self.save_as, "Ctrl+Shift+S")
-        self.a_save_all = A("Сохранить все", self.save_all)
-        self.a_close = A("Закрыть вкладку", lambda: self.close_tab(self.tabs.currentIndex()), "Ctrl+W")
-        self.a_quit = A("Выход", self.close, "Ctrl+Q")
-        self.a_run = A("▶  Запустить", self.run_current, "F5", "Сохранить и запустить текущий .inp (F5)",
-                       st.standardIcon(QStyle.SP_MediaPlay), "Запуск")
-        self.a_run_folder = A("Запустить все .inp в папке", self.run_folder)
-        self.a_stop = A("■  Остановить", self.stop_run, "Shift+F5", "Остановить расчёт и очистить очередь",
-                        st.standardIcon(QStyle.SP_MediaStop), "Стоп")
-        self.a_open_out = A("Открыть .out", self.open_out_of_current, "F6", "Открыть лог для текущего .inp",
+        self.a_new_job = A(tr("Новый расчёт…"), self.new_job, "Ctrl+Shift+N", tr("Конструктор входного файла"),
+                           st.standardIcon(QStyle.SP_FileIcon), tr("Новый…"))
+        self.a_new = A(tr("Пустой .inp"), self.new_empty, "Ctrl+N")
+        self.a_open = A(tr("Открыть…"), self.open_dialog, "Ctrl+O", tr("Открыть файл"),
+                        st.standardIcon(QStyle.SP_DialogOpenButton), tr("Открыть"))
+        self.a_folder = A(tr("Открыть папку…"), self.choose_folder, "Ctrl+Shift+O")
+        self.a_save = A(tr("Сохранить"), self.save_current, "Ctrl+S", tr("Сохранить файл"),
+                        st.standardIcon(QStyle.SP_DialogSaveButton), tr("Сохранить"))
+        self.a_save_as = A(tr("Сохранить как…"), self.save_as, "Ctrl+Shift+S")
+        self.a_save_all = A(tr("Сохранить все"), self.save_all)
+        self.a_close = A(tr("Закрыть вкладку"), lambda: self.close_tab(self.tabs.currentIndex()), "Ctrl+W")
+        self.a_quit = A(tr("Выход"), self.close, "Ctrl+Q")
+        self.a_run = A(tr("▶  Запустить"), self.run_current, "F5", tr("Сохранить и запустить текущий .inp (F5)"),
+                       st.standardIcon(QStyle.SP_MediaPlay), tr("Запуск"))
+        self.a_run_folder = A(tr("Запустить все .inp в папке"), self.run_folder)
+        self.a_stop = A(tr("■  Остановить"), self.stop_run, "Shift+F5", tr("Остановить расчёт и очистить очередь"),
+                        st.standardIcon(QStyle.SP_MediaStop), tr("Стоп"))
+        self.a_open_out = A(tr("Открыть .out"), self.open_out_of_current, "F6", tr("Открыть лог для текущего .inp"),
                             st.standardIcon(QStyle.SP_FileDialogContentsView), ".out")
-        self.a_molden = A("Открыть .molden внешней программой", self.open_molden_of_current, "F7",
-                          "Открыть .molden во внешней программе",
+        self.a_molden = A(tr("Открыть .molden внешней программой"), self.open_molden_of_current, "F7",
+                          tr("Открыть .molden во внешней программе"),
                           st.standardIcon(QStyle.SP_FileDialogInfoView), ".molden")
-        self.a_find = A("Найти…", lambda: self._with_tab(lambda t: t.findbar.open()), "Ctrl+F")
-        self.a_replace = A("Заменить…", lambda: self._with_tab(lambda t: t.findbar.open(True)), "Ctrl+H")
-        self.a_goto = A("Перейти к строке…", self.goto_line, "Ctrl+G")
-        self.a_comment = A("Закомментировать / раскомментировать", lambda: self._with_tab(
+        self.a_find = A(tr("Найти…"), lambda: self._with_tab(lambda t: t.findbar.open()), "Ctrl+F")
+        self.a_replace = A(tr("Заменить…"), lambda: self._with_tab(lambda t: t.findbar.open(True)), "Ctrl+H")
+        self.a_goto = A(tr("Перейти к строке…"), self.goto_line, "Ctrl+G")
+        self.a_comment = A(tr("Закомментировать / раскомментировать"), lambda: self._with_tab(
             lambda t: t.editor.toggle_comment()), "Ctrl+/")
-        self.a_copy_all = A("Копировать весь текст", lambda: self._with_tab(lambda t: t.copy_all()),
+        self.a_copy_all = A(tr("Копировать весь текст"), lambda: self._with_tab(lambda t: t.copy_all()),
                             "Ctrl+Shift+C")
-        self.a_font_up = A("Крупнее шрифт", lambda: self.set_font_size(self.font_size + 1), "Ctrl+=")
-        self.a_font_down = A("Мельче шрифт", lambda: self.set_font_size(self.font_size - 1), "Ctrl+-")
-        self.a_keywords = A("Ключевые слова ffpy", self.show_keywords, "F1")
-        self.a_about = A("О программе", self.about)
-        self.a_settings = A("Настройки…", self.open_settings, "Ctrl+,", "Настройки оформления и языка",
-                            make_gear_icon(), "Настройки")
+        self.a_font_up = A(tr("Крупнее шрифт"), lambda: self.set_font_size(self.font_size + 1), "Ctrl+=")
+        self.a_font_down = A(tr("Мельче шрифт"), lambda: self.set_font_size(self.font_size - 1), "Ctrl+-")
+        self.a_keywords = A(tr("Ключевые слова ffpy"), self.show_keywords, "F1")
+        self.a_about = A(tr("О программе"), self.about)
+        self.a_settings = A(tr("Настройки…"), self.open_settings, "Ctrl+,", tr("Настройки оформления и языка"),
+                            make_gear_icon(), tr("Настройки"))
 
         mb = self.menuBar()
         mb.setNativeMenuBar(True)
-        m = mb.addMenu("&Файл")
+        m = mb.addMenu(tr("&Файл"))
         for a in (self.a_new_job, self.a_new, None, self.a_open, self.a_folder):
             m.addSeparator() if a is None else m.addAction(a)
-        self.recent_menu = m.addMenu("Недавние")
+        self.recent_menu = m.addMenu(tr("Недавние"))
         self.recent_menu.aboutToShow.connect(self._fill_recent_menu)
         for a in (None, self.a_save, self.a_save_as, self.a_save_all, None, self.a_close, None, self.a_quit):
             m.addSeparator() if a is None else m.addAction(a)
 
-        m = mb.addMenu("&Правка")
-        self.a_undo = A("Отменить", lambda: self._with_tab(lambda t: t.editor.undo()), QKeySequence.Undo)
-        self.a_redo = A("Повторить", lambda: self._with_tab(lambda t: t.editor.redo()), QKeySequence.Redo)
+        m = mb.addMenu(tr("&Правка"))
+        self.a_undo = A(tr("Отменить"), lambda: self._with_tab(lambda t: t.editor.undo()), QKeySequence.Undo)
+        self.a_redo = A(tr("Повторить"), lambda: self._with_tab(lambda t: t.editor.redo()), QKeySequence.Redo)
         for a in (self.a_undo, self.a_redo, None, self.a_find, self.a_replace, self.a_goto, None,
                   self.a_comment, self.a_copy_all):
             m.addSeparator() if a is None else m.addAction(a)
@@ -1054,28 +1055,28 @@ class MainWindow(QMainWindow):
         self.a_undo.setShortcut(QKeySequence())
         self.a_redo.setShortcut(QKeySequence())
 
-        m = mb.addMenu("&Расчёт")
+        m = mb.addMenu(tr("&Расчёт"))
         for a in (self.a_run, self.a_run_folder, self.a_stop, None, self.a_open_out, self.a_molden):
             m.addSeparator() if a is None else m.addAction(a)
         m.addSeparator()
-        th = A("Число потоков…", self.ask_threads)
+        th = A(tr("Число потоков…"), self.ask_threads)
         m.addAction(th)
 
-        m = mb.addMenu("&Вид")
+        m = mb.addMenu(tr("&Вид"))
         m.addAction(self.a_font_up)
         m.addAction(self.a_font_down)
         m.addSeparator()
         for d in (self.files_dock, self.results_dock, self.log_dock, self.problems_dock):
             m.addAction(d.toggleViewAction())
 
-        m = mb.addMenu("&Настройки")
+        m = mb.addMenu(tr("&Настройки"))
         m.addAction(self.a_settings)
 
-        m = mb.addMenu("&Справка")
+        m = mb.addMenu(tr("&Справка"))
         m.addAction(self.a_keywords)
         m.addAction(self.a_about)
 
-        tb = self.addToolBar("Основное")
+        tb = self.addToolBar(tr("Основное"))
         tb.setObjectName("main_toolbar")
         tb.setMovable(False)
         tb.setFloatable(False)
@@ -1112,13 +1113,13 @@ class MainWindow(QMainWindow):
             b.clicked.connect(slot)
             return b
 
-        self.btn_new = make_flat_tb_btn("Новый расчёт", self.new_job, self.a_new_job.toolTip())
+        self.btn_new = make_flat_tb_btn(tr("Новый расчёт"), self.new_job, self.a_new_job.toolTip())
         tb.addWidget(self.btn_new)
-        self.btn_open = make_flat_tb_btn("Открыть", self.open_dialog, self.a_open.toolTip())
+        self.btn_open = make_flat_tb_btn(tr("Открыть"), self.open_dialog, self.a_open.toolTip())
         tb.addWidget(self.btn_open)
-        self.btn_save = make_flat_tb_btn("Сохранить", self.save_current, self.a_save.toolTip())
+        self.btn_save = make_flat_tb_btn(tr("Сохранить"), self.save_current, self.a_save.toolTip())
         tb.addWidget(self.btn_save)
-        self.btn_export_png = make_flat_tb_btn("Экспорт PNG", self.export_png_dialog, "Экспорт 3D-изображения в формате PNG")
+        self.btn_export_png = make_flat_tb_btn(tr("Экспорт PNG"), self.export_png_dialog, tr("Экспорт 3D-изображения в формате PNG"))
         tb.addWidget(self.btn_export_png)
 
         # 3. Vertical separator
@@ -1132,7 +1133,7 @@ class MainWindow(QMainWindow):
         # 4. Primary Run button
         self.btn_run = QToolButton()
         self.btn_run.setObjectName("btn_run")
-        self.btn_run.setText("▶  Запустить")
+        self.btn_run.setText(tr("▶  Запустить"))
         self.btn_run.setFixedHeight(34)
         self.btn_run.setToolTip(self.a_run.toolTip())
         self.btn_run.setStatusTip(self.a_run.statusTip())
@@ -1142,7 +1143,7 @@ class MainWindow(QMainWindow):
         # 5. Quiet Stop button
         self.btn_stop = QToolButton()
         self.btn_stop.setObjectName("btn_stop")
-        self.btn_stop.setText("Стоп")
+        self.btn_stop.setText(tr("Стоп"))
         self.btn_stop.setIcon(make_stop_icon())
         self.btn_stop.setIconSize(QSize(11, 11))
         self.btn_stop.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -1165,8 +1166,8 @@ class MainWindow(QMainWindow):
         self.btn_toggle_spectrum.setFixedSize(32, 32)
         self.btn_toggle_spectrum.setCheckable(True)
         self.btn_toggle_spectrum.setChecked(True)
-        self.btn_toggle_spectrum.setAccessibleName("Спектр")
-        self.btn_toggle_spectrum.setToolTip("Панель «Спектр»")
+        self.btn_toggle_spectrum.setAccessibleName(tr("Спектр"))
+        self.btn_toggle_spectrum.setToolTip(tr("Панель «Спектр»"))
         self.btn_toggle_spectrum.setIcon(make_sidebar_icon("bottom"))
         self.btn_toggle_spectrum.setIconSize(QSize(20, 20))
         self.btn_toggle_spectrum.toggled.connect(self._on_spectrum_toggled)
@@ -1179,8 +1180,8 @@ class MainWindow(QMainWindow):
         self.btn_toggle_props.setFixedSize(32, 32)
         self.btn_toggle_props.setCheckable(True)
         self.btn_toggle_props.setChecked(True)
-        self.btn_toggle_props.setAccessibleName("Свойства")
-        self.btn_toggle_props.setToolTip("Панель «Свойства»")
+        self.btn_toggle_props.setAccessibleName(tr("Свойства"))
+        self.btn_toggle_props.setToolTip(tr("Панель «Свойства»"))
         self.btn_toggle_props.setIcon(make_sidebar_icon("right"))
         self.btn_toggle_props.setIconSize(QSize(20, 20))
         self.btn_toggle_props.toggled.connect(self._on_props_toggled)
@@ -1193,8 +1194,8 @@ class MainWindow(QMainWindow):
         self.btn_toggle_files.setFixedSize(32, 32)
         self.btn_toggle_files.setCheckable(True)
         self.btn_toggle_files.setChecked(True)
-        self.btn_toggle_files.setAccessibleName("Список файлов")
-        self.btn_toggle_files.setToolTip("Список файлов")
+        self.btn_toggle_files.setAccessibleName(tr("Список файлов"))
+        self.btn_toggle_files.setToolTip(tr("Список файлов"))
         self.btn_toggle_files.setIcon(make_sidebar_icon("left"))
         self.btn_toggle_files.setIconSize(QSize(20, 20))
         self.btn_toggle_files.toggled.connect(self.files_dock.setVisible)
@@ -1207,8 +1208,8 @@ class MainWindow(QMainWindow):
         self.btn_toggle_results.setFixedSize(32, 32)
         self.btn_toggle_results.setCheckable(True)
         self.btn_toggle_results.setChecked(True)
-        self.btn_toggle_results.setAccessibleName("Результаты")
-        self.btn_toggle_results.setToolTip("Результаты")
+        self.btn_toggle_results.setAccessibleName(tr("Результаты"))
+        self.btn_toggle_results.setToolTip(tr("Результаты"))
         self.btn_toggle_results.setIcon(make_sidebar_icon("right"))
         self.btn_toggle_results.setIconSize(QSize(20, 20))
         self.btn_toggle_results.toggled.connect(self.results_dock.setVisible)
@@ -1267,7 +1268,7 @@ class MainWindow(QMainWindow):
             self.set_folder(path)
             return
         if not os.path.exists(path):
-            QMessageBox.warning(self, "ffpy", "Файл не найден:\n%s" % path)
+            QMessageBox.warning(self, "ffpy", tr("Файл не найден:\n%s") % path)
             self._remove_recent(path)
             return
         i = self.find_tab(path)
@@ -1276,18 +1277,18 @@ class MainWindow(QMainWindow):
                 self.tabs.setCurrentIndex(i)
             return self.tab(i)
         if path.lower().endswith(".molden"):
-            if QMessageBox.question(self, "ffpy", "Открыть .molden во внешней программе "
-                                    "(Chemcraft, Avogadro…)?\n«Нет» — показать как текст.") == QMessageBox.Yes:
+            if QMessageBox.question(self, "ffpy", tr("Открыть .molden во внешней программе "
+                                    "(Chemcraft, Avogadro…)?\n«Нет» — показать как текст.")) == QMessageBox.Yes:
                 open_external(path)
                 return
         size = os.path.getsize(path)
         if size > 50 * 1024 * 1024:
-            QMessageBox.warning(self, "ffpy", "Файл слишком большой для просмотра (%.0f МБ)" % (size / 2**20))
+            QMessageBox.warning(self, "ffpy", tr("Файл слишком большой для просмотра (%.0f МБ)") % (size / 2**20))
             return
         try:
             tab = FileTab(path, font_size=self.font_size)
         except OSError as e:
-            QMessageBox.warning(self, "ffpy", "Не удалось открыть файл:\n%s" % e)
+            QMessageBox.warning(self, "ffpy", tr("Не удалось открыть файл:\n%s") % e)
             return
         self.add_tab(tab, focus)
         self._add_recent(path)
@@ -1315,9 +1316,9 @@ class MainWindow(QMainWindow):
         dlg = NewJobDialog(self, self.folder)
         if dlg.exec() != NewJobDialog.Accepted:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "Сохранить входной файл",
+        path, _ = QFileDialog.getSaveFileName(self, tr("Сохранить входной файл"),
                                               os.path.join(self.folder, dlg.suggested_name()),
-                                              "Входные файлы (*.inp)")
+                                              tr("Входные файлы (*.inp)"))
         tab = FileTab(None, font_size=self.font_size)
         tab.editor.setPlainText(dlg.result_text)
         if path:
@@ -1331,12 +1332,12 @@ class MainWindow(QMainWindow):
         self._refresh_tab_title(tab)
 
     def open_dialog(self, *args):
-        paths, _ = QFileDialog.getOpenFileNames(self, "Открыть", self.folder, OPEN_FILTER)
+        paths, _ = QFileDialog.getOpenFileNames(self, tr("Открыть"), self.folder, OPEN_FILTER)
         for p in paths:
             self.open_path(p)
 
     def choose_folder(self, *args):
-        d = QFileDialog.getExistingDirectory(self, "Папка с расчётами", self.folder)
+        d = QFileDialog.getExistingDirectory(self, tr("Папка с расчётами"), self.folder)
         if d:
             self.set_folder(d)
 
@@ -1361,7 +1362,7 @@ class MainWindow(QMainWindow):
             return True
         if not t.path or ask_path:
             start = t.path or os.path.join(self.folder, "job.inp")
-            path, _ = QFileDialog.getSaveFileName(self, "Сохранить как", start, "Входные файлы (*.inp);;Все файлы (*)")
+            path, _ = QFileDialog.getSaveFileName(self, tr("Сохранить как"), start, tr("Входные файлы (*.inp);;Все файлы (*)"))
             if not path:
                 return False
             if not os.path.splitext(path)[1]:
@@ -1377,7 +1378,7 @@ class MainWindow(QMainWindow):
             t.save()
             self.watcher.addPath(t.path)
         self._refresh_tab_title(t)
-        self.statusBar().showMessage("Сохранено: %s" % t.path, 3000)
+        self.statusBar().showMessage(tr("Сохранено: %s") % t.path, 3000)
         return True
 
     def save_as(self):
@@ -1396,7 +1397,7 @@ class MainWindow(QMainWindow):
         if t is None:
             return
         if t.is_modified():
-            r = QMessageBox.question(self, "ffpy", "Сохранить изменения в «%s»?" % t.title().rstrip(" •"),
+            r = QMessageBox.question(self, "ffpy", tr("Сохранить изменения в «%s»?") % t.title().rstrip(" •"),
                                      QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
             if r == QMessageBox.Cancel or (r == QMessageBox.Save and not self.save_tab(t)):
                 return
@@ -1416,7 +1417,7 @@ class MainWindow(QMainWindow):
 
     def _update_title(self):
         t = self.tab()
-        name = (t.path or "Без имени") if t else ""
+        name = (t.path or tr("Без имени")) if t else ""
         self.setWindowTitle(("%s — " % name if name else "") + "ffpy %s" % __version__)
 
     def _tab_changed(self, _i):
@@ -1462,7 +1463,7 @@ class MainWindow(QMainWindow):
             self.pos_label.setText("")
             return
         c = t.editor.textCursor()
-        self.pos_label.setText("Стр %d, кол %d   " % (c.blockNumber() + 1, c.positionInBlock() + 1))
+        self.pos_label.setText(tr("Стр %d, кол %d   ") % (c.blockNumber() + 1, c.positionInBlock() + 1))
 
     def _on_text_changed(self, t):
         if t is self.tab() and t.kind == "inp":
@@ -1480,8 +1481,8 @@ class MainWindow(QMainWindow):
             if t.kind == "out" and t is self.tab():
                 QTimer.singleShot(200, lambda: self.results.set_out(path))
         elif t.changed_on_disk():
-            r = QMessageBox.question(self, "ffpy", "Файл «%s» изменён на диске. Загрузить новую версию "
-                                     "и потерять правки в редакторе?" % os.path.basename(path))
+            r = QMessageBox.question(self, "ffpy", tr("Файл «%s» изменён на диске. Загрузить новую версию "
+                                     "и потерять правки в редакторе?") % os.path.basename(path))
             if r == QMessageBox.Yes:
                 t.load()
         if path not in self.watcher.files():
@@ -1498,7 +1499,7 @@ class MainWindow(QMainWindow):
         if chk.ok:
             self.check_label.setText("✔ " + chk.message)
             self.check_label.setStyleSheet("color:%s" % hex_color("ok"))
-            it = QListWidgetItem("✔ Вход корректен: " + chk.message)
+            it = QListWidgetItem(tr("✔ Вход корректен: ") + chk.message)
             it.setForeground(QColor(hex_color("ok")))
             self.problems.addItem(it)
         else:
@@ -1512,7 +1513,7 @@ class MainWindow(QMainWindow):
             it = QListWidgetItem("⚠ " + w)
             it.setForeground(QColor(hex_color("warning")))
             self.problems.addItem(it)
-        self.problems_dock.setWindowTitle("Проверка входа" + ("" if chk.ok else " ✖"))
+        self.problems_dock.setWindowTitle(tr("Проверка входа") + ("" if chk.ok else " ✖"))
 
     def _goto_problem(self, item):
         line = item.data(Qt.UserRole)
@@ -1524,7 +1525,7 @@ class MainWindow(QMainWindow):
         t = self.tab()
         if not t:
             return
-        n, ok = QInputDialog.getInt(self, "Перейти к строке", "Номер строки:",
+        n, ok = QInputDialog.getInt(self, tr("Перейти к строке"), tr("Номер строки:"),
                                     t.editor.textCursor().blockNumber() + 1, 1, t.editor.blockCount())
         if ok:
             t.editor.goto_line(n)
@@ -1539,7 +1540,7 @@ class MainWindow(QMainWindow):
                 return
         chk = check_text(t.editor.toPlainText())
         if not chk.ok:
-            r = QMessageBox.question(self, "ffpy", "Во входном файле ошибка:\n\n%s\n\nВсё равно запустить?"
+            r = QMessageBox.question(self, "ffpy", tr("Во входном файле ошибка:\n\n%s\n\nВсё равно запустить?")
                                      % chk.message)
             if r != QMessageBox.Yes:
                 return
@@ -1551,7 +1552,7 @@ class MainWindow(QMainWindow):
         if not paths:
             return
         if self.runner.is_running():
-            self.statusBar().showMessage("Добавлено в очередь: %d" % len(paths), 4000)
+            self.statusBar().showMessage(tr("Добавлено в очередь: %d") % len(paths), 4000)
         self.runner.enqueue(paths)
         self.log_dock.raise_()
         self._update_run_state()
@@ -1560,9 +1561,9 @@ class MainWindow(QMainWindow):
         paths = sorted(os.path.join(self.folder, f) for f in os.listdir(self.folder)
                        if f.lower().endswith(".inp"))
         if not paths:
-            QMessageBox.information(self, "ffpy", "В папке нет файлов .inp")
+            QMessageBox.information(self, "ffpy", tr("В папке нет файлов .inp"))
             return
-        if QMessageBox.question(self, "ffpy", "Запустить по очереди %d файлов .inp из папки\n%s?"
+        if QMessageBox.question(self, "ffpy", tr("Запустить по очереди %d файлов .inp из папки\n%s?")
                                 % (len(paths), self.folder)) == QMessageBox.Yes:
             self.run_paths(paths)
 
@@ -1586,11 +1587,11 @@ class MainWindow(QMainWindow):
         self.run_timer.stop()
         out = os.path.splitext(path)[0] + ".out"
         if code == -1:
-            msg = "Расчёт остановлен: %s" % os.path.basename(path)
+            msg = tr("Расчёт остановлен: %s") % os.path.basename(path)
         elif code == 0:
-            msg = "Готово: %s" % os.path.basename(path)
+            msg = tr("Готово: %s") % os.path.basename(path)
         else:
-            msg = "Расчёт %s завершился с ошибкой (код %d)" % (os.path.basename(path), code)
+            msg = tr("Расчёт %s завершился с ошибкой (код %d)") % (os.path.basename(path), code)
         self.log_view.appendPlainText("<<< " + msg)
         self.statusBar().showMessage(msg, 10000)
         if os.path.exists(out):
@@ -1644,21 +1645,21 @@ class MainWindow(QMainWindow):
         q = len(self.runner.queue)
         if self.runner.is_running():
             el = int(self.runner.elapsed())
-            txt = "Идёт расчёт: %s  (%d:%02d)" % (os.path.basename(self.runner.current or ""), el // 60, el % 60)
+            txt = tr("Идёт расчёт: %s  (%d:%02d)") % (os.path.basename(self.runner.current or ""), el // 60, el % 60)
             if q:
-                txt += ", в очереди: %d" % q
+                txt += tr(", в очереди: %d") % q
             self.run_label.setText(txt)
             self.run_label.setStyleSheet("color:%s; font-weight:bold" % hex_color("accent"))
             if hasattr(self, "btn_run"):
-                self.btn_run.setText("Расчёт…")
+                self.btn_run.setText(tr("Расчёт…"))
                 self.btn_run.setProperty("busy", "true")
                 self.btn_run.style().unpolish(self.btn_run)
                 self.btn_run.style().polish(self.btn_run)
         else:
-            self.run_label.setText("Нет запущенных расчётов")
+            self.run_label.setText(tr("Нет запущенных расчётов"))
             self.run_label.setStyleSheet("")
             if hasattr(self, "btn_run"):
-                self.btn_run.setText("▶  Запустить")
+                self.btn_run.setText(tr("▶  Запустить"))
                 self.btn_run.setProperty("busy", "false")
                 self.btn_run.style().unpolish(self.btn_run)
                 self.btn_run.style().polish(self.btn_run)
@@ -1671,7 +1672,7 @@ class MainWindow(QMainWindow):
         self.settings.setValue("threads", n)
 
     def ask_threads(self):
-        n, ok = QInputDialog.getInt(self, "Потоки", "Число потоков для расчёта:", self.runner.threads,
+        n, ok = QInputDialog.getInt(self, tr("Потоки"), tr("Число потоков для расчёта:"), self.runner.threads,
                                     1, max(1, os.cpu_count() or 1))
         if ok:
             self.threads_spin.setValue(n)
@@ -1683,7 +1684,7 @@ class MainWindow(QMainWindow):
             if os.path.exists(out):
                 self.open_path(out)
             else:
-                self.statusBar().showMessage("Лога ещё нет — запустите расчёт (F5)", 4000)
+                self.statusBar().showMessage(tr("Лога ещё нет — запустите расчёт (F5)"), 4000)
 
     def open_molden_of_current(self):
         t = self.tab()
@@ -1699,16 +1700,16 @@ class MainWindow(QMainWindow):
             self.viewer3d.load_file(path)
             self.set_mode(2)
         except Exception as e:
-            self.statusBar().showMessage("Ошибка открытия 3D: %s" % e, 5000)
+            self.statusBar().showMessage(tr("Ошибка открытия 3D: %s") % e, 5000)
 
     def export_png_dialog(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Экспорт PNG", "", "PNG файлы (*.png)")
+        path, _ = QFileDialog.getSaveFileName(self, tr("Экспорт PNG"), "", tr("PNG файлы (*.png)"))
         if path:
             if not path.lower().endswith(".png"):
                 path += ".png"
             ok = self.viewer3d.export_png(path)
             if ok:
-                self.statusBar().showMessage("Изображение экспортировано: %s" % os.path.basename(path), 5000)
+                self.statusBar().showMessage(tr("Изображение экспортировано: %s") % os.path.basename(path), 5000)
 
     def _on_spectrum_toggled(self, checked: bool):
         self.viewer3d.set_spectrum_visible(checked)
@@ -1740,31 +1741,31 @@ class MainWindow(QMainWindow):
             files = [p for p in paths if os.path.isfile(p)]
             inps = [p for p in files if p.lower().endswith(".inp")]
             if files:
-                m.addAction("Открыть", lambda: [self.open_path(p) for p in files])
+                m.addAction(tr("Открыть"), lambda: [self.open_path(p) for p in files])
             if inps:
-                m.addAction("▶ Запустить" + (" (%d)" % len(inps) if len(inps) > 1 else ""),
+                m.addAction(tr("▶ Запустить") + (" (%d)" % len(inps) if len(inps) > 1 else ""),
                             lambda: self._run_from_tree(inps))
             if len(paths) == 1:
                 p = paths[0]
                 ext = os.path.splitext(p)[1].lower()
                 if ext in (".xyz", ".molden", ".out", ".inp"):
-                    m.addAction("Открыть в 3D", lambda: self.open_in_3d(p))
+                    m.addAction(tr("Открыть в 3D"), lambda: self.open_in_3d(p))
                 if os.path.isdir(p):
-                    m.addAction("Сделать корневой папкой", lambda: self.set_folder(p))
-                m.addAction("Открыть внешней программой", lambda: open_external(p))
-                m.addAction("Показать в проводнике", lambda: self._reveal(p))
+                    m.addAction(tr("Сделать корневой папкой"), lambda: self.set_folder(p))
+                m.addAction(tr("Открыть внешней программой"), lambda: open_external(p))
+                m.addAction(tr("Показать в проводнике"), lambda: self._reveal(p))
             m.addSeparator()
-            m.addAction("Копировать путь", lambda: QApplication.clipboard().setText("\n".join(paths)))
+            m.addAction(tr("Копировать путь"), lambda: QApplication.clipboard().setText("\n".join(paths)))
             if files:
-                m.addAction("Копировать в папку…", lambda: self._copy_to(files))
+                m.addAction(tr("Копировать в папку…"), lambda: self._copy_to(files))
             if len(paths) == 1:
-                m.addAction("Дублировать", lambda: self._duplicate(paths[0]))
-                m.addAction("Переименовать", lambda: self.tree.edit(idx))
-            m.addAction("Удалить в корзину", lambda: self._trash(paths))
+                m.addAction(tr("Дублировать"), lambda: self._duplicate(paths[0]))
+                m.addAction(tr("Переименовать"), lambda: self.tree.edit(idx))
+            m.addAction(tr("Удалить в корзину"), lambda: self._trash(paths))
             m.addSeparator()
-        m.addAction("Новый .inp здесь…", self._new_inp_in_folder)
-        m.addAction("Новая папка…", self._new_folder)
-        m.addAction("Обновить", lambda: self.set_folder(self.folder))
+        m.addAction(tr("Новый .inp здесь…"), self._new_inp_in_folder)
+        m.addAction(tr("Новая папка…"), self._new_folder)
+        m.addAction(tr("Обновить"), lambda: self.set_folder(self.folder))
         m.exec(self.tree.viewport().mapToGlobal(pos))
 
     def _run_from_tree(self, paths):
@@ -1782,19 +1783,19 @@ class MainWindow(QMainWindow):
             QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
 
     def _copy_to(self, files):
-        d = QFileDialog.getExistingDirectory(self, "Копировать в папку", self.folder)
+        d = QFileDialog.getExistingDirectory(self, tr("Копировать в папку"), self.folder)
         if not d:
             return
         for f in files:
             dest = os.path.join(d, os.path.basename(f))
             if os.path.exists(dest) and QMessageBox.question(
-                    self, "ffpy", "%s уже существует. Заменить?" % dest) != QMessageBox.Yes:
+                    self, "ffpy", tr("%s уже существует. Заменить?") % dest) != QMessageBox.Yes:
                 continue
             try:
                 shutil.copy2(f, dest)
             except OSError as e:
-                QMessageBox.warning(self, "ffpy", "Не удалось скопировать %s:\n%s" % (f, e))
-        self.statusBar().showMessage("Скопировано файлов: %d → %s" % (len(files), d), 5000)
+                QMessageBox.warning(self, "ffpy", tr("Не удалось скопировать %s:\n%s") % (f, e))
+        self.statusBar().showMessage(tr("Скопировано файлов: %d → %s") % (len(files), d), 5000)
 
     def _duplicate(self, path):
         base, ext = os.path.splitext(path)
@@ -1812,7 +1813,7 @@ class MainWindow(QMainWindow):
 
     def _trash(self, paths):
         names = "\n".join(os.path.basename(p) for p in paths[:10])
-        if QMessageBox.question(self, "ffpy", "Переместить в корзину?\n\n%s" % names) != QMessageBox.Yes:
+        if QMessageBox.question(self, "ffpy", tr("Переместить в корзину?\n\n%s") % names) != QMessageBox.Yes:
             return
         for p in paths:
             i = self.find_tab(p)
@@ -1821,7 +1822,7 @@ class MainWindow(QMainWindow):
                 t.editor.document().setModified(False)
                 self.close_tab(i)
             if not QFile.moveToTrash(p):
-                QMessageBox.warning(self, "ffpy", "Не удалось переместить в корзину:\n%s" % p)
+                QMessageBox.warning(self, "ffpy", tr("Не удалось переместить в корзину:\n%s") % p)
 
     def _target_dir(self):
         idx = self.tree.currentIndex()
@@ -1832,14 +1833,14 @@ class MainWindow(QMainWindow):
 
     def _new_inp_in_folder(self):
         d = self._target_dir()
-        name, ok = QInputDialog.getText(self, "Новый файл", "Имя файла:", text="job.inp")
+        name, ok = QInputDialog.getText(self, tr("Новый файл"), tr("Имя файла:"), text="job.inp")
         if not ok or not name.strip():
             return
         if not name.lower().endswith(".inp"):
             name += ".inp"
         path = os.path.join(d, name)
         if os.path.exists(path):
-            QMessageBox.warning(self, "ffpy", "Файл уже существует")
+            QMessageBox.warning(self, "ffpy", tr("Файл уже существует"))
             return
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(EMPTY_INP)
@@ -1847,7 +1848,7 @@ class MainWindow(QMainWindow):
 
     def _new_folder(self):
         d = self._target_dir()
-        name, ok = QInputDialog.getText(self, "Новая папка", "Имя папки:")
+        name, ok = QInputDialog.getText(self, tr("Новая папка"), tr("Имя папки:"))
         if ok and name.strip():
             try:
                 os.makedirs(os.path.join(d, name.strip()))
@@ -1919,7 +1920,7 @@ class MainWindow(QMainWindow):
             a.setToolTip(p)
             a.setStatusTip(p)
         if not self._recent():
-            self.recent_menu.addAction("(пусто)").setEnabled(False)
+            self.recent_menu.addAction(tr("(пусто)")).setEnabled(False)
 
     def _fill_recent(self):
         self.recent_list.clear()
@@ -1951,14 +1952,14 @@ class MainWindow(QMainWindow):
             print_keywords()
         tab = FileTab(None, read_only=True, font_size=self.font_size)
         tab.editor.setPlainText(buf.getvalue())
-        tab.title = lambda: "Ключевые слова"
+        tab.title = lambda: tr("Ключевые слова")
         self.add_tab(tab)
 
     def about(self):
-        QMessageBox.about(self, "О программе",
-                          "<h3>ffpy %s</h3><p>Входные файлы в формате Firefly/GAMESS, расчёт через PySCF."
+        QMessageBox.about(self, tr("О программе"),
+                          tr("<h3>ffpy %s</h3><p>Входные файлы в формате Firefly/GAMESS, расчёт через PySCF."
                           "</p><p>Редактор .inp с проверкой на лету, просмотр логов, запуск и очередь "
-                          "расчётов.</p><p>Qt %s</p>" % (__version__, qVersion()))
+                          "расчётов.</p><p>Qt %s</p>") % (__version__, qVersion()))
 
     def dragEnterEvent(self, e):
         if e.mimeData().hasUrls():
@@ -1974,13 +1975,13 @@ class MainWindow(QMainWindow):
             t = self.tab(i)
             if t and t.is_modified():
                 self.tabs.setCurrentIndex(i)
-                r = QMessageBox.question(self, "ffpy", "Сохранить изменения в «%s»?" % t.title().rstrip(" •"),
+                r = QMessageBox.question(self, "ffpy", tr("Сохранить изменения в «%s»?") % t.title().rstrip(" •"),
                                          QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel)
                 if r == QMessageBox.Cancel or (r == QMessageBox.Save and not self.save_tab(t)):
                     e.ignore()
                     return
         if self.runner.is_running():
-            if QMessageBox.question(self, "ffpy", "Идёт расчёт. Остановить его и выйти?") != QMessageBox.Yes:
+            if QMessageBox.question(self, "ffpy", tr("Идёт расчёт. Остановить его и выйти?")) != QMessageBox.Yes:
                 e.ignore()
                 return
             self.runner.stop()

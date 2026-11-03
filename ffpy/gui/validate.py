@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ffpy.gui.i18n import tr
 from ffpy.errors import FfpyError
 
 
@@ -21,7 +22,7 @@ def check_text(text):
     from ffpy.parser import parse_input
 
     if not text.strip():
-        return Check(False, "Пустой файл")
+        return Check(False, tr("Пустой файл"))
     try:
         deck = parse_input(text)
         job = build_job(deck)
@@ -30,7 +31,7 @@ def check_text(text):
         m = re.search(r"line (\d+)", str(e))
         return Check(False, "%s: %s" % (e.label, e), int(m.group(1)) if m else None)
     except Exception as e:  # a bug in ffpy should not take the editor down
-        return Check(False, "внутренняя ошибка проверки: %s: %s" % (type(e).__name__, e))
-    summary = "%s · %s · атомов: %d · заряд %d · мультиплетность %d" % (
+        return Check(False, tr("внутренняя ошибка проверки: %s: %s") % (type(e).__name__, e))
+    summary = tr("%s · %s · атомов: %d · заряд %d · мультиплетность %d") % (
         job.describe(), job.runtyp, len(job.labels), job.charge, job.mult)
     return Check(True, summary, None, [n for _, n in deck.notes])

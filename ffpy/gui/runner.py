@@ -12,6 +12,7 @@ import threading
 import time
 
 from PySide6.QtCore import QObject, Signal
+from ffpy.gui.i18n import tr
 
 CREATE_NO_WINDOW = 0x08000000
 
@@ -73,7 +74,7 @@ class RunManager(QObject):
                 cwd=os.path.dirname(os.path.abspath(path)), env=env, creationflags=flags)
         except OSError as e:
             self.proc = None
-            self.line.emit("Не удалось запустить ffpy: %s (%s)" % (e, " ".join(cmd)))
+            self.line.emit(tr("Не удалось запустить ffpy: %s (%s)") % (e, " ".join(cmd)))
             self.finished.emit(path, 9)
             self.current = None
             self._next()

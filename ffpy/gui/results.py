@@ -9,6 +9,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QGridLayout, QPushButton, QTextBrowser,
                                QVBoxLayout, QWidget)
 
+from ffpy.gui.i18n import tr
 from ffpy.errors import EXIT_CODES
 from ffpy.gui.theme import hex_color
 from ffpy.outparse import parse_out
@@ -35,18 +36,18 @@ class ResultsPanel(QWidget):
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(4)
-        self.b_copy = QPushButton("Копировать энергию")
-        self.b_copy.setToolTip("Скопировать итоговую энергию в буфер обмена")
+        self.b_copy = QPushButton(tr("Копировать энергию"))
+        self.b_copy.setToolTip(tr("Скопировать итоговую энергию в буфер обмена"))
         self.b_copy.clicked.connect(self.copy_energy)
-        self.b_folder = QPushButton("Папка")
-        self.b_folder.setToolTip("Показать папку с расчётом")
+        self.b_folder = QPushButton(tr("Папка"))
+        self.b_folder.setToolTip(tr("Показать папку с расчётом"))
         self.b_folder.clicked.connect(self.open_folder)
-        self.b_molden = QPushButton("Открыть .molden")
-        self.b_molden.setToolTip("Открыть орбитали и частоты в программе, связанной с .molden "
-                                 "(Chemcraft, Avogadro…)")
+        self.b_molden = QPushButton(tr("Открыть .molden"))
+        self.b_molden.setToolTip(tr("Открыть орбитали и частоты в программе, связанной с .molden "
+                                 "(Chemcraft, Avogadro…)"))
         self.b_molden.clicked.connect(self.open_molden)
-        self.b_docx = QPushButton("Отчёт .docx")
-        self.b_docx.setToolTip("Сформировать документ Microsoft Word (.docx) с результатами расчёта")
+        self.b_docx = QPushButton(tr("Отчёт .docx"))
+        self.b_docx.setToolTip(tr("Сформировать документ Microsoft Word (.docx) с результатами расчёта"))
         self.b_docx.clicked.connect(self.export_docx)
         grid.addWidget(self.b_copy, 0, 0)
         grid.addWidget(self.b_folder, 0, 1)
@@ -63,8 +64,8 @@ class ResultsPanel(QWidget):
 
     def clear(self):
         self.out_path, self.data = None, None
-        self.view.setHtml("<p style='color:%s'>Здесь появится сводка результатов после расчёта "
-                          "или при открытии файла .out.</p>" % hex_color("muted"))
+        self.view.setHtml(tr("<p style='color:%s'>Здесь появится сводка результатов после расчёта "
+                          "или при открытии файла .out.</p>") % hex_color("muted"))
         for b in (self.b_copy, self.b_molden, self.b_docx, self.b_folder):
             b.setEnabled(False)
 
@@ -91,24 +92,24 @@ class ResultsPanel(QWidget):
         h = ["<div style='font-size:10pt'>"]
         name = os.path.basename(self.out_path)
         if d["normal"]:
-            badge = "<span style='color:%s'><b>✔ завершён нормально</b></span>" % ok
+            badge = tr("<span style='color:%s'><b>✔ завершён нормально</b></span>") % ok
         elif d["exit_code"] is not None:
-            badge = "<span style='color:%s'><b>✖ ошибка, код %d</b></span> — %s" % (
+            badge = tr("<span style='color:%s'><b>✖ ошибка, код %d</b></span> — %s") % (
                 err, d["exit_code"], e(EXIT_CODES.get(d["exit_code"], "")))
         else:
-            badge = "<span style='color:%s'><b>… расчёт не завершён</b></span>" % warn
+            badge = tr("<span style='color:%s'><b>… расчёт не завершён</b></span>") % warn
         h.append("<p><b>%s</b><br>%s</p>" % (e(name), badge))
         if d["error"]:
             h.append("<p style='color:%s'>%s</p>" % (err, e(d["error"])))
-        rows = [("Заголовок", d["title"]), ("Метод", d["method"]), ("RUNTYP", d["runtyp"]),
-                ("Базис", d["basis"])]
+        rows = [(tr("Заголовок"), d["title"]), (tr("Метод"), d["method"]), ("RUNTYP", d["runtyp"]),
+                (tr("Базис"), d["basis"])]
         h.append("<table cellspacing=0 cellpadding=2>")
         for k, v in rows:
             if v:
                 h.append("<tr><td style='color:%s'>%s&nbsp;</td><td>%s</td></tr>" % (muted, k, e(v)))
         h.append("</table>")
         if d["energy"] is not None:
-            h.append("<p>Итоговая энергия<br><span style='font-size:14pt'><b>%.10f</b></span> Eh</p>"
+            h.append(tr("<p>Итоговая энергия<br><span style='font-size:14pt'><b>%.10f</b></span> Eh</p>")
                      % d["energy"])
         extra = []
         if d["scf"] is not None and d["mp2"] is not None:
@@ -116,12 +117,12 @@ class ResultsPanel(QWidget):
         if d["dipole"] is not None:
             extra.append("|μ| = %.4f D" % d["dipole"])
         if d["wall_time"] is not None:
-            extra.append("время %.1f с" % d["wall_time"])
+            extra.append(tr("время %.1f с") % d["wall_time"])
         if extra:
             h.append("<p>%s</p>" % "<br>".join(e(x) for x in extra))
 
         if d["bonds"]:
-            h.append("<p><b>Геометрия</b> (последняя)</p><table cellspacing=0 cellpadding=1>")
+            h.append(tr("<p><b>Геометрия</b> (последняя)</p><table cellspacing=0 cellpadding=1>"))
             for (a, b), v in d["bonds"].items():
                 h.append("<tr><td>%s–%s</td><td align=right>&nbsp;%.4f Å</td></tr>" % (e(a), e(b), v))
             for (a, b, c), v in d["angles"].items():
@@ -129,33 +130,33 @@ class ResultsPanel(QWidget):
                          % (e(a), e(b), e(c), v))
             h.append("</table>")
         if d["freqs"]:
-            h.append("<p><b>Частоты</b>, см⁻¹ (ИК, км/моль)</p><table cellspacing=0 cellpadding=1>")
+            h.append(tr("<p><b>Частоты</b>, см⁻¹ (ИК, км/моль)</p><table cellspacing=0 cellpadding=1>"))
             for i, (f, ir) in enumerate(zip(d["freqs"], d["ir_km"] or [None] * len(d["freqs"]))):
                 fs = ("<span style='color:%s'>%.1fi</span>" % (err, -f)) if f < 0 else "%.1f" % f
                 h.append("<tr><td>%d&nbsp;</td><td align=right>%s</td><td align=right>&nbsp;%s</td></tr>"
                          % (i + 1, fs, "" if ir is None else "%.1f" % ir))
             h.append("</table>")
         if d["excited"]:
-            h.append("<p><b>Возбуждённые состояния</b></p><table cellspacing=0 cellpadding=1>"
+            h.append(tr("<p><b>Возбуждённые состояния</b></p><table cellspacing=0 cellpadding=1>"
                      "<tr><td></td><td align=right>эВ</td><td align=right>&nbsp;нм</td>"
-                     "<td align=right>&nbsp;f</td></tr>")
+                     "<td align=right>&nbsp;f</td></tr>"))
             for s in d["excited"]:
                 h.append("<tr><td>%d</td><td align=right>%.3f</td><td align=right>&nbsp;%.1f</td>"
                          "<td align=right>&nbsp;%.4f</td></tr>" % (s["state"], s["ev"], s["nm"], s["f"]))
             h.append("</table>")
         if d["warnings"]:
-            h.append("<p><b>Предупреждения</b> (%d)</p><ul style='margin-left:-20px'>" % len(d["warnings"]))
+            h.append(tr("<p><b>Предупреждения</b> (%d)</p><ul style='margin-left:-20px'>") % len(d["warnings"]))
             shown = [w for w in d["warnings"] if not w.startswith("default applied")]
             n_def = len(d["warnings"]) - len(shown)
             for w in shown[:20]:
                 h.append("<li style='color:%s'>%s</li>" % (warn, e(w)))
             if n_def:
-                h.append("<li style='color:%s'>применено умолчаний: %d</li>" % (muted, n_def))
+                h.append(tr("<li style='color:%s'>применено умолчаний: %d</li>") % (muted, n_def))
             h.append("</ul>")
         stem = os.path.splitext(self.out_path)[0]
         files = [stem + ext for ext in (".out", ".molden", ".dat", ".xyz", ".docx") if os.path.exists(stem + ext)]
         if files:
-            h.append("<p><b>Файлы</b><br>")
+            h.append(tr("<p><b>Файлы</b><br>"))
             h.append("<br>".join("<a href='%s'>%s</a>" % (QUrl.fromLocalFile(f).toString(),
                                                          e(os.path.basename(f))) for f in files))
             h.append("</p>")
@@ -184,7 +185,7 @@ class ResultsPanel(QWidget):
             from PySide6.QtWidgets import QFileDialog
             stem = os.path.splitext(self.out_path)[0]
             target_path, _ = QFileDialog.getSaveFileName(
-                self, "Сохранить отчёт .docx", stem + ".docx", "Microsoft Word (*.docx)"
+                self, tr("Сохранить отчёт .docx"), stem + ".docx", "Microsoft Word (*.docx)"
             )
             if not target_path:
                 return
@@ -192,11 +193,11 @@ class ResultsPanel(QWidget):
         try:
             from ffpy.writers.docx_report import generate_report
             generate_report(self.out_path, target_path)
-            QMessageBox.information(self, "Экспорт отчёта", f"Отчёт успешно сохранён:\n{target_path}")
+            QMessageBox.information(self, tr("Экспорт отчёта"), tr("Отчёт успешно сохранён:\n{p}").format(p=target_path))
         except ImportError as e:
-            QMessageBox.warning(self, "Экспорт отчёта", str(e))
+            QMessageBox.warning(self, tr("Экспорт отчёта"), str(e))
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка экспорта", f"Не удалось сформировать отчёт:\n{e}")
+            QMessageBox.critical(self, tr("Ошибка экспорта"), tr("Не удалось сформировать отчёт:\n{e}").format(e=e))
 
     def open_folder(self):
         if self.out_path:

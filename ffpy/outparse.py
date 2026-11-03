@@ -37,6 +37,19 @@ def parse_text(text):
                 res["dipole"] = float(lines[i + 1].split()[-1])
             except (ValueError, IndexError):
                 pass
+    th = []
+    for blk in re.split(r"thermochemistry at ", text, flags=re.I)[1:]:
+        t = re.match(r"([\d.]+) K, ([\d.]+) Pa", blk, re.I)
+        row = {"temperature_K": float(t.group(1)), "pressure_Pa": float(t.group(2))} if t else {}
+        for key, pat in (("zpe_eh", r"zero-point energy\s+:\s+(-?\d+\.\d+)"),
+                         ("e_plus_zpe_eh", r"E \+ ZPE\s+(-?\d+\.\d+)"),
+                         ("h_eh", r"H = E \+ kT\s+(-?\d+\.\d+)"), ("g_eh", r"G = H - TS\s+(-?\d+\.\d+)"),
+                         ("s_j_mol_k", r"S total\s+(-?\d+\.\d+)")):
+            m = re.search(pat, blk)
+            if m:
+                row[key] = float(m.group(1))
+        th.append(row)
+    res["thermo"] = th
     m = re.search(r"wall time ([\d.]+) s", text)
     res["wall_time"] = float(m.group(1)) if m else None
 

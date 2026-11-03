@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
                                QPlainTextEdit, QPushButton, QSpinBox, QSplitter, QVBoxLayout,
                                QWidget)
 
+from ffpy.gui.i18n import tr
 from ffpy.gui.editor import CodeEditor, editor_font
 from ffpy.gui.highlight import InpHighlighter
 from ffpy.gui.theme import hex_color
@@ -28,10 +29,10 @@ BASES = [
     ("cc-pVTZ", "GBASIS=CCT", True),
     ("aug-cc-pVDZ", "GBASIS=ACCD", True),
 ]
-RUNTYPS = [("Энергия в точке", "ENERGY"), ("Градиент", "GRADIENT"),
-           ("Оптимизация геометрии", "OPTIMIZE"), ("Частоты (гессиан)", "HESSIAN")]
+RUNTYPS = [(tr("Энергия в точке"), "ENERGY"), (tr("Градиент"), "GRADIENT"),
+           (tr("Оптимизация геометрии"), "OPTIMIZE"), (tr("Частоты (гессиан)"), "HESSIAN")]
 METHODS = ["HF", "DFT", "MP2", "CASSCF"]
-EXCITED = [("нет", None), ("TDDFT / TDHF", "TDDFT"), ("TDA", "TDA"), ("CIS", "CIS")]
+EXCITED = [(tr("нет"), None), ("TDDFT / TDHF", "TDDFT"), ("TDA", "TDA"), ("CIS", "CIS")]
 FUNCTIONALS = ["B3LYP", "PBE0", "PBE", "BLYP", "B3LYP1", "M062X", "CAMB3LYP", "TPSS", "SVWN"]
 SOLVENT_NAMES = ["WATER", "DMSO", "CH3CN", "CH3OH", "C2H5OH", "ACETONE", "CH2CL2", "CHCL3",
                  "THF", "BENZENE", "TOLUENE", "CCL4", "CYCHEX"]
@@ -49,28 +50,28 @@ def parse_xyz(text):
     for i, l in enumerate(lines, 1):
         t = l.split()
         if len(t) < 4:
-            raise ValueError("строка %d: нужно 'Символ x y z'" % i)
+            raise ValueError(tr("строка %d: нужно 'Символ x y z'") % i)
         sym = re.sub(r"[^A-Za-z]", "", t[0])
         sym = sym[:1].upper() + sym[1:2].lower() if sym else sym
         if sym.upper() not in _SYM:
             if t[0].isdigit() and 0 < int(t[0]) < len(ELEMENTS):
                 sym = ELEMENTS[int(t[0])]
             else:
-                raise ValueError("строка %d: неизвестный элемент '%s'" % (i, t[0]))
+                raise ValueError(tr("строка %d: неизвестный элемент '%s'") % (i, t[0]))
         try:
             x, y, z = (float(v) for v in t[1:4])
         except ValueError:
-            raise ValueError("строка %d: координаты должны быть числами" % i)
+            raise ValueError(tr("строка %d: координаты должны быть числами") % i)
         atoms.append((sym, _SYM[sym.upper()], x, y, z))
     if not atoms:
-        raise ValueError("нет атомов")
+        raise ValueError(tr("нет атомов"))
     return atoms
 
 
 class NewJobDialog(QDialog):
     def __init__(self, parent=None, folder=None):
         super().__init__(parent)
-        self.setWindowTitle("Новый расчёт")
+        self.setWindowTitle(tr("Новый расчёт"))
         self.resize(1050, 680)
         self.folder = folder
         self.result_text = None
@@ -79,7 +80,7 @@ class NewJobDialog(QDialog):
         form_w = QWidget()
         form = QVBoxLayout(form_w)
 
-        g1 = QGroupBox("Расчёт")
+        g1 = QGroupBox(tr("Расчёт"))
         f1 = QFormLayout(g1)
         self.title = QLineEdit("Water")
         self.method = QComboBox()
@@ -100,17 +101,17 @@ class NewJobDialog(QDialog):
         self.charge.setRange(-10, 10)
         self.mult = QSpinBox()
         self.mult.setRange(1, 10)
-        f1.addRow("Заголовок", self.title)
-        f1.addRow("Метод", self.method)
-        f1.addRow("Референс (SCFTYP)", self.ref)
-        f1.addRow("Функционал", self.functional)
-        f1.addRow("Тип задачи", self.runtyp)
-        f1.addRow("Базис", self.basis)
-        f1.addRow("Заряд", self.charge)
-        f1.addRow("Мультиплетность", self.mult)
+        f1.addRow(tr("Заголовок"), self.title)
+        f1.addRow(tr("Метод"), self.method)
+        f1.addRow(tr("Референс (SCFTYP)"), self.ref)
+        f1.addRow(tr("Функционал"), self.functional)
+        f1.addRow(tr("Тип задачи"), self.runtyp)
+        f1.addRow(tr("Базис"), self.basis)
+        f1.addRow(tr("Заряд"), self.charge)
+        f1.addRow(tr("Мультиплетность"), self.mult)
         form.addWidget(g1)
 
-        g2 = QGroupBox("Дополнительно")
+        g2 = QGroupBox(tr("Дополнительно"))
         f2 = QFormLayout(g2)
         self.excited = QComboBox()
         for label, val in EXCITED:
@@ -120,12 +121,12 @@ class NewJobDialog(QDialog):
         self.nstate.setValue(5)
         ex_row = QHBoxLayout()
         ex_row.addWidget(self.excited, 1)
-        ex_row.addWidget(QLabel("состояний"))
+        ex_row.addWidget(QLabel(tr("состояний")))
         ex_row.addWidget(self.nstate)
         self.solvent = QComboBox()
-        self.solvent.addItem("газовая фаза")
+        self.solvent.addItem(tr("газовая фаза"))
         self.solvent.addItems(SOLVENT_NAMES)
-        self.hssend = QCheckBox("частоты после оптимизации (HSSEND)")
+        self.hssend = QCheckBox(tr("частоты после оптимизации (HSSEND)"))
         self.nstep = QSpinBox()
         self.nstep.setRange(1, 500)
         self.nstep.setValue(50)
@@ -141,18 +142,18 @@ class NewJobDialog(QDialog):
         self.cas_box = QWidget()
         self.cas_box.setLayout(cas_row)
         cas_row.setContentsMargins(0, 0, 0, 0)
-        f2.addRow("Возбуждённые", ex_row)
-        f2.addRow("Растворитель (PCM)", self.solvent)
-        f2.addRow("Шагов оптимизации", self.nstep)
+        f2.addRow(tr("Возбуждённые"), ex_row)
+        f2.addRow(tr("Растворитель (PCM)"), self.solvent)
+        f2.addRow(tr("Шагов оптимизации"), self.nstep)
         f2.addRow("", self.hssend)
-        f2.addRow("Активное пространство", self.cas_box)
+        f2.addRow(tr("Активное пространство"), self.cas_box)
         form.addWidget(g2)
 
-        g3 = QGroupBox("Геометрия, Å (Символ x y z или содержимое .xyz)")
+        g3 = QGroupBox(tr("Геометрия, Å (Символ x y z или содержимое .xyz)"))
         v3 = QVBoxLayout(g3)
         self.geom = QPlainTextEdit(WATER_XYZ)
         self.geom.setFont(editor_font(10))
-        load = QPushButton("Загрузить .xyz…")
+        load = QPushButton(tr("Загрузить .xyz…"))
         load.clicked.connect(self.load_xyz)
         v3.addWidget(self.geom, 1)
         v3.addWidget(load, 0, Qt.AlignLeft)
@@ -161,7 +162,7 @@ class NewJobDialog(QDialog):
 
         right = QWidget()
         rv = QVBoxLayout(right)
-        rv.addWidget(QLabel("Входной файл (можно будет отредактировать после создания):"))
+        rv.addWidget(QLabel(tr("Входной файл (можно будет отредактировать после создания):")))
         self.preview = CodeEditor(read_only=True)
         InpHighlighter(self.preview.document())
         rv.addWidget(self.preview, 1)
@@ -172,8 +173,8 @@ class NewJobDialog(QDialog):
         split.setSizes([480, 570])
 
         buttons = QDialogButtonBox()
-        self.b_create = buttons.addButton("Создать", QDialogButtonBox.AcceptRole)
-        buttons.addButton("Отмена", QDialogButtonBox.RejectRole)
+        self.b_create = buttons.addButton(tr("Создать"), QDialogButtonBox.AcceptRole)
+        buttons.addButton(tr("Отмена"), QDialogButtonBox.RejectRole)
         buttons.accepted.connect(self.accept_job)
         buttons.rejected.connect(self.reject)
         lay = QVBoxLayout(self)
@@ -194,8 +195,8 @@ class NewJobDialog(QDialog):
         self.update()
 
     def load_xyz(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Геометрия", self.folder or "",
-                                              "XYZ (*.xyz);;Все файлы (*)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Геометрия"), self.folder or "",
+                                              tr("XYZ (*.xyz);;Все файлы (*)"))
         if path:
             with open(path, encoding="utf-8", errors="replace") as f:
                 text = f.read()
@@ -280,7 +281,7 @@ class NewJobDialog(QDialog):
             text = self.build_text()
         except ValueError as e:
             self.preview.setPlainText("")
-            self._status(False, "Геометрия: %s" % e)
+            self._status(False, tr("Геометрия: %s") % e)
             return
         self.preview.setPlainText(text)
         chk = check_text(text)

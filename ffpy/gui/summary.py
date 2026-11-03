@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ffpy.gui.i18n import tr
 from ffpy.errors import EXIT_CODES
 from ffpy.gui.theme import get_theme_bus, hex_color
 from ffpy.outparse import parse_out
@@ -71,12 +72,12 @@ class SummaryView(QWidget):
         left_lay.setSpacing(10)
 
         left_hdr = QHBoxLayout()
-        lbl_history = QLabel("Завершённые расчёты")
+        lbl_history = QLabel(tr("Завершённые расчёты"))
         lbl_history.setStyleSheet("font-size: 14px; font-weight: 700;")
         left_hdr.addWidget(lbl_history)
         left_hdr.addStretch(1)
 
-        btn_add = QPushButton("Открыть .out")
+        btn_add = QPushButton(tr("Открыть .out"))
         btn_add.setProperty("flat_btn", "true")
         btn_add.clicked.connect(self._on_browse_out)
         left_hdr.addWidget(btn_add)
@@ -110,11 +111,11 @@ class SummaryView(QWidget):
         ce_lay.setContentsMargins(20, 18, 20, 18)
         ce_lay.setSpacing(8)
 
-        self.lbl_file_title = QLabel("Выберите расчёт из списка")
+        self.lbl_file_title = QLabel(tr("Выберите расчёт из списка"))
         self.lbl_file_title.setStyleSheet(f"color: {hex_color('muted')}; font-size: 13px; font-weight: 500;")
         ce_lay.addWidget(self.lbl_file_title)
 
-        lbl_e_sub = QLabel("Полная энергия, Eh")
+        lbl_e_sub = QLabel(tr("Полная энергия, Eh"))
         lbl_e_sub.setStyleSheet(f"color: {hex_color('muted')}; font-size: 12px;")
         ce_lay.addWidget(lbl_e_sub)
 
@@ -141,7 +142,7 @@ class SummaryView(QWidget):
         cg_lay.setContentsMargins(20, 16, 20, 16)
         cg_lay.setSpacing(10)
 
-        lbl_geom_hdr = QLabel("Геометрия и свойства")
+        lbl_geom_hdr = QLabel(tr("Геометрия и свойства"))
         lbl_geom_hdr.setStyleSheet("font-size: 13px; font-weight: 600;")
         cg_lay.addWidget(lbl_geom_hdr)
 
@@ -159,7 +160,7 @@ class SummaryView(QWidget):
         cp_lay.setContentsMargins(20, 16, 20, 16)
         cp_lay.setSpacing(10)
 
-        lbl_par_hdr = QLabel("Параметры расчёта")
+        lbl_par_hdr = QLabel(tr("Параметры расчёта"))
         lbl_par_hdr.setStyleSheet("font-size: 13px; font-weight: 600;")
         cp_lay.addWidget(lbl_par_hdr)
 
@@ -173,23 +174,23 @@ class SummaryView(QWidget):
         act_grid = QGridLayout()
         act_grid.setSpacing(10)
 
-        self.b_3d = QPushButton("Открыть в 3D")
+        self.b_3d = QPushButton(tr("Открыть в 3D"))
         self.b_3d.setProperty("flat_btn", "true")
         self.b_3d.clicked.connect(self._on_open_in_3d)
 
-        self.b_copy = QPushButton("Копировать энергию")
+        self.b_copy = QPushButton(tr("Копировать энергию"))
         self.b_copy.setProperty("flat_btn", "true")
         self.b_copy.clicked.connect(self._copy_energy)
 
-        self.b_docx = QPushButton("Отчёт .docx")
+        self.b_docx = QPushButton(tr("Отчёт .docx"))
         self.b_docx.setProperty("flat_btn", "true")
         self.b_docx.clicked.connect(self._export_docx)
 
-        self.b_molden = QPushButton("Открыть .molden")
+        self.b_molden = QPushButton(tr("Открыть .molden"))
         self.b_molden.setProperty("flat_btn", "true")
         self.b_molden.clicked.connect(self._open_molden)
 
-        self.b_folder = QPushButton("Папка")
+        self.b_folder = QPushButton(tr("Папка"))
         self.b_folder.setProperty("flat_btn", "true")
         self.b_folder.clicked.connect(self._open_folder)
 
@@ -366,7 +367,7 @@ class SummaryView(QWidget):
                 self._clear_layout(item.layout())
 
     def _render_empty(self):
-        self.lbl_file_title.setText("Выберите расчёт из списка")
+        self.lbl_file_title.setText(tr("Выберите расчёт из списка"))
         self.lbl_energy_val.setText("—")
         self._clear_layout(self.chips_lay)
         self._clear_layout(self.grid_geom)
@@ -385,7 +386,7 @@ class SummaryView(QWidget):
             self.lbl_energy_val.setText(f"{d['energy']:.10f}")
             self.lbl_energy_val.setStyleSheet(f"color: {hex_color('text')};")
         else:
-            self.lbl_energy_val.setText(d.get("error") or "Расчёт не завершён")
+            self.lbl_energy_val.setText(d.get("error") or tr("Расчёт не завершён"))
             self.lbl_energy_val.setStyleSheet(f"color: {hex_color('err')}; font-size: 16px;")
 
         # Render status chips
@@ -406,19 +407,19 @@ class SummaryView(QWidget):
             self.chips_lay.addWidget(lbl)
 
         if d.get("normal"):
-            add_chip("✔ Нормальное завершение", "okSoft", "ok")
-            add_chip("SCF сошёлся", "okSoft", "ok")
+            add_chip(tr("✔ Нормальное завершение"), "okSoft", "ok")
+            add_chip(tr("SCF сошёлся"), "okSoft", "ok")
         elif d.get("exit_code") is not None:
             code = d["exit_code"]
-            add_chip(f"✖ Ошибка {code}: {EXIT_CODES.get(code, '')}", "errSoft", "err")
+            add_chip(tr("✖ Ошибка {code}: {msg}").format(code=code, msg=EXIT_CODES.get(code, "")), "errSoft", "err")
         else:
-            add_chip("… В процессе или прерван", "chip", "muted")
+            add_chip(tr("… В процессе или прерван"), "chip", "muted")
 
         if d.get("runtyp"):
             add_chip(d["runtyp"], "accentSoft", "accent")
 
         if d.get("wall_time") is not None:
-            add_chip(f"Время: {d['wall_time']:.1f} с", "chip", "muted")
+            add_chip(tr("Время: {t:.1f} с").format(t=d["wall_time"]), "chip", "muted")
 
         self.chips_lay.addStretch(1)
 
@@ -450,7 +451,7 @@ class SummaryView(QWidget):
 
         # Dipole
         if d.get("dipole") is not None:
-            lbl_k = QLabel("Дипольный момент")
+            lbl_k = QLabel(tr("Дипольный момент"))
             lbl_k.setStyleSheet(f"color: {hex_color('muted')}; font-size: 13px;")
             lbl_v = QLabel(f"{d['dipole']:.4f} D")
             lbl_v.setStyleSheet(f"color: {hex_color('text')}; font-size: 13px; font-weight: 600;")
@@ -459,7 +460,7 @@ class SummaryView(QWidget):
             row += 1
 
         if row == 0:
-            lbl_none = QLabel("Данные геометрии отсутствуют или единичный атом")
+            lbl_none = QLabel(tr("Данные геометрии отсутствуют или единичный атом"))
             lbl_none.setStyleSheet(f"color: {hex_color('muted')}; font-style: italic;")
             self.grid_geom.addWidget(lbl_none, 0, 0, 1, 2)
 
@@ -467,9 +468,9 @@ class SummaryView(QWidget):
         self._clear_layout(self.grid_params)
         p_row = 0
         params = [
-            ("Заголовок", d.get("title")),
-            ("Метод", d.get("method")),
-            ("Базис", d.get("basis")),
+            (tr("Заголовок"), d.get("title")),
+            (tr("Метод"), d.get("method")),
+            (tr("Базис"), d.get("basis")),
             ("RUNTYP", d.get("runtyp")),
         ]
         if d.get("scf") is not None:
@@ -498,7 +499,7 @@ class SummaryView(QWidget):
 
     def _on_browse_out(self):
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Открыть выходной файл .out", "", "Firefly/ffpy output (*.out *.log);;All files (*)"
+            self, tr("Открыть выходной файл .out"), "", "Firefly/ffpy output (*.out *.log);;All files (*)"
         )
         for p in paths:
             self.add_out_file(p)
@@ -515,15 +516,15 @@ class SummaryView(QWidget):
         if not self.current_path:
             return
         dest, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить отчёт .docx", os.path.splitext(self.current_path)[0] + ".docx", "Word (*.docx)"
+            self, tr("Сохранить отчёт .docx"), os.path.splitext(self.current_path)[0] + ".docx", "Word (*.docx)"
         )
         if dest:
             try:
                 from ffpy.writers.docx_report import generate_report
                 generate_report(self.current_path, dest)
-                QMessageBox.information(self, "Экспорт отчёта", f"Отчёт успешно сохранён:\n{dest}")
+                QMessageBox.information(self, tr("Экспорт отчёта"), tr("Отчёт успешно сохранён:\n{p}").format(p=dest))
             except Exception as e:
-                QMessageBox.warning(self, "Ошибка экспорта", f"Не удалось создать отчёт: {e}")
+                QMessageBox.warning(self, tr("Ошибка экспорта"), tr("Не удалось создать отчёт: {e}").format(e=e))
 
     def _open_molden(self):
         if self.current_path:

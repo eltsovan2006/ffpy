@@ -192,6 +192,9 @@ QWidget {{
     selection-color: {p['accentText']};
 }}
 
+QLabel {{
+    background-color: transparent;
+}}
 QMainWindow {{
     background-color: {p['bg']};
 }}

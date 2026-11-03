@@ -1,9 +1,12 @@
 """Settings dialog with segmented controls for theme and language."""
 
-from PySide6.QtCore import QSettings, Qt, Signal
-from PySide6.QtWidgets import (QButtonGroup, QDialog, QFrame, QHBoxLayout, QLabel,
+import sys
+
+from PySide6.QtCore import QProcess, QSettings, Qt, Signal
+from PySide6.QtWidgets import (QApplication, QButtonGroup, QDialog, QMessageBox, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QVBoxLayout, QWidget)
 
+from ffpy.gui.i18n import tr
 from ffpy.gui.theme import get_palette, get_theme_mode, hex_color, set_theme_mode
 
 
@@ -56,7 +59,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Настройки")
+        self.setWindowTitle(tr("Настройки"))
         self.resize(460, 260)
         self.settings = QSettings("ffpy", "ffpy-gui")
 
@@ -66,7 +69,7 @@ class SettingsDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        title_label = QLabel("Настройки")
+        title_label = QLabel(tr("Настройки"))
         font = title_label.font()
         font.setPointSize(16)
         font.setBold(True)
@@ -82,14 +85,14 @@ class SettingsDialog(QDialog):
         layout.addLayout(hdr)
 
         # Appearance section
-        self.lbl_theme = QLabel("ОФОРМЛЕНИЕ")
+        self.lbl_theme = QLabel(tr("ОФОРМЛЕНИЕ"))
         self.lbl_theme.setStyleSheet("font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
         layout.addWidget(self.lbl_theme)
 
         self.theme_seg = SegmentedControl([
-            ("light", "Светлая"),
-            ("dark", "Тёмная"),
-            ("system", "Как в системе"),
+            ("light", tr("Светлая")),
+            ("dark", tr("Тёмная")),
+            ("system", tr("Как в системе")),
         ])
         current_mode = self.settings.value("theme_mode", get_theme_mode() or "system")
         self.theme_seg.set_value(current_mode)
@@ -97,12 +100,12 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.theme_seg)
 
         # Language section
-        self.lbl_lang = QLabel("ЯЗЫК")
+        self.lbl_lang = QLabel(tr("ЯЗЫК"))
         self.lbl_lang.setStyleSheet("font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
         layout.addWidget(self.lbl_lang)
 
         self.lang_seg = SegmentedControl([
-            ("ru", "Русский"),
+            ("ru", tr("Русский")),
             ("en", "English"),
         ])
         current_lang = self.settings.value("language", "ru")
@@ -111,7 +114,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.lang_seg)
 
         # System theme explanation hint
-        self.hint = QLabel("Режим «Как в системе» следует светлой или тёмной теме операционной системы.")
+        self.hint = QLabel(tr("Режим «Как в системе» следует светлой или тёмной теме операционной системы."))
         self.hint.setWordWrap(True)
         self.hint.setStyleSheet("font-size: 12px;")
         layout.addWidget(self.hint)
@@ -132,4 +135,22 @@ class SettingsDialog(QDialog):
         self._refresh_colors()
 
     def _on_lang_changed(self, lang):
+        from ffpy.gui.i18n import language
         self.settings.setValue("language", lang)
+        self.settings.sync()
+        if lang == language():
+            return
+        ask = QMessageBox.question(self, tr("Язык интерфейса"),
+                                   tr("Язык изменится после перезапуска ffpy. Перезапустить сейчас?"))
+        if ask == QMessageBox.Yes:
+            self._restart_app()
+
+    def _restart_app(self):
+        self.accept()
+        main = self.parent()
+        if main is None or main.close():
+            if getattr(sys, "frozen", False):
+                QProcess.startDetached(sys.executable, sys.argv[1:])
+            else:
+                QProcess.startDetached(sys.executable, ["-m", "ffpy.gui"] + sys.argv[1:])
+            QApplication.quit()

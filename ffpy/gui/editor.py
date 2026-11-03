@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, 
                                QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QTextEdit,
                                QToolButton, QVBoxLayout, QWidget)
 
+from ffpy.gui.i18n import tr
 from ffpy.gui.highlight import InpHighlighter, OutHighlighter
 from ffpy.gui.theme import color, get_theme_bus
 
@@ -209,18 +210,18 @@ class FindBar(QWidget):
         lay.setSpacing(4)
         row1 = QHBoxLayout()
         self.find_edit = QLineEdit()
-        self.find_edit.setPlaceholderText("Найти…")
+        self.find_edit.setPlaceholderText(tr("Найти…"))
         self.find_edit.setClearButtonEnabled(True)
         self.case = QCheckBox("Aa")
-        self.case.setToolTip("Учитывать регистр")
+        self.case.setToolTip(tr("Учитывать регистр"))
         self.count = QLabel("")
         prev_b, next_b, close_b = QToolButton(), QToolButton(), QToolButton()
         prev_b.setText("↑")
-        prev_b.setToolTip("Предыдущее (Shift+Enter)")
+        prev_b.setToolTip(tr("Предыдущее (Shift+Enter)"))
         next_b.setText("↓")
-        next_b.setToolTip("Следующее (Enter)")
+        next_b.setToolTip(tr("Следующее (Enter)"))
         close_b.setText("✕")
-        close_b.setToolTip("Закрыть (Esc)")
+        close_b.setToolTip(tr("Закрыть (Esc)"))
         prev_b.clicked.connect(lambda: self.find(backward=True))
         next_b.clicked.connect(lambda: self.find())
         close_b.clicked.connect(self.close_bar)
@@ -232,10 +233,10 @@ class FindBar(QWidget):
         row2 = QHBoxLayout(self.replace_row)
         row2.setContentsMargins(0, 0, 0, 0)
         self.replace_edit = QLineEdit()
-        self.replace_edit.setPlaceholderText("Заменить на…")
+        self.replace_edit.setPlaceholderText(tr("Заменить на…"))
         rep, rep_all = QToolButton(), QToolButton()
-        rep.setText("Заменить")
-        rep_all.setText("Заменить все")
+        rep.setText(tr("Заменить"))
+        rep_all.setText(tr("Заменить все"))
         rep.clicked.connect(self.replace_one)
         rep_all.clicked.connect(self.replace_all)
         row2.addWidget(self.replace_edit, 1)
@@ -302,7 +303,7 @@ class FindBar(QWidget):
                 found.append(c)
                 c = doc.find(text, c, self._flags())
         self.editor.set_find_selections(found)
-        self.count.setText("%d совп." % len(found) if text else "")
+        self.count.setText(tr("%d совп.") % len(found) if text else "")
 
     def replace_one(self):
         cur = self.editor.textCursor()
@@ -329,7 +330,7 @@ class FindBar(QWidget):
             c = doc.find(text, c, self._flags())
         edit.endEditBlock()
         self._mark_all()
-        self.count.setText("заменено: %d" % n)
+        self.count.setText(tr("заменено: %d") % n)
 
 
 def section_headers(text):
@@ -386,25 +387,25 @@ class FileTab(QWidget):
         h = QHBoxLayout(bar)
         h.setContentsMargins(6, 3, 6, 3)
         copy_b = QToolButton()
-        copy_b.setText("Копировать всё")
-        copy_b.setToolTip("Скопировать весь текст файла в буфер обмена (Ctrl+Shift+C)")
+        copy_b.setText(tr("Копировать всё"))
+        copy_b.setToolTip(tr("Скопировать весь текст файла в буфер обмена (Ctrl+Shift+C)"))
         copy_b.clicked.connect(self.copy_all)
         save_b = QToolButton()
-        save_b.setText("Сохранить копию…")
-        save_b.setToolTip("Сохранить копию файла в другое место")
+        save_b.setText(tr("Сохранить копию…"))
+        save_b.setToolTip(tr("Сохранить копию файла в другое место"))
         save_b.clicked.connect(self.save_copy)
         reload_b = QToolButton()
-        reload_b.setText("Обновить")
+        reload_b.setText(tr("Обновить"))
         reload_b.clicked.connect(self.load)
         self.outline = QComboBox()
         self.outline.setMinimumWidth(260)
-        self.outline.setToolTip("Перейти к разделу лога")
+        self.outline.setToolTip(tr("Перейти к разделу лога"))
         self.outline.activated.connect(self._goto_section)
         self.info = QLabel("")
         for w in (copy_b, save_b, reload_b):
             h.addWidget(w)
         h.addSpacing(12)
-        h.addWidget(QLabel("Раздел:"))
+        h.addWidget(QLabel(tr("Раздел:")))
         h.addWidget(self.outline)
         h.addStretch(1)
         h.addWidget(self.info)
@@ -416,7 +417,7 @@ class FileTab(QWidget):
 
     # file I/O
     def title(self):
-        name = os.path.basename(self.path) if self.path else "Без имени.inp"
+        name = os.path.basename(self.path) if self.path else tr("Без имени.inp")
         return name + (" •" if self.is_modified() else "")
 
     def is_modified(self):
@@ -444,7 +445,7 @@ class FileTab(QWidget):
             else:
                 bar.setValue(min(pos, bar.maximum()))
             self._fill_outline(text)
-            self.info.setText("%d строк, %.1f КБ" % (text.count("\n") + 1, len(raw) / 1024))
+            self.info.setText(tr("%d строк, %.1f КБ") % (text.count("\n") + 1, len(raw) / 1024))
         self._mtime = os.path.getmtime(self.path)
 
     def changed_on_disk(self):
@@ -466,28 +467,28 @@ class FileTab(QWidget):
         QApplication.clipboard().setText(self.editor.toPlainText())
         w = self.window()
         if hasattr(w, "statusBar"):
-            w.statusBar().showMessage("Текст «%s» скопирован в буфер обмена"
+            w.statusBar().showMessage(tr("Текст «%s» скопирован в буфер обмена")
                                       % os.path.basename(self.path or ""), 4000)
 
     def save_copy(self):
         if not self.path:
             return
-        dest, _ = QFileDialog.getSaveFileName(self, "Сохранить копию", os.path.basename(self.path))
+        dest, _ = QFileDialog.getSaveFileName(self, tr("Сохранить копию"), os.path.basename(self.path))
         if dest:
             import shutil
             try:
                 shutil.copy2(self.path, dest)
             except OSError as e:
-                QMessageBox.warning(self, "ffpy", "Не удалось скопировать файл:\n%s" % e)
+                QMessageBox.warning(self, "ffpy", tr("Не удалось скопировать файл:\n%s") % e)
 
     def _fill_outline(self, text):
         self.outline.clear()
         self._sections = section_headers(text) if self.kind == "out" else []
-        self.outline.addItem("— в начало —", 1)
+        self.outline.addItem(tr("— в начало —"), 1)
         for line, title in self._sections:
             self.outline.addItem(title.title(), line)
         if self.kind == "out":
-            self.outline.addItem("— в конец —", -1)
+            self.outline.addItem(tr("— в конец —"), -1)
 
     def _goto_section(self, idx):
         line = self.outline.itemData(idx)

@@ -69,6 +69,36 @@ def run_summary(out_path):
     return res
 
 
+HARTREE_KCAL = 627.5094740631
+
+
+def geometry_xyz(out_path):
+    """Last geometry of a finished .out as .xyz text (angstrom)."""
+    with open(out_path, encoding="utf-8", errors="replace") as f:
+        res = parse_out(f.read())
+    geo = res.get("geometry") or []
+    if not geo:
+        raise ValueError("no geometry in %s" % os.path.basename(out_path))
+    from ffpy.job import ELEMENTS
+    rows = ["%-2s %14.8f %14.8f %14.8f" % (ELEMENTS[int(round(a["Z"]))], a["x"], a["y"], a["z"]) for a in geo]
+    return "%d\n%s\n%s\n" % (len(rows), res.get("title") or "", "\n".join(rows))
+
+
+def compare_energies(paths):
+    """Energies of several .out files relative to the first one (hartree, kcal/mol)."""
+    rows = []
+    for p in paths:
+        with open(p, encoding="utf-8", errors="replace") as f:
+            r = parse_out(f.read())
+        rows.append({"file": os.path.basename(p), "method": r.get("method"), "energy_eh": r.get("energy"),
+                     "normal": r.get("normal")})
+    ref = rows[0]["energy_eh"] if rows else None
+    for r in rows:
+        e = r["energy_eh"]
+        r["relative_kcal_mol"] = None if e is None or ref is None else round((e - ref) * HARTREE_KCAL, 4)
+    return rows
+
+
 def safe_path(workdir, name):
     """Resolve ``name`` inside ``workdir``; refuse anything that escapes it."""
     if not name or os.path.isabs(name) or ".." in re.split(r"[\\/]", name):
@@ -100,25 +130,35 @@ class JobManager:
         return cmd
 
     def start(self, name, nproc=0, timeout=None):
+        """Queue a calculation; it starts as soon as fewer than max_jobs are running."""
         inp = safe_path(self.workdir, name)
         if not os.path.isfile(inp):
             raise FileNotFoundError("input file not found in the work directory: %s" % name)
         with self.lock:
-            running = [j for j in self.jobs.values() if j["proc"].poll() is None]
-            if len(running) >= self.max_jobs:
-                raise RuntimeError("%d job(s) already running (limit %d); wait or cancel one"
-                                   % (len(running), self.max_jobs))
             job_id = uuid.uuid4().hex[:8]
-            env = dict(os.environ)
-            pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            env["PYTHONPATH"] = os.pathsep.join(filter(None, [pkg_parent, env.get("PYTHONPATH")]))
-            proc = subprocess.Popen(self._cmd(inp, nproc), cwd=self.workdir, env=env,
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.jobs[job_id] = {"proc": proc, "input": name, "t0": time.time(),
-                                 "timeout": timeout or self.default_timeout,
+            self.jobs[job_id] = {"proc": None, "input": name, "t0": time.time(), "nproc": nproc,
+                                 "timeout": timeout or self.default_timeout, "inp": inp,
                                  "out": os.path.splitext(inp)[0] + ".out", "cancelled": False}
-        threading.Thread(target=self._watch, args=(job_id,), daemon=True).start()
+        self._dispatch()
         return job_id
+
+    def _running(self):
+        return [j for j in self.jobs.values() if j["proc"] is not None and j["proc"].poll() is None]
+
+    def _dispatch(self):
+        with self.lock:
+            for job_id, j in self.jobs.items():
+                if j["proc"] is not None or j["cancelled"]:
+                    continue
+                if len(self._running()) >= self.max_jobs:
+                    break
+                env = dict(os.environ)
+                pkg_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                env["PYTHONPATH"] = os.pathsep.join(filter(None, [pkg_parent, env.get("PYTHONPATH")]))
+                j["t0"] = time.time()
+                j["proc"] = subprocess.Popen(self._cmd(j["inp"], j["nproc"]), cwd=self.workdir, env=env,
+                                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                threading.Thread(target=self._watch, args=(job_id,), daemon=True).start()
 
     def _watch(self, job_id):
         j = self.jobs[job_id]
@@ -127,11 +167,20 @@ class JobManager:
         except subprocess.TimeoutExpired:
             j["timed_out"] = True
             j["proc"].kill()
+            j["proc"].wait()
+        self._dispatch()
 
     def status(self, job_id):
         j = self.jobs.get(job_id)
         if j is None:
             raise KeyError("unknown job id: %s" % job_id)
+        if j["proc"] is None:
+            if j["cancelled"]:
+                return {"job_id": job_id, "input": j["input"], "state": "cancelled"}
+            return {"job_id": job_id, "input": j["input"], "state": "queued",
+                    "queue_position": 1 + sum(1 for k in self.jobs.values()
+                                              if k["proc"] is None and not k["cancelled"]
+                                              and k["t0"] < j["t0"])}
         code = j["proc"].poll()
         state = "running" if code is None else (
             "cancelled" if j["cancelled"] else
@@ -147,18 +196,31 @@ class JobManager:
             res["log_tail"] = tail(j["out"], 8)
         return res
 
+    def wait(self, job_id, timeout_s=50):
+        """Block until the job leaves queued/running or timeout_s passes; returns status()."""
+        end = time.time() + min(max(timeout_s, 0), 300)
+        while time.time() < end:
+            st = self.status(job_id)
+            if st["state"] not in ("queued", "running"):
+                return st
+            time.sleep(0.5)
+        return self.status(job_id)
+
     def cancel(self, job_id):
         j = self.jobs.get(job_id)
         if j is None:
             raise KeyError("unknown job id: %s" % job_id)
-        if j["proc"].poll() is None:
+        if j["proc"] is None:
+            j["cancelled"] = True
+        elif j["proc"].poll() is None:
             j["cancelled"] = True
             j["proc"].kill()
         return self.status(job_id)
 
     def shutdown(self):
         for j in self.jobs.values():
-            if j["proc"].poll() is None:
+            j["cancelled"] = True
+            if j["proc"] is not None and j["proc"].poll() is None:
                 j["proc"].kill()
 
 

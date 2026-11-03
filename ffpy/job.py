@@ -437,11 +437,15 @@ def build_job(deck):
     if guess == "MOREAD":
         if "VEC" not in deck.groups:
             raise InputError("GUESS=MOREAD requires a $VEC group")
-        vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
         vec_firefly = "PySCF AO order" not in deck.text
-        if vec_firefly and nops > 1:
+        wide = any("D" in l.upper()[5:] for l in deck.groups["VEC"].lines)   # Firefly punch with D exponents
+        if vec_firefly and (nops > 1 or wide):
+            vec = None
+        else:
+            vec = _parse_vec(deck.groups["VEC"].lines, g("GUESS", "NORB", report_default=False))
+        if vec is None:
             # Firefly/GAMESS punch format of a symmetric molecule: the AO order and axis frame differ
-            deck.notes.append(("warning", "$VEC from Firefly/GAMESS of a symmetric molecule is not read: "
+            deck.notes.append(("warning", "$VEC from Firefly/GAMESS (symmetric molecule or D-format) is not read: "
                                           "using the HUCKEL guess; the SCF should converge to the same state"))
             guess, vec, vec_firefly = "HUCKEL", None, False
     elif "VEC" in deck.groups:
