@@ -442,8 +442,12 @@ def test_gvb_one_pair_is_cas22():
     base = (" $BASIS GBASIS=STO NGAUSS=2 $END\n $DATA\nt\nCnv 2\n\nO 8.0 0 0 0.1\nH 1.0 0 0.75 -0.5\n $END\n")
     job = build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=4 NPAIR=1 $END\n" + base))
     assert job.method == "CASSCF" and (job.cas["nact"], job.cas["nels"], job.cas["ncore"]) == (2, 2, 4)
-    with pytest.raises(UnsupportedError, match="NPAIR"):
-        build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=2 NPAIR=2 $END\n" + base))
+    pp = build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=3 NPAIR=2 $END\n" + base))
+    assert pp.cas["pp"] == 2 and pp.cas["nact"] == 4
+    with pytest.raises(UnsupportedError, match="ENERGY"):
+        build_job(parse_input(" $CONTRL SCFTYP=GVB RUNTYP=GRADIENT $END\n $SCF NCO=3 NPAIR=2 $END\n" + base))
+    with pytest.raises(UnsupportedError, match="NSETO"):
+        build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=3 NSETO=1 NO=1 $END\n" + base))
 
 
 def test_double_hybrid_and_auxbas_parsing():
@@ -585,3 +589,21 @@ def test_dh_library_line_in_data():
     assert [s[0] for s in job.basis["P0"]][-1] == 2 if "P0" in job.basis else True
     h = [v for k, v in job.basis.items() if k.startswith("H")][0]
     assert h[1][1][0] == pytest.approx(0.1233 * 1.44)
+
+
+def test_gvb_pp_runs_and_lies_between_rhf_and_cas(tmp_path):
+    from pyscf import gto, mcscf, scf
+    from ffpy.gvb import PPSolver, pair_orbitals
+    mol = gto.M(atom="C 0 0 0; C 1.34 0 0; C 2.09 1.2 0; C 3.43 1.2 0; H -0.54 0.93 0; H -0.54 -0.93 0;"
+                     "H 1.9 -0.93 0; H 1.54 2.13 0; H 3.97 0.27 0; H 3.97 2.13 0",
+                basis="sto-3g", verbose=0)
+    mf = scf.RHF(mol).run()
+    mc = mcscf.CASSCF(mf, 4, (2, 2))
+    mc.fcisolver = PPSolver(mol, 2)
+    mc.internal_rotation = True
+    mc.natorb = False
+    mc.kernel(pair_orbitals(mol, mf, 13, 2))
+    cas = mcscf.CASSCF(mf, 4, (2, 2))
+    cas.kernel(pair_orbitals(mol, mf, 13, 2))
+    assert cas.e_tot < mc.e_tot < mf.e_tot
+    assert (np.abs(np.sin(mc.fcisolver.theta)) < 0.5).all()

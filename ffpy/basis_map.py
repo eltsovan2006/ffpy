@@ -118,7 +118,8 @@ def sto2g_shells(element):
     return copy.deepcopy(STO2G[element])
 
 
-GAMESS_321G_D = {"Sb": 0.211}
+# common d polarization of the Firefly manual ("green book" values) for the heavy p-block elements
+GAMESS_321G_D = {"In": 0.160, "Sn": 0.183, "Sb": 0.211, "Te": 0.237, "I": 0.266, "Xe": 0.297}
 
 
 def make_element_basis(canonical_name: str, elements: Set[str], gbasis: str,

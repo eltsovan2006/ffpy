@@ -73,6 +73,12 @@ def report(job, ctx, res, title_suffix=""):
             rows.append(("MCQDPT2 CORRELATION ENERGY", mc.pt2.e_corr))
             rows.append(("TOTAL MCQDPT2 ENERGY", mc.pt2.e_tot))
     out.energies(log, "energies (hartree)%s" % title_suffix, rows)
+    if m == "CASSCF" and getattr(res.post.fcisolver, "theta", None) is not None:
+        th = res.post.fcisolver.theta
+        log("  GVB pair coefficients C1 / C2 (overlap of the pair orbitals):")
+        for k, t in enumerate(th, 1):
+            c1, c2 = abs(np.cos(t)), abs(np.sin(t))
+            log("    pair %d   %10.6f %10.6f   %10.6f" % (k, c1, c2, (c1 - c2) / (c1 + c2)))
     if niter:
         log("  SCF converged in %d iterations" % niter if mf.converged
             else "  SCF NOT converged after %d iterations" % niter)

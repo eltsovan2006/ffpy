@@ -157,7 +157,7 @@ class ResultsPanel(QWidget):
         files = [stem + ext for ext in (".out", ".molden", ".dat", ".xyz", ".docx") if os.path.exists(stem + ext)]
         if files:
             h.append(tr("<p><b>Файлы</b><br>"))
-            h.append("<br>".join("<a href='%s'>%s</a>" % (QUrl.fromLocalFile(f).toString(),
+            h.append("<br>".join("<a href='%s' style='color:%s'>%s</a>" % (QUrl.fromLocalFile(f).toString(), hex_color("accent"),
                                                          e(os.path.basename(f))) for f in files))
             h.append("</p>")
         h.append("</div>")

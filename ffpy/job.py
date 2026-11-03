@@ -560,20 +560,25 @@ def build_job(deck):
     if scftyp == "GVB":
         # one perfect-pairing geminal = full CI in two orbitals = CASSCF(2,2)
         nco, nseto, npair = g("SCF", "NCO"), g("SCF", "NSETO"), g("SCF", "NPAIR")
-        if nseto or npair != 1:
-            raise UnsupportedError("SCFTYP=GVB is supported only with NSETO=0 and NPAIR=1 "
-                                   "(one geminal pair, equivalent to CASSCF(2,2)); got NSETO=%d NPAIR=%d"
-                                   % (nseto, npair))
+        if nseto or npair < 1:
+            raise UnsupportedError("SCFTYP=GVB is supported only with NSETO=0 and NPAIR>=1 "
+                                   "(perfect-pairing geminals); got NSETO=%d NPAIR=%d" % (nseto, npair))
         if mult != 1:
             raise UnsupportedError("SCFTYP=GVB with MULT>1 is not supported")
         if xc or mplevl or excited:
             raise UnsupportedError("SCFTYP=GVB cannot be combined with DFTTYP/MPLEVL/TDDFT/CIS")
-        cas = {"ncore": nco, "nact": 2, "nels": 2, "nstate": 1, "wstate": None,
+        cas = {"ncore": nco, "nact": 2 * npair, "nels": 2 * npair, "nstate": 1, "wstate": None,
                "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"), "istsym": 1}
+        if npair > 1:
+            cas["pp"] = npair
+            cas["istsym"] = 0
+            cas["pp_sym"] = nops > 1        # keep the symmetry of the point group (Firefly does)
+            if runtyp != "ENERGY":
+                raise UnsupportedError("GVB with NPAIR>1 is supported only for RUNTYP=ENERGY")
         scftyp = "MCSCF"
-        if 2 * nco + 2 != nelec:
+        if 2 * nco + 2 * npair != nelec:
             raise InputError("$SCF: 2*NCO + 2*NPAIR = %d, but the molecule has %d electrons"
-                             % (2 * nco + 2, nelec))
+                             % (2 * nco + 2 * npair, nelec))
     elif scftyp == "MCSCF":
         if not g("MCSCF", "FORS"):
             raise UnsupportedError("$MCSCF FORS=.FALSE. is not supported")

@@ -82,7 +82,7 @@ def build_mol(job, ctx, coords=None):
     mol.spin = job.mult - 1
     mol.cart = job.cart
     mol.symmetry = False
-    if (job.excited and job.excited.get("istsym")) or (job.cas and job.cas.get("istsym")):
+    if (job.excited and job.excited.get("istsym")) or (job.cas and (job.cas.get("istsym") or job.cas.get("pp_sym"))):
         mol.symmetry = _irrep_table(job)[0]
     if job.memory_mb:
         mol.max_memory = job.memory_mb
@@ -474,9 +474,15 @@ def build_cas(job, mf):
     s = job.mult - 1
     nelecas = ((c["nels"] + s) // 2, (c["nels"] - s) // 2)
     mc = mcscf.CASSCF(mf, c["nact"], nelecas)
-    mc.max_cycle_macro = c["maxit"]
-    mc.conv_tol = 1e-9
-    mc.conv_tol_grad = c["acurcy"]
+    if c.get("pp"):
+        from ffpy.gvb import PPSolver
+        mc.fcisolver = PPSolver(mf.mol, c["pp"])
+        mc.internal_rotation = True
+        mc.natorb = False
+        mc.max_cycle_macro = max(c["maxit"], 200)
+    mc.max_cycle_macro = max(c["maxit"], mc.max_cycle_macro) if c.get("pp") else c["maxit"]
+    mc.conv_tol = 1e-10 if c.get("pp") else 1e-9
+    mc.conv_tol_grad = 1e-6 if c.get("pp") else c["acurcy"]
     mc.natorb = True
     if c.get("istsym"):
         names = _irrep_table(job)[1]
@@ -615,7 +621,10 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         e_tot = e_scf + post.e_corr
     elif m == "CASSCF":
         post = build_cas(job, mf)
-        if job.guess == "MOREAD" and job.vec_firefly and job.cas["nstate"] == 1:
+        if job.cas.get("pp"):
+            from ffpy.gvb import pair_orbitals
+            post.kernel(pair_orbitals(mol, mf, job.cas["ncore"], job.cas["pp"]))
+        elif job.guess == "MOREAD" and job.vec_firefly and job.cas["nstate"] == 1:
             post.kernel(casscf_guess(job, mf, mol))
         else:
             post.kernel()
