@@ -74,6 +74,7 @@ class Job:
     disp: Optional[dict] = None                   # D3BJ parameters
     auxbas: Optional[dict] = None                 # RI-MP2 auxiliary basis {element: shells}
     ci: Optional[dict] = None                     # GUGA CI window ($CIDRT)
+    scrf: Optional[dict] = None                   # Onsager reaction field
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -586,6 +587,15 @@ def build_job(deck):
     elif deck.has("DET") or deck.has("MCSCF"):
         deck.notes.append(("warning", "$DET/$MCSCF given but SCFTYP is not MCSCF; ignored"))
 
+    scrf = None
+    if deck.has("SCRF"):
+        if not deck.explicit("SCRF", "RADIUS"):
+            raise InputError("$SCRF RADIUS (cavity radius, angstrom) is required")
+        if charge != 0:
+            raise UnsupportedError("$SCRF for an ion (Born term) is not supported")
+        if scftyp not in ("RHF", "UHF", "ROHF") or deck.has("PCM"):
+            raise UnsupportedError("$SCRF is supported only with RHF/UHF/ROHF/DFT references and without $PCM")
+        scrf = {"dielec": g("SCRF", "DIELEC"), "radius": g("SCRF", "RADIUS")}
     pcm = None
     if deck.has("PCM"):
         eps = g("PCM", "EPS", False)
@@ -625,4 +635,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf)

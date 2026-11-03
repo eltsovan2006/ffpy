@@ -129,6 +129,10 @@ SCHEMA = {
     "TRANST": {
         "IROOTS": K("floatlist", None, None, "CI states between which transition moments are computed"),
     },
+    "SCRF": {
+        "DIELEC": K("float", 78.39, None, "solvent dielectric constant"),
+        "RADIUS": K("float", None, None, "cavity radius, angstrom (required)"),
+    },
     "DFTD": {
         "VERSN": K("int", 3, (3, 4), "DFT-D version; only 4 (D3 with Becke-Johnson damping) is supported"),
         "S6": K("float", None, None, "D3BJ s6"),
@@ -279,5 +283,5 @@ UNSUPPORTED_GROUPS = {
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
-    "MOROKM": "Morokuma", "SCRF": "SCRF",
+    "MOROKM": "Morokuma",
 }

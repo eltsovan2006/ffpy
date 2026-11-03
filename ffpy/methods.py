@@ -151,6 +151,9 @@ def build_scf(job, mol, ctx, tight=False):
         mf = mf.PCM()
         mf.with_solvent.method = "IEF-PCM"
         mf.with_solvent.eps = job.pcm["eps"]
+    if job.scrf:
+        from ffpy.scrf import attach, reaction_field_g
+        mf = attach(mf, reaction_field_g(job.scrf["dielec"], job.scrf["radius"]))
     if job.soscf:
         mf = mf.newton()
     mf.callback = _scf_callback(ctx)
@@ -540,7 +543,7 @@ def numerical_gradient(job, ctx, res):
 
 def gradient_scanner(job, res, ctx=None):
     m = job.method
-    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF") or m == "CI":
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF") or m == "CI" or job.scrf:
         return NumGradScanner(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().as_scanner()

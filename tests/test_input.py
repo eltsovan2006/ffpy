@@ -493,3 +493,14 @@ def test_guga_fors_equals_casci(tmp_path):
     cas.ncore = 1
     cas.kernel()
     assert e == pytest.approx(cas.e_tot, abs=1e-6)
+
+
+def test_scrf_onsager_g_and_energy():
+    from pyscf import gto, scf
+    from ffpy.scrf import attach, reaction_field_g
+    assert reaction_field_g(80.0, 1.93) == pytest.approx(0.0202, abs=2e-4)
+    mol = gto.M(atom="O 0 0 0.12; H 0 0.76 -0.47; H 0 -0.76 -0.47", basis="sto-3g", verbose=0)
+    e0 = scf.RHF(mol).run().e_tot
+    mf = attach(scf.RHF(mol), reaction_field_g(80.0, 1.93))
+    e1 = mf.kernel()
+    assert e1 < e0 and mf.converged          # a polar solute is stabilised by its reaction field
