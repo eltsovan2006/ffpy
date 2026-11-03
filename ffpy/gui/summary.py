@@ -85,6 +85,8 @@ class SummaryView(QWidget):
 
         self.list_widget = QListWidget()
         self.list_widget.currentRowChanged.connect(self._on_item_selected)
+        self.list_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list_widget.setTextElideMode(Qt.ElideRight)
         self._apply_list_style()
         left_lay.addWidget(self.list_widget, 1)
 
@@ -330,7 +332,7 @@ class SummaryView(QWidget):
         try:
             d = parse_out(path)
             method = d.get("method") or "—"
-            basis = d.get("basis") or "—"
+            basis = (d.get("basis") or "—").split(",")[0]
             normal = d.get("normal", False)
             e_val = f"{d['energy']:.6f} Eh" if d.get("energy") is not None else "—"
             stat_icon = "✔" if normal else "✖"

@@ -765,6 +765,8 @@ class MainWindow(QMainWindow):
             self.batch_view.update_counters()
         is_editor = (index == 0)
         is_3d = (index == 2)
+        self.pos_label.setVisible(is_editor)
+        self.check_label.setVisible(is_editor)
         if hasattr(self, "btn_toggle_spectrum") and hasattr(self, "btn_toggle_props"):
             self.btn_toggle_spectrum.setVisible(is_3d)
             self.btn_toggle_props.setVisible(is_3d)

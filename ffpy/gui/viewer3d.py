@@ -2089,21 +2089,24 @@ class PropertiesPanel(QWidget):
         muted = pal.get("muted", "#7a84a3")
 
         self.lbl_title.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {muted}; letter-spacing: 0.5px;")
-        card_style = f"""
-            QWidget {{
-                background: {surface};
-                border: 1px solid {border};
-                border-radius: 12px;
-                color: {text};
-            }}
-            QLabel {{
-                border: 0;
-                background: transparent;
-            }}
-        """
-        self.card_geom.setStyleSheet(card_style)
-        self.card_charges.setStyleSheet(card_style)
-        self.card_dipole.setStyleSheet(card_style)
+        for card in (self.card_geom, self.card_charges, self.card_dipole):
+            card.setStyleSheet(f"""
+                QWidget#{card.objectName()} {{
+                    background: {surface};
+                    border: 1px solid {border};
+                    border-radius: 12px;
+                    color: {text};
+                }}
+                QWidget {{
+                    background: transparent;
+                    border: 0;
+                    color: {text};
+                }}
+                QLabel {{
+                    border: 0;
+                    background: transparent;
+                }}
+            """)
 
     def set_molecule(self, mol: Optional[Molecule]):
         self.molecule = mol

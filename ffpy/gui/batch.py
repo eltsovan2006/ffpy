@@ -89,6 +89,15 @@ def parse_job_from_inp(path: str) -> Dict:
     return res
 
 
+def _jobs_label(n):
+    from ffpy.gui.i18n import language
+    if language() == "en":
+        return "· %d job%s" % (n, "" if n == 1 else "s")
+    word = "заданий" if 11 <= n % 100 <= 14 or n % 10 in (0, 5, 6, 7, 8, 9) else (
+        "задание" if n % 10 == 1 else "задания")
+    return "· %d %s" % (n, word)
+
+
 class StatusChip(QLabel):
     """Pill chip representing job execution status."""
 
@@ -232,11 +241,14 @@ class BatchView(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
+        self.table.setColumnWidth(4, 120)
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(36)
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.table.setShowGrid(False)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         self.table.itemDoubleClicked.connect(self._on_table_double_clicked)
@@ -494,7 +506,14 @@ class BatchView(QWidget):
 
         # 4: Status chip
         chip = StatusChip(item["status"], item["status_text"])
-        self.table.setCellWidget(row, 4, chip)
+        chip.setFixedHeight(22)
+        holder = QWidget()
+        holder.setStyleSheet("background: transparent;")
+        hl = QHBoxLayout(holder)
+        hl.setContentsMargins(4, 0, 4, 0)
+        hl.addWidget(chip, 0, Qt.AlignCenter)
+        self.table.setCellWidget(row, 4, holder)
+        self.table.setRowHeight(row, 36)
 
         # 5: Time (right aligned, muted)
         t_str = tr("{t:.1f} с").format(t=item["wall_time"]) if item["wall_time"] is not None else "—"
@@ -519,7 +538,7 @@ class BatchView(QWidget):
         self.card_running["val_label"].setText(str(running))
         self.card_error["val_label"].setText(str(error))
 
-        self.lbl_subtitle.setText(tr("· {n} заданий").format(n=total))
+        self.lbl_subtitle.setText(_jobs_label(total))
         return {"total": total, "done": done, "running": running, "error": error}
 
     def get_counters(self) -> Dict[str, int]:
