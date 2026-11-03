@@ -8,7 +8,7 @@ from ffpy.writers import out
 
 def nuclear_gradient(job, res, ctx=None):
     m = job.method
-    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD":
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF"):
         return numerical_gradient(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().kernel()

@@ -82,7 +82,6 @@ HANDLERS = {
 
 # (method, SCFTYP, RUNTYP or None for all) combinations PySCF cannot do
 _BLOCKED = [
-    ("MP2", "ROHF", None, "MP2 with an ROHF reference"),
     ("TDHF", "ROHF", None, "TDHF/CIS with an ROHF reference"),
     ("TDDFT", "ROHF", None, "TDDFT with an ROKS reference"),
     ("HF", "ROHF", "HESSIAN", "analytic hessian for ROHF"),

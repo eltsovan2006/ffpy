@@ -126,6 +126,7 @@ SCHEMA = {
         "AUXBAS": K("str", None, None, "name of the auxiliary basis given in $AUXBAS"),
     },
     "MP2": {
+        "OSPT": K("str", "RMP", ("RMP", "ZAPT"), "open-shell perturbation theory for ROHF: RMP (ROHF-MBPT2) or ZAPT"),
         "NACORE": K("int", None, None, "frozen core orbitals; not set = chemical core"),
         "RI": K("bool", False, None, "RI-MP2 with the auxiliary basis from $AUXBAS"),
     },

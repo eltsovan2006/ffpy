@@ -459,3 +459,19 @@ def test_double_hybrid_and_auxbas_parsing():
     job = build_job(parse_input(deck_txt))
     assert job.method == "DH" and job.disp["a2"] == 5.65
     assert job.dh["os"] == pytest.approx(0.53) and job.dh["ss"] == pytest.approx(0.25)
+
+
+def test_rmp2_closed_shell_equals_rhf_mp2():
+    from pyscf import gto, mp, scf
+    from ffpy.methods import run_rmp2
+
+    class J:
+        mp2_frozen = None
+
+    mol = gto.M(atom="O 0 0 0.12; H 0 0.76 -0.47; H 0 -0.76 -0.47", basis="6-31g", verbose=0)
+    mf = scf.ROHF(mol).run()
+    ref = mp.MP2(scf.RHF(mol).run(), frozen=1)
+    ref.kernel()
+    res = run_rmp2(J(), mf, mol)
+    assert res.e_singles == pytest.approx(0.0, abs=1e-10)
+    assert res.e_corr == pytest.approx(ref.e_corr, abs=1e-8)

@@ -449,6 +449,8 @@ def build_job(deck):
         mp2_frozen = g("MP2", "NACORE", False)
         if mplevl == 4:
             mp4 = {"sdtq": g("MP4", "SDTQ", False), "tonly": g("MP4", "TONLY", False)}
+    if mplevl == 2 and scftyp == "ROHF" and g("MP2", "OSPT", report_default=False) == "ZAPT":
+        raise UnsupportedError("$MP2 OSPT=ZAPT is not supported (only OSPT=RMP for ROHF)")
     if mplevl == 2 or dh:
         if deck.has("MP2") and g("MP2", "RI", report_default=False):
             if "AUXBAS" not in deck.groups:

@@ -187,6 +187,49 @@ def run_scf(job, mf, ctx, dm0=None, strict=True):
     return mf.e_tot
 
 
+class RMP2Result:
+    """ROHF-MBPT2 (RMP): semicanonical UMP2 doubles plus the singles term."""
+
+    def __init__(self, e_ref, e_doubles, e_singles):
+        self.e_doubles, self.e_singles = e_doubles, e_singles
+        self.e_corr = e_doubles + e_singles
+        self.e_tot = e_ref + self.e_corr
+
+
+def run_rmp2(job, mf, mol):
+    """RMP / ROHF-MBPT2: alpha and beta Fock matrices are canonicalized separately inside their
+    occupied and virtual blocks of the ROHF orbital space, doubles are UHF-like MP2 in these
+    orbitals, and the occupied-virtual Fock elements give a singles contribution."""
+    c, occ = mf.mo_coeff, mf.mo_occ
+    na, nb, nmo = int((occ > 0).sum()), int((occ > 1).sum()), c.shape[1]
+    dma, dmb = c[:, :na] @ c[:, :na].T, c[:, :nb] @ c[:, :nb].T
+    vj, vk = scf.hf.get_jk(mol, [dma, dmb])
+    h = mf.get_hcore()
+    nfz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
+
+    def semicanonical(f, nocc):
+        F = c.T @ f @ c
+        eo, uo = np.linalg.eigh(F[:nocc, :nocc])
+        ev, uv = np.linalg.eigh(F[nocc:, nocc:])
+        U = np.zeros((nmo, nmo))
+        U[:nocc, :nocc], U[nocc:, nocc:] = uo, uv
+        e = np.concatenate([eo, ev])
+        Fs = U.T @ F @ U
+        singles = -sum(Fs[i, a] ** 2 / (e[a] - e[i]) for i in range(nfz, nocc) for a in range(nocc, nmo))
+        return e, c @ U, singles
+
+    ea, ca, sa = semicanonical(h + vj[0] + vj[1] - vk[0], na)
+    eb, cb, sb = semicanonical(h + vj[0] + vj[1] - vk[1], nb)
+    mfu = scf.UHF(mol)
+    mfu.mo_coeff, mfu.mo_energy = (ca, cb), (ea, eb)
+    mfu.mo_occ = (np.array([1.0] * na + [0.0] * (nmo - na)), np.array([1.0] * nb + [0.0] * (nmo - nb)))
+    mfu.e_tot = mf.e_tot
+    pt = mp.UMP2(mfu, frozen=nfz if nfz else None)
+    pt.verbose = 0
+    pt.kernel(mo_energy=(ea, eb), mo_coeff=(ca, cb))
+    return RMP2Result(mf.e_tot, float(pt.e_corr), float(sa + sb))
+
+
 def build_mp2(job, mf, mol):
     nfrz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
     pt = mp.MP2(mf, frozen=nfrz if nfrz else None)
@@ -352,7 +395,10 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
     e_scf = run_scf(job, mf, ctx, dm0=dm0, strict=strict)
     post, e_tot = None, e_scf
     m = job.method
-    if m == "MP2":
+    if m == "MP2" and job.scftyp == "ROHF":
+        post = run_rmp2(job, mf, mol)
+        e_tot = post.e_tot
+    elif m == "MP2":
         post, _ = build_mp2(job, mf, mol)
         post.kernel()
         e_tot = post.e_tot
@@ -431,7 +477,7 @@ def numerical_gradient(job, ctx, res):
 
 def gradient_scanner(job, res, ctx=None):
     m = job.method
-    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD":
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF"):
         return NumGradScanner(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().as_scanner()
