@@ -76,6 +76,7 @@ class Job:
     ci: Optional[dict] = None                     # GUGA CI window ($CIDRT)
     scrf: Optional[dict] = None                   # Onsager reaction field
     surface: Optional[list] = None                # rigid scan coordinates ($SURF)
+    trudge: Optional[dict] = None                 # exponent optimization
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -169,6 +170,8 @@ def _read_shells(rest, i, z):
                 vals = [float(x) for x in f[1:]]
             except ValueError:
                 raise InputError("$DATA: cannot read primitive: %s" % rest[i].strip())
+            if kind == "L" and len(vals) == 2:
+                vals = [vals[0], vals[1], vals[1]]      # Firefly: a missing p coefficient repeats the s one
             if len(vals) != (3 if kind == "L" else 2):
                 raise InputError("$DATA: primitive needs %d numbers: %s"
                                  % (3 if kind == "L" else 2, rest[i].strip()))
@@ -588,6 +591,17 @@ def build_job(deck):
     elif deck.has("DET") or deck.has("MCSCF"):
         deck.notes.append(("warning", "$DET/$MCSCF given but SCFTYP is not MCSCF; ignored"))
 
+    trudge = None
+    if runtyp == "TRUDGE":
+        if not deck.has("TRUDGE") or not deck.explicit("TRUDGE", "IEX"):
+            raise InputError("RUNTYP=TRUDGE requires $TRUDGE with IEX (and NPAR)")
+        iex = [int(x) for x in g("TRUDGE", "IEX")]
+        npar = g("TRUDGE", "NPAR", False)
+        if npar is not None and npar != len(iex):
+            raise InputError("$TRUDGE NPAR=%d but IEX lists %d exponents" % (npar, len(iex)))
+        if not (isinstance(basis, BasisDict) and basis.name == "CUSTOM"):
+            raise UnsupportedError("RUNTYP=TRUDGE needs the basis written in $DATA (exponents to optimize)")
+        trudge = {"iex": iex}
     surface = None
     if runtyp == "SURFACE":
         if not deck.has("SURF"):
@@ -656,4 +670,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge)

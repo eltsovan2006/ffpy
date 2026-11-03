@@ -48,7 +48,7 @@ RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS"}
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB", "NONE"), "reference wavefunction (NONE: CI with orbitals from $VEC1)"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE"), "job type"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE", "TRUDGE"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT", "GUGA"), "CIS/TDHF/TDDFT excited states or GUGA CI"),
@@ -141,6 +141,11 @@ SCHEMA = {
         "DISP2": K("float", None, None, "step of coordinate 2, angstrom"),
         "NDISP2": K("int", None, None, "number of points of coordinate 2"),
         "NSURF": K("int", 1, None, "states printed (only the ground state is supported)"),
+    },
+    "TRUDGE": {
+        "OPTMIZ": K("str", "BASIS", ("BASIS",), "what is optimized (only exponents of the basis)"),
+        "NPAR": K("int", None, None, "number of parameters"),
+        "IEX": K("floatlist", None, None, "indices of the exponents to optimize (unique exponents in basis order)"),
     },
     "SCRF": {
         "DIELEC": K("float", 78.39, None, "solvent dielectric constant"),
@@ -295,6 +300,6 @@ UNSUPPORTED_GROUPS = {
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group",
-    "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", 
+    "IRC": "IRC", "DRC": "DRC", 
     "MOROKM": "Morokuma",
 }

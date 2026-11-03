@@ -20,6 +20,7 @@ def energy_hf(job, ctx): return _run("energy", job, ctx)
 def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
 def surface_scan(job, ctx): return _run("surface", job, ctx)
+def trudge_opt(job, ctx): return _run("trudge", job, ctx)
 def energy_ci(job, ctx): return _run("energy", job, ctx)
 def gradient_ci(job, ctx): return _run("gradient", job, ctx)
 def energy_dh(job, ctx): return _run("energy", job, ctx)
@@ -56,6 +57,8 @@ HANDLERS = {
     ("MP2", "ENERGY"): energy_mp2,
     ("MP3", "ENERGY"): energy_mp3,
     ("DH", "ENERGY"): energy_dh,
+    ("HF", "TRUDGE"): trudge_opt,
+    ("DFT", "TRUDGE"): trudge_opt,
     ("HF", "SURFACE"): surface_scan,
     ("DFT", "SURFACE"): surface_scan,
     ("MP2", "SURFACE"): surface_scan,

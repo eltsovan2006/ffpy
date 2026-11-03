@@ -325,6 +325,7 @@ $ZMAT (internal coordinates), $EFRAG (EFP), $EFP (EFP), $FMO (FMO), $XMCQDPT (XM
 | `CITYP=GUGA` + `$CIDRT` (`GROUP IEXCIT NFZC NDOC NALP NVAL FORS ISTSYM`), `$GUGDIA NSTATE`, `$GUGDM IROOT`, `RUNTYP=TRANSITN` + `$TRANST IROOTS` | CI с ограничением по кратности возбуждения (SD, FORS) в небольшом окне орбиталей; градиент состояния IROOT численный; `SCFTYP=NONE` читает орбитали из `$VEC1` (только s,p-функции); SOCI и `NEXT` не поддерживаются |
 | `$SCRF DIELEC= RADIUS=` | реакционное поле Онзагера (сферическая полость, дипольное приближение, Zerner method A); нейтральные молекулы; градиент численный |
 | `RUNTYP=SURFACE` + `$SURF IVEC1 IGRP1 ORIG1 DISP1 NDISP1` (и `…2`) | жёсткое сканирование: группа атомов сдвигается вдоль вектора между двумя атомами; энергия в каждой точке любым методом; `FINAL ENERGY` — первая точка |
+| `RUNTYP=TRUDGE` + `$TRUDGE OPTMIZ=BASIS NPAR IEX` | оптимизация показателей экспонент базиса, записанного в `$DATA` (номер = порядковый номер различных экспонент); в L-оболочке без p-коэффициента он равен s-коэффициенту |
 | `ffpy --json`, `ffpy-mcp` | машиночитаемый вывод и MCP-сервер (см. README) |
 
 Принимаются без эффекта: группы `$P2P`, `$TRANS`, `$GUGEM`, `$MCQFIT`; ключи

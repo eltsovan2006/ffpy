@@ -515,3 +515,15 @@ def test_surface_scan_parsing():
     with pytest.raises(InputError, match="SURF"):
         build_job(parse_input(" $CONTRL RUNTYP=SURFACE $END\n" + txt.split("\n", 1)[1].split(" $SURF")[0]
                               + " $DATA\nt\nC1\nH 1.0 0 0 0\nH 1.0 0 0 0.8\n $END\n"))
+
+
+def test_trudge_input_and_two_number_l_shell():
+    from ffpy.runners.trudge import _replace, _unique_exponents
+    txt = (" $CONTRL RUNTYP=TRUDGE $END\n $TRUDGE OPTMIZ=BASIS NPAR=1 IEX(1)=2 $END\n"
+           " $DATA\nt\nC1\nHe 2.0 0 0 0\n L 1\n 1 0.5 1.0\n S 1\n 1 0.25 1.0\n $END\n")
+    job = build_job(parse_input(txt))
+    assert job.trudge == {"iex": [2]}
+    exps = _unique_exponents(job.basis)
+    assert exps == [0.5, 0.25]                       # the s and p parts of the L shell share an exponent
+    new = _replace(job.basis, 0.5, 0.4)
+    assert [p[0] for sh in new["He1"] for p in sh[1:]] == [0.4, 0.4, 0.25]
