@@ -52,6 +52,45 @@ def run(job, ctx):
     return res
 
 
+def _density(base):
+    """AO density matrix of a converged SCF/CASSCF object (spin summed)."""
+    dm = np.asarray(base.make_rdm1())
+    return dm[0] + dm[1] if dm.ndim == 3 else dm
+
+
+def fd_hessian(job, ctx, res):
+    """Hessian by central differences of analytic gradients, plus dipole derivatives from the same
+    displaced calculations (used where PySCF has no analytic hessian: CASSCF/GVB, ROHF)."""
+    from ffpy.methods import gradient_scanner
+    coords0 = res.mol.atom_coords()
+    natm = len(coords0)
+    h = np.zeros((natm, natm, 3, 3))
+    D = np.zeros((natm, 3, 3))
+    printing, ctx.print_scf = ctx.print_scf, False
+    total = natm * 6
+    done = 0
+    try:
+        for a in range(natm):
+            for x in range(3):
+                gs, mus = [], []
+                for sgn in (1.0, -1.0):
+                    c = coords0.copy()
+                    c[a, x] += sgn * FD_STEP
+                    mol = build_mol(job, ctx, c)
+                    scan = gradient_scanner(job, res, ctx)
+                    _, g = scan(mol)
+                    gs.append(np.asarray(g))
+                    mus.append(hf.dip_moment(mol, _density(scan.base), unit="AU", verbose=0))
+                    done += 1
+                    ctx.log("    finite-difference gradients: %d/%d" % (done, total))
+                h[a, :, x, :] = (gs[0] - gs[1]) / (2 * FD_STEP)
+                D[a, x] = (mus[0] - mus[1]) / (2 * FD_STEP)
+    finally:
+        ctx.print_scf = printing
+    h = 0.5 * (h + h.transpose(1, 0, 3, 2))
+    return h, D
+
+
 def dipole_derivatives(job, ctx, res):
     coords0 = res.mol.atom_coords()
     dm0 = res.mf.make_rdm1()
@@ -86,12 +125,19 @@ def analyze(job, ctx, res):
     log = ctx.log
     mol, mf = res.mol, res.mf
     log.section("hessian")
-    log("  analytic hessian (PySCF), IR intensities from finite-difference dipole derivatives")
-    try:
-        hobj = mf.Hessian()
-    except (AttributeError, NotImplementedError) as e:
-        raise UnsupportedError("analytic hessian is not available for %s: %s" % (job.describe(), e))
-    h = hobj.kernel()
+    fd = job.method == "CASSCF" or job.scftyp == "ROHF"
+    D = None
+    if fd:
+        log("  hessian and dipole derivatives by central differences of analytic gradients (step %.4f bohr)"
+            % FD_STEP)
+        h, D = fd_hessian(job, ctx, res)
+    else:
+        log("  analytic hessian (PySCF), IR intensities from finite-difference dipole derivatives")
+        try:
+            hobj = mf.Hessian()
+        except (AttributeError, NotImplementedError) as e:
+            raise UnsupportedError("analytic hessian is not available for %s: %s" % (job.describe(), e))
+        h = hobj.kernel()
     ctx.check_time()
     masses = isotope_masses(mol)
     proj = getattr(job, "projct", True)
@@ -99,7 +145,8 @@ def analyze(job, ctx, res):
     w = np.asarray(ha["freq_wavenumber"])
     wn = np.where(np.abs(w.imag) > np.abs(w.real), -np.abs(w.imag), w.real).astype(float)
     nm = np.asarray(ha["norm_mode"])                   # (nmode, natm, 3), amu^-1/2
-    D = dipole_derivatives(job, ctx, res)              # (natm, 3, 3), e
+    if D is None:
+        D = dipole_derivatives(job, ctx, res)          # (natm, 3, 3), e
     dmu_dq = np.einsum("axm,kax->km", D, nm)           # e / amu^1/2
     ir_d2 = np.sum(dmu_dq ** 2, axis=1) * E_TO_DEBYE_PER_ANG ** 2
     modes = nm / np.linalg.norm(nm.reshape(len(nm), -1), axis=1)[:, None, None]

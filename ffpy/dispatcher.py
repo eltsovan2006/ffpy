@@ -98,6 +98,7 @@ HANDLERS = {
     ("TDHF", "OPTIMIZE"): optimize_tdhf,
     ("TDDFT", "OPTIMIZE"): optimize_tddft,
     ("HF", "HESSIAN"): hessian_hf,
+    ("CASSCF", "HESSIAN"): hessian_hf,
     ("DFT", "HESSIAN"): hessian_dft,
 }
 
@@ -105,7 +106,6 @@ HANDLERS = {
 _BLOCKED = [
     ("TDHF", "ROHF", None, "TDHF/CIS with an ROHF reference"),
     ("TDDFT", "ROHF", None, "TDDFT with an ROKS reference"),
-    ("HF", "ROHF", "HESSIAN", "analytic hessian for ROHF"),
     ("DFT", "ROHF", "HESSIAN", "analytic hessian for ROKS"),
 ]
 

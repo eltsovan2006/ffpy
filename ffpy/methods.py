@@ -501,7 +501,7 @@ def build_cas(job, mf):
         mc.max_cycle_macro = 200
     mc.max_cycle_macro = max(c["maxit"], mc.max_cycle_macro) if (c.get("pp") or c.get("open")) else c["maxit"]
     mc.conv_tol = 1e-10 if (c.get("pp") or c.get("open")) else 1e-9
-    mc.conv_tol_grad = 1e-6 if (c.get("pp") or c.get("open")) else c["acurcy"]
+    mc.conv_tol_grad = 1e-5 if (c.get("pp") or c.get("open")) else c["acurcy"]
     mc.natorb = not (c.get("pp") or c.get("open"))
     if c.get("istsym"):
         names = _irrep_table(job)[1]

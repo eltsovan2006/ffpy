@@ -1,0 +1,10 @@
+! Water, HF/6-31G*, created by ffpy-gui
+ $CONTRL SCFTYP=RHF RUNTYP=ENERGY ICHARG=0 MULT=1 $END
+ $BASIS  GBASIS=N31 NGAUSS=6 NDFUNC=1 $END
+ $DATA
+Water
+C1
+O      8.0       0.000000       0.000000       0.117000
+H      1.0       0.000000       0.757000      -0.467000
+H      1.0       0.000000      -0.757000      -0.467000
+ $END

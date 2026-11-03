@@ -609,14 +609,11 @@ def build_job(deck):
                "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"), "istsym": 1}
         if open_shells:
             cas.update(ncore=0, nact=len(open_shells["shell"]), nels=nelec, istsym=0, open=open_shells)
-            if runtyp != "ENERGY":
-                raise UnsupportedError("GVB with open shells is supported only for RUNTYP=ENERGY")
+
         if npair > 1:
             cas["pp"] = npair
             cas["istsym"] = 0
             cas["pp_sym"] = nops > 1        # keep the symmetry of the point group (Firefly does)
-            if runtyp != "ENERGY":
-                raise UnsupportedError("GVB with NPAIR>1 is supported only for RUNTYP=ENERGY")
         scftyp = "MCSCF"
         if not open_shells and 2 * nco + 2 * npair != nelec:
             raise InputError("$SCF: 2*NCO + 2*NPAIR = %d, but the molecule has %d electrons"
