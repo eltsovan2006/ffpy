@@ -475,3 +475,21 @@ def test_rmp2_closed_shell_equals_rhf_mp2():
     res = run_rmp2(J(), mf, mol)
     assert res.e_singles == pytest.approx(0.0, abs=1e-10)
     assert res.e_corr == pytest.approx(ref.e_corr, abs=1e-8)
+
+
+def test_guga_fors_equals_casci(tmp_path):
+    from pyscf import gto, mcscf, scf
+    from ffpy.cli import main
+    from ffpy.outparse import parse_out
+    inp = tmp_path / "w.inp"
+    inp.write_text(" $CONTRL SCFTYP=RHF CITYP=GUGA UNITS=ANGS $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
+                   " $CIDRT GROUP=C1 FORS=.TRUE. NFZC=1 NDOC=4 NVAL=2 $END\n $GUESS GUESS=HUCKEL $END\n"
+                   " $DATA\nw\nC1\nO 8.0 0.0 0.0 0.117\nH 1.0 0.0 0.757 -0.467\nH 1.0 0.0 -0.757 -0.467\n $END\n")
+    assert main([str(inp), "-o", str(tmp_path), "-q"]) == 0
+    e = parse_out(str(tmp_path / "w.out"))["energy"]
+    mol = gto.M(atom="O 0 0 0.117; H 0 0.757 -0.467; H 0 -0.757 -0.467", basis="sto-3g", verbose=0)
+    mf = scf.RHF(mol).run(conv_tol=1e-11)
+    cas = mcscf.CASCI(mf, 6, 8)
+    cas.ncore = 1
+    cas.kernel()
+    assert e == pytest.approx(cas.e_tot, abs=1e-6)

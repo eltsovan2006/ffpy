@@ -73,6 +73,8 @@ class Job:
     dh: Optional[dict] = None                     # double hybrid: hfx, cpt2, os, ss
     disp: Optional[dict] = None                   # D3BJ parameters
     auxbas: Optional[dict] = None                 # RI-MP2 auxiliary basis {element: shells}
+    ci: Optional[dict] = None                     # GUGA CI window ($CIDRT)
+    vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
 
@@ -85,6 +87,8 @@ class Job:
         """Key used by the dispatcher."""
         if self.scftyp == "MCSCF":
             return "CASSCF"
+        if self.ci:
+            return "CI"
         if self.dh:
             return "DH"
         if self.mplevl == 2:
@@ -105,6 +109,8 @@ class Job:
             ref = "%s on %s" % (self.excited["kind"], ref)
         if self.cas:
             ref = "CASSCF(%d,%d)" % (self.cas["nels"], self.cas["nact"])
+        if self.ci:
+            ref = "CI(%s)" % ("FORS" if self.ci["iexcit"] is None else "SD" if self.ci["iexcit"] == 2 else "IEXCIT=%d" % self.ci["iexcit"])
         return "%s/%s" % (ref, self.basis.upper())
 
 
@@ -398,6 +404,9 @@ def build_job(deck):
     if (nelec + mult - 1) % 2 != 0 or mult - 1 > nelec:
         raise InputError("MULT=%d is impossible with %d electrons (ICHARG=%d)"
                          % (mult, nelec, charge))
+    none_scf = scftyp == "NONE"
+    if none_scf:
+        scftyp = "RHF" if mult == 1 else "ROHF"
     if scftyp == "RHF" and mult != 1:
         raise InputError("SCFTYP=RHF requires MULT=1; use UHF or ROHF for open shells")
 
@@ -492,6 +501,35 @@ def build_job(deck):
         if excited["triplet"] and scftyp != "RHF":
             raise InputError("triplet excited states (MULT=3 in $TDDFT/$CIS) need SCFTYP=RHF")
 
+    ci, vec1 = None, None
+    if cityp == "GUGA" or none_scf:
+        if cityp != "GUGA":
+            raise InputError("SCFTYP=NONE needs CITYP=GUGA and a $CIDRT group")
+        cname = "CIDRT" if deck.has("CIDRT") else ("CIDRT1" if deck.has("CIDRT1") else None)
+        if cname is None:
+            raise InputError("CITYP=GUGA requires a $CIDRT group")
+        if g(cname, "SOCI") or g(cname, "NEXT"):
+            raise UnsupportedError("$%s SOCI/NEXT (second-order CI) is not supported" % cname)
+        if xc or mplevl or False:
+            raise UnsupportedError("CITYP=GUGA cannot be combined with DFTTYP/MPLEVL")
+        nfzc, ndoc, nalp, nval = (g(cname, k) for k in ("NFZC", "NDOC", "NALP", "NVAL"))
+        if 2 * (nfzc + ndoc) + nalp != nelec:
+            raise InputError("$%s: 2*(NFZC+NDOC)+NALP = %d, but the molecule has %d electrons"
+                             % (cname, 2 * (nfzc + ndoc) + nalp, nelec))
+        if nalp + 1 != mult:
+            raise InputError("$%s NALP=%d does not match MULT=%d" % (cname, nalp, mult))
+        nstate = g("GUGDIA", "NSTATE", False)
+        iroots = g("TRANST", "IROOTS", False)
+        ci = {"nfzc": nfzc, "ndoc": ndoc, "nalp": nalp, "nval": nval,
+              "iexcit": None if g(cname, "FORS") else g(cname, "IEXCIT"),
+              "group": g(cname, "GROUP").upper(), "istsym": g(cname, "ISTSYM"),
+              "nstate": nstate, "iroot": g("GUGDM", "IROOT", False),
+              "iroots": [int(x) for x in iroots] if iroots else None, "vec1": none_scf}
+        ci["nstate"] = max([nstate, ci["iroot"]] + (ci["iroots"] or []))
+        if none_scf:
+            if "VEC1" not in deck.groups:
+                raise InputError("SCFTYP=NONE requires a $VEC1 group with the orbitals")
+            vec1 = _parse_vec(deck.groups["VEC1"].lines, None)[0]
     cas = None
     if scftyp == "GVB":
         # one perfect-pairing geminal = full CI in two orbitals = CASSCF(2,2)
@@ -587,4 +625,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1)

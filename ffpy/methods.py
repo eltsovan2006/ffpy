@@ -388,14 +388,63 @@ def vv10_energy(job, mol, mf):
     return float(ni.nr_nlc_vxc(mol, grids, "VV10", dm)[1])
 
 
+def firefly_vec_to_pyscf(job, mol, C):
+    """Rows of a Firefly $VEC (GAMESS AO order, Firefly atom order) -> PySCF AO order (s and p only)."""
+    if mol.nao != C.shape[0]:
+        raise InputError("$VEC1 has %d AOs per orbital, the basis has %d" % (C.shape[0], mol.nao))
+    if any(mol.bas_angular(i) > 1 for i in range(mol.nbas)):
+        raise UnsupportedError("a Firefly $VEC with d or higher functions is not supported")
+    # Firefly lists the images of a symmetry-unique atom with the smaller coordinates first
+    coords = mol.atom_coords()
+    z = [mol.atom_charge(i) for i in range(mol.natm)]
+    order, i = [], 0
+    while i < mol.natm:
+        j = i
+        while j < mol.natm and z[j] == z[i]:
+            j += 1
+        order += sorted(range(i, j), key=lambda k: tuple(np.round(coords[k], 6)))
+        i = j
+    ao = mol.aoslice_by_atom()
+    rows = [r for a in order for r in range(ao[a, 2], ao[a, 3])]
+    out = np.zeros_like(C)
+    out[rows] = C
+    return out
+
+
+def mf_from_vec1(job, mol):
+    """A frozen 'SCF' object whose orbitals are the ones read from $VEC1 (SCFTYP=NONE)."""
+    C = firefly_vec_to_pyscf(job, mol, job.vec1)
+    mf = scf.RHF(mol) if job.mult == 1 else scf.ROHF(mol)
+    mf.verbose = 0
+    na, nb = (mol.nelectron + job.mult - 1) // 2, (mol.nelectron - job.mult + 1) // 2
+    occ = np.zeros(C.shape[1])
+    occ[:nb] = 2
+    occ[nb:na] = 1
+    mf.mo_coeff, mf.mo_occ = C, occ
+    dm = mf.make_rdm1(C, occ)
+    mf.e_tot = float(mf.energy_tot(dm))
+    fock = C.T @ mf.get_fock(dm=dm) @ C
+    mf.mo_energy = np.diag(fock).copy()
+    mf.converged = True
+    return mf
+
+
 def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
     """Build and run the full method at the given geometry."""
     mol = build_mol(job, ctx, coords)
-    mf = build_scf(job, mol, ctx, tight=tight)
-    e_scf = run_scf(job, mf, ctx, dm0=dm0, strict=strict)
+    if job.ci and job.ci["vec1"]:
+        mf = mf_from_vec1(job, mol)
+        e_scf = mf.e_tot
+    else:
+        mf = build_scf(job, mol, ctx, tight=tight)
+        e_scf = run_scf(job, mf, ctx, dm0=dm0, strict=strict)
     post, e_tot = None, e_scf
     m = job.method
-    if m == "MP2" and job.scftyp == "ROHF":
+    if m == "CI":
+        from ffpy.ci import run_ci
+        post = run_ci(job, mf, mol)
+        e_tot = post.e_states[job.ci["iroot"] - 1]
+    elif m == "MP2" and job.scftyp == "ROHF":
         post = run_rmp2(job, mf, mol)
         e_tot = post.e_tot
     elif m == "MP2":
@@ -477,7 +526,7 @@ def numerical_gradient(job, ctx, res):
 
 def gradient_scanner(job, res, ctx=None):
     m = job.method
-    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF"):
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD" or (m == "MP2" and job.scftyp == "ROHF") or m == "CI":
         return NumGradScanner(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().as_scanner()

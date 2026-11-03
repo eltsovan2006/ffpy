@@ -43,15 +43,15 @@ SOLVENTS = {
     "DMF": 37.219,
 }
 
-RAW_GROUPS = {"DATA", "VEC", "AUXBAS"}
+RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS"}
 
 SCHEMA = {
     "CONTRL": {
-        "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB"), "reference wavefunction"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD"), "job type"),
+        "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB", "NONE"), "reference wavefunction (NONE: CI with orbitals from $VEC1)"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
-        "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT"), "CIS/TDHF/TDDFT excited states"),
+        "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT", "GUGA"), "CIS/TDHF/TDDFT excited states or GUGA CI"),
         "TDDFT": K("str", "NONE", ("NONE", "EXCITE"), "TDDFT excited states"),
         "ICHARG": K("int", 0, None, "molecular charge"),
         "MULT": K("int", 1, None, "spin multiplicity"),
@@ -97,6 +97,37 @@ SCHEMA = {
         "NSETO": K("int", 0, None, "GVB: open shells (not supported)"),
         "NPAIR": K("int", 0, None, "GVB: geminal pairs (only 1 supported, = CASSCF(2,2))"),
         "CICOEF": K("floatlist", None, None, "GVB: initial pair CI coefficients (ignored)"),
+    },
+    "CIDRT": {
+        "GROUP": K("str", "C1", None, "point group used by the CI (C1 = no symmetry)"),
+        "IEXCIT": K("int", 2, None, "maximum number of electrons excited out of the reference"),
+        "NFZC": K("int", 0, None, "frozen core orbitals"),
+        "NDOC": K("int", 0, None, "doubly occupied reference orbitals"),
+        "NALP": K("int", 0, None, "singly occupied (alpha) orbitals"),
+        "NVAL": K("int", 0, None, "virtual orbitals in the CI"),
+        "FORS": K("bool", False, None, "full CI in the window instead of IEXCIT"),
+        "SOCI": K("bool", False, None, "second-order CI (not supported)"),
+        "NEXT": K("int", 0, None, "external orbitals (not supported)"),
+        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
+    },
+    "CIDRT1": {
+        "GROUP": K("str", "C1", None, "point group used by the CI (C1 = no symmetry)"),
+        "IEXCIT": K("int", 2, None, "maximum number of electrons excited out of the reference"),
+        "NFZC": K("int", 0, None, "frozen core orbitals"),
+        "NDOC": K("int", 0, None, "doubly occupied reference orbitals"),
+        "NALP": K("int", 0, None, "singly occupied (alpha) orbitals"),
+        "NVAL": K("int", 0, None, "virtual orbitals in the CI"),
+        "FORS": K("bool", False, None, "full CI in the window instead of IEXCIT"),
+        "SOCI": K("bool", False, None, "second-order CI (not supported)"),
+        "NEXT": K("int", 0, None, "external orbitals (not supported)"),
+        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
+    },
+    "GUGDM": {
+        "NFLGDM": K("floatlist", None, None, "density flags (ignored)"),
+        "IROOT": K("int", 1, None, "state whose properties/gradient are wanted"),
+    },
+    "TRANST": {
+        "IROOTS": K("floatlist", None, None, "CI states between which transition moments are computed"),
     },
     "DFTD": {
         "VERSN": K("int", 3, (3, 4), "DFT-D version; only 4 (D3 with Becke-Johnson damping) is supported"),
@@ -225,6 +256,9 @@ IGNORED = {
     "TDDFT": {"NRAD", "NLEB", "PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
     "TDHF": {"PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
     "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS", "GROUP", "ISPIN"},
+    "CIDRT": {"MXNINT", "FOCI", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
+    "CIDRT1": {"MXNINT", "FOCI", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
+    "TRANST": {"NFZC", "NOCC", "NUMVEC", "NUMCI", "METHOD", "OPERAT"},
     "DRT": {"MXNINT", "FOCI", "SDCI", "NEXT", "NFZC", "NINT", "IEXCIT", "ITOL", "NAOS", "NBOS"},
     "GUGDIA": {"ITERMX", "CVGTOL", "PRTTOL", "MEMMAX", "NHGSS", "NSTGSS"},
     "GUGDM2": {"CUTOFF", "NSTATE"},
@@ -240,7 +274,7 @@ IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT"}
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
     "FMO": "FMO", "XMCQDPT": "XMCQDPT2", "MCQDPT": "MCQDPT",
-    "CIDRT": "GUGA CI", "ECP": "effective core potentials",
+    "ECP": "effective core potentials",
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",

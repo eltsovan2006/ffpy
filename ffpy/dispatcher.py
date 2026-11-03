@@ -19,6 +19,8 @@ def _run(module, job, ctx):
 def energy_hf(job, ctx): return _run("energy", job, ctx)
 def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
+def energy_ci(job, ctx): return _run("energy", job, ctx)
+def gradient_ci(job, ctx): return _run("gradient", job, ctx)
 def energy_dh(job, ctx): return _run("energy", job, ctx)
 def energy_mp3(job, ctx): return _run("energy", job, ctx)
 def energy_mp4(job, ctx): return _run("energy", job, ctx)
@@ -53,6 +55,10 @@ HANDLERS = {
     ("MP2", "ENERGY"): energy_mp2,
     ("MP3", "ENERGY"): energy_mp3,
     ("DH", "ENERGY"): energy_dh,
+    ("CI", "ENERGY"): energy_ci,
+    ("CI", "TRANSITN"): energy_ci,
+    ("CI", "GRADIENT"): gradient_ci,
+    ("CI", "NUMGRAD"): numgrad,
     ("HF", "NUMGRAD"): numgrad,
     ("DFT", "NUMGRAD"): numgrad,
     ("MP2", "NUMGRAD"): numgrad,

@@ -35,6 +35,9 @@ def report(job, ctx, res, title_suffix=""):
     if job.disp:
         rows.append(("DFT-D3(BJ) DISPERSION ENERGY", res.e_disp))
     m = job.method
+    if m == "CI":
+        for i, e in enumerate(res.post.e_states):
+            rows.append(("CI STATE %d ENERGY (S**2 = %.4f)" % (i + 1, res.post.spins[i]), e))
     if m == "DH":
         d = res.post
         rows.append(("MP2-LIKE OPPOSITE-SPIN ENERGY", d.e_os))
