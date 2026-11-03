@@ -349,7 +349,7 @@ O 8.0 0.0 0.0 0.0 1.0
 
 def test_strict_rejection_of_unsupported_physics():
     with pytest.raises(InputError, match="CITYP"):
-        deck(" $CONTRL CITYP=GUGA $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        deck(" $CONTRL CITYP=ALDET $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="MPLEVL"):
         deck(" $CONTRL MPLEVL=5 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="COORD"):

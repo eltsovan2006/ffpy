@@ -153,9 +153,15 @@ def _parse_keywords(group, deck):
         if key not in schema:
             raise InputError("$%s: unknown keyword %s. Known keywords: %s"
                              % (group.name, key, ", ".join(sorted(schema))))
+        parts = [_convert(p) for p in rawval.split(",") if p != ""]
+        if key in group.keys and schema[key].type == "floatlist" and index is not None and int(index) > 1:
+            # IZMAT(1)=... IZMAT(4)=... : further pieces of one array
+            group.keys[key].extend(parts)
+            group.raw[key] += "," + rawval
+            last_list = (group, key)
+            continue
         if key in group.keys:
             raise InputError("$%s: keyword %s given twice" % (group.name, key))
-        parts = [_convert(p) for p in rawval.split(",") if p != ""]
         value = parts if (len(parts) > 1 or schema[key].type == "floatlist") else parts[0]
         if index is not None and int(index) != 1:
             raise UnsupportedError("$%s %s(%s)=...: arrays must start at index 1"

@@ -245,7 +245,7 @@ IGNORED = {
                "NUMDER", "LOCAL"},
     "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"},
     "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
-    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS"},
+    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS", "PURIFY", "NORDER", "IORDER"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
     "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE", "LMOMP2"},
@@ -269,7 +269,7 @@ IGNORED = {
 }
 
 # whole groups that only tune Firefly's parallel runtime / memory: accepted with a WARNING
-IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT"}
+IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "ELFLDG", "ELDENS", "ELPOT"}
 
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
@@ -277,8 +277,7 @@ UNSUPPORTED_GROUPS = {
     "ECP": "effective core potentials",
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
-    "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
-    "LIBE": "LIBE",
+    "GRAD": "reading a $GRAD group",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
-    "MOROKM": "Morokuma", "SCRF": "SCRF", "CPHF": "CPHF",
+    "MOROKM": "Morokuma", "SCRF": "SCRF",
 }

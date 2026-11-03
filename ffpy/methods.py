@@ -173,11 +173,25 @@ def moread_dm(job, mf, mol):
     return 2.0 * Ca[:, :na] @ Ca[:, :na].T
 
 
+def _escape_saddle(mf, log):
+    """A closed-shell SCF started from a poor guess can stop at a saddle point of the energy
+    (observed with HUCKEL on linear molecules); in that case start over from the MINAO guess."""
+    mo = mf.stability(internal=True, external=False, verbose=0)[0]
+    if np.abs(mo - mf.mo_coeff).max() < 1e-7:
+        return
+    e_old = mf.e_tot
+    mf.kernel(dm0=mf.get_init_guess(key="minao"))
+    log.warning("SCF solution was unstable; restarted from the MINAO guess: %.10f -> %.10f"
+                % (e_old, mf.e_tot))
+
+
 def run_scf(job, mf, ctx, dm0=None, strict=True):
     log = ctx.log
     if dm0 is None and job.guess == "MOREAD":
         dm0 = moread_dm(job, mf, mf.mol)
     mf.kernel(dm0=dm0)
+    if mf.converged and job.scftyp == "RHF" and job.guess != "MOREAD" and mf.mol.nao <= 400:
+        _escape_saddle(mf, log)
     if not mf.converged:
         msg = "SCF did not converge in MAXIT=%d iterations" % job.maxit
         if strict:
