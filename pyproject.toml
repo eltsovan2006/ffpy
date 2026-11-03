@@ -16,9 +16,11 @@ dependencies = ["pyscf>=2.6", "geometric>=1.0", "numpy"]
 gui = ["PySide6>=6.5"]
 test = ["pytest"]
 docx = ["python-docx>=1.0"]
+mcp = ["mcp>=1.2"]
 
 [project.scripts]
 ffpy = "ffpy.cli:main"
+ffpy-mcp = "ffpy.mcp_server:main"
 
 [project.gui-scripts]
 ffpy-gui = "ffpy.gui.app:main"

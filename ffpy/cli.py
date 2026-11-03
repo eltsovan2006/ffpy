@@ -69,6 +69,33 @@ def print_keywords():
         print("  %d  %s" % (c, m))
 
 
+def _json_mode(args):
+    from ffpy import api
+    sys.stdout.reconfigure(encoding="utf-8")
+    if args.keywords:
+        print(api.dumps(api.keywords()))
+        return 0
+    if not args.input or not os.path.isfile(args.input):
+        print(api.dumps({"ok": False, "message": "input file not found: %s" % args.input}))
+        return 1
+    if args.input.lower().endswith(".out"):
+        print(api.dumps(api.run_summary(args.input)))
+        return 0
+    if args.check:
+        res = api.validate(_read_text(args.input))
+        print(api.dumps(res))
+        return 0 if res["ok"] else 1
+    args.quiet = True
+    code = run_file(args)
+    base = os.path.splitext(os.path.basename(args.input))[0]
+    outdir = args.outdir or os.path.dirname(os.path.abspath(args.input))
+    out = os.path.join(outdir, base + ".out")
+    res = api.run_summary(out) if os.path.isfile(out) else {}
+    res["exit_code"] = code
+    print(api.dumps(res))
+    return code
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         prog=PROGRAM, formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -83,6 +110,10 @@ def main(argv=None):
     ap.add_argument("--debug", action="store_true", help="also write the PySCF log (name.pyscf.log)")
     ap.add_argument("-q", "--quiet", action="store_true", help="do not echo the log to the console")
     ap.add_argument("--keywords", action="store_true", help="list supported groups and keys")
+    ap.add_argument("--json", action="store_true",
+                    help="machine-readable output: with --keywords the key table, with --check "
+                         "the validation result, with an .out file its parsed numbers, otherwise "
+                         "run the input and print a JSON summary (implies -q)")
     ap.add_argument("--version", action="version", version="%s %s" % (PROGRAM, __version__))
     # used by ffpy-gui: UTF-8 log on stdout, flushed line by line, never pause
     ap.add_argument("--pipe", action="store_true", help=argparse.SUPPRESS)
@@ -92,6 +123,8 @@ def main(argv=None):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
         sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     explorer = _launched_from_explorer() and not args.pipe
+    if args.json:
+        return _json_mode(args)
     if args.keywords:
         print_keywords()
         if explorer:
