@@ -436,3 +436,11 @@ def test_mp3_mp4_job():
     assert job.method == "MP4" and job.mp4["sdtq"]
     with pytest.raises(UnsupportedError, match="RHF"):
         build_job(parse_input(" $CONTRL MPLEVL=4 SCFTYP=UHF MULT=1 $END\n" + base))
+
+
+def test_gvb_one_pair_is_cas22():
+    base = (" $BASIS GBASIS=STO NGAUSS=2 $END\n $DATA\nt\nCnv 2\n\nO 8.0 0 0 0.1\nH 1.0 0 0.75 -0.5\n $END\n")
+    job = build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=4 NPAIR=1 $END\n" + base))
+    assert job.method == "CASSCF" and (job.cas["nact"], job.cas["nels"], job.cas["ncore"]) == (2, 2, 4)
+    with pytest.raises(UnsupportedError, match="NPAIR"):
+        build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=2 NPAIR=2 $END\n" + base))

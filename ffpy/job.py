@@ -438,7 +438,24 @@ def build_job(deck):
             raise InputError("triplet excited states (MULT=3 in $TDDFT/$CIS) need SCFTYP=RHF")
 
     cas = None
-    if scftyp == "MCSCF":
+    if scftyp == "GVB":
+        # one perfect-pairing geminal = full CI in two orbitals = CASSCF(2,2)
+        nco, nseto, npair = g("SCF", "NCO"), g("SCF", "NSETO"), g("SCF", "NPAIR")
+        if nseto or npair != 1:
+            raise UnsupportedError("SCFTYP=GVB is supported only with NSETO=0 and NPAIR=1 "
+                                   "(one geminal pair, equivalent to CASSCF(2,2)); got NSETO=%d NPAIR=%d"
+                                   % (nseto, npair))
+        if mult != 1:
+            raise UnsupportedError("SCFTYP=GVB with MULT>1 is not supported")
+        if xc or mplevl or excited:
+            raise UnsupportedError("SCFTYP=GVB cannot be combined with DFTTYP/MPLEVL/TDDFT/CIS")
+        cas = {"ncore": nco, "nact": 2, "nels": 2, "nstate": 1, "wstate": None,
+               "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"), "istsym": 1}
+        scftyp = "MCSCF"
+        if 2 * nco + 2 != nelec:
+            raise InputError("$SCF: 2*NCO + 2*NPAIR = %d, but the molecule has %d electrons"
+                             % (2 * nco + 2, nelec))
+    elif scftyp == "MCSCF":
         if not g("MCSCF", "FORS"):
             raise UnsupportedError("$MCSCF FORS=.FALSE. is not supported")
         if g("MCSCF", "CISTEP") == "GUGA" or (deck.has("DRT") and not deck.has("DET")):

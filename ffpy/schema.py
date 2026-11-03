@@ -47,7 +47,7 @@ RAW_GROUPS = {"DATA", "VEC"}
 
 SCHEMA = {
     "CONTRL": {
-        "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF"), "reference wavefunction"),
+        "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB"), "reference wavefunction"),
         "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE",) + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
@@ -92,6 +92,10 @@ SCHEMA = {
         "SOSCF": K("bool", False, None, "second-order SCF (PySCF newton)"),
         "DAMP": K("bool", False, None, "density damping"),
         "SHIFT": K("bool", False, None, "level shift"),
+        "NCO": K("int", 0, None, "GVB: doubly occupied orbitals"),
+        "NSETO": K("int", 0, None, "GVB: open shells (not supported)"),
+        "NPAIR": K("int", 0, None, "GVB: geminal pairs (only 1 supported, = CASSCF(2,2))"),
+        "CICOEF": K("floatlist", None, None, "GVB: initial pair CI coefficients (ignored)"),
     },
     "DFTNL": {
         "B": K("float", None, None, "VV10 b parameter (default: optimized value of the functional, else 4.8)"),
