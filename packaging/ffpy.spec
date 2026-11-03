@@ -11,7 +11,7 @@ ICON_ICNS = os.path.join(SPECPATH, "ffpy.icns")
 VERSION = os.path.join(SPECPATH, "version_info.txt")
 
 datas, binaries, hiddenimports = [], [], []
-for pkg in ("pyscf", "geometric"):
+for pkg in ("pyscf", "geometric", "dftd3"):
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

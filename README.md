@@ -211,8 +211,10 @@ MCP-серверов): в настройках добавьте stdio-серве
 ## Что умеет 0.4.0
 
 * HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`),
-  DFT-NL (VV10, `$DFTNL`); MP2 (`MPLEVL=2`, по умолчанию с замороженным
-  остовом), **MP3 и MP4** (`MPLEVL=3/4`, SDQ/SDTQ/T, только RHF);
+  DFT-NL (VV10, `$DFTNL`), двойной гибрид DSD-PBEP86 с дисперсией D3BJ
+  (`DFTTYP=D-PBEP86`, `$DFT HFX CPT2 SCS`, `$DFTD VERSN=4`), RI-MP2 с базисом
+  из `$AUXBAS`; MP2 (`MPLEVL=2`, по умолчанию с замороженным остовом;
+  для ROHF — RMP/ROHF-MBPT2), **MP3 и MP4** (`MPLEVL=3/4`, SDQ/SDTQ/T, только RHF);
   TDHF/CIS/TDDFT/TDA (`$TDDFT NSTATE=`, `CITYP=CIS/TDHF/TDDFT`, `$TDHF`,
   `ISTSYM`); CASSCF (`SCFTYP=MCSCF` + `$DET` или `$DRT FORS`, `ISTSYM`);
   GVB с одной парой (`NPAIR=1`, считается как CASSCF(2,2));
@@ -233,7 +235,7 @@ MCP-серверов): в настройках добавьте stdio-серве
 Полный список ключей, значения по умолчанию и таблица «метод × RUNTYP» —
 в [docs/KEYWORDS.md](docs/KEYWORDS.md). Чего нет: XMCQDPT2/MCQDPT, GVB с
 несколькими парами и открытыми оболочками, CI/GUGA (SOCI), `SCFTYP=NONE`,
-IRC/DRC, EFP, FMO, RI-MP2, ECP=READ, дисперсия D3, градиент
+IRC/DRC, EFP, FMO, ZAPT, ECP=READ, градиент
 state-averaged CASSCF по одному состоянию, побитовое совпадение с Firefly.
 
 ## Точность относительно Firefly
