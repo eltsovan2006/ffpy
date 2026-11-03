@@ -36,6 +36,20 @@ def report(job, ctx, res, title_suffix=""):
     if m == "MP2":
         rows.append(("MP2 CORRELATION ENERGY", res.post.e_corr))
         rows.append(("TOTAL MP2 ENERGY", res.post.e_tot))
+    if m in ("MP3", "MP4"):
+        tot = res.post.e_ref
+        for k, v in res.post.parts.items():
+            tot += v
+            rows.append(("%s CORRECTION" % k if k != "MP2" else "MP2 CORRELATION ENERGY", v))
+            label = {"MP2": "TOTAL MP2 ENERGY", "MP3": "TOTAL MP3 ENERGY"}.get(k)
+            if label:
+                rows.append((label, tot))
+        if m == "MP4":
+            sdq = [k for k in res.post.parts if k in ("MP4(S)", "MP4(D)", "MP4(Q)")]
+            if sdq:
+                rows.append(("TOTAL MP4(SDQ) ENERGY", res.post.e_ref + sum(v for k, v in res.post.parts.items() if k != "MP4(T)")))
+            if "MP4(T)" in res.post.parts:
+                rows.append(("TOTAL MP4(%s) ENERGY" % ("SDTQ" if sdq else "T"), res.e_tot))
     if m == "CASSCF":
         mc = res.post
         if job.cas["nstate"] > 1:

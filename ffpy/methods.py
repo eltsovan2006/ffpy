@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from pyscf import dft, fci, gto, mcscf, mp, scf, tdscf
+from pyscf import dft, fci, gto, lib, mcscf, mp, scf, tdscf
 from pyscf.data.elements import chemcore
 
 from ffpy.errors import InputError, SCFNotConverged, TimeLimitExceeded, UnsupportedError
@@ -193,6 +193,70 @@ def build_mp2(job, mf, mol):
     return pt, nfrz
 
 
+class MPn:
+    """MP3 / MP4 energies of a closed-shell reference (spin-adapted, from CC pieces)."""
+
+    def __init__(self, e_ref, parts):
+        self.e_ref = e_ref
+        self.parts = parts
+        self.e_corr = sum(v for k, v in parts.items())
+        self.e_tot = e_ref + self.e_corr
+
+
+def run_mpn(job, mf, mol):
+    """MP3 and MP4(SDQ/SDTQ) by perturbation expansion of the CCSD equations.
+
+    The residual numerator R(t1, t2) of PySCF's closed-shell CCSD is a
+    polynomial in the amplitudes; its parts of given degree are separated by
+    evaluating it at +-t. With canonical HF orbitals the third-order doubles
+    are [L(t2_2) + Q(t2_1) + S(t1_2)] / D and E4(T) is the (T) correction
+    evaluated with the first-order doubles.
+    """
+    from pyscf import cc
+    from pyscf.cc import ccsd_t
+
+    nfrz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
+    mycc = cc.RCCSD(mf, frozen=nfrz if nfrz else None)
+    mycc.verbose = 0
+    eris = mycc.ao2mo()
+    nocc = mycc.nocc
+    eia = eris.mo_energy[:nocc, None] - eris.mo_energy[None, nocc:]
+    eijab = eia[:, None, :, None] + eia[None, :, None, :]
+    t1z = np.zeros_like(eia)
+    t2_1 = mycc.init_amps(eris)[2]
+
+    def resid(t1, t2):
+        a, b = mycc.update_amps(t1, t2, eris)
+        return a * eia, b * eijab
+
+    zero2 = np.zeros_like(t2_1)
+    r2_0 = resid(t1z, zero2)[1]
+
+    def lin(t1, t2):
+        (a, b), (c, d) = resid(t1, t2), resid(-t1, -t2)
+        return (a - c) / 2, (b - d) / 2
+
+    def quad(t2):
+        (_, b), (_, d) = resid(t1z, t2), resid(t1z, -t2)
+        return (b + d) / 2 - r2_0
+
+    w = 2 * t2_1 - t2_1.transpose(0, 1, 3, 2)
+    contract = lambda r: float(np.einsum("ijab,ijab", w, r))
+    parts = {"MP2": contract(np.asarray(eris.ovov).reshape(w.shape[0], w.shape[2], w.shape[1], w.shape[3]).transpose(0, 2, 1, 3))}
+    parts["MP3"] = contract(lin(t1z, t2_1)[1])
+    if job.mplevl == 4:
+        tonly = job.mp4.get("tonly")
+        if not tonly:
+            t1_2 = lin(t1z, t2_1)[0] / eia
+            t2_2 = lin(t1z, t2_1)[1] / eijab
+            parts["MP4(S)"] = contract(lin(t1_2, zero2)[1])
+            parts["MP4(D)"] = contract(lin(t1z, t2_2)[1])
+            parts["MP4(Q)"] = contract(quad(t2_1))
+        if job.mp4.get("sdtq") or tonly:
+            parts["MP4(T)"] = float(ccsd_t.kernel(mycc, eris, t1z, t2_1, verbose=0))
+    return MPn(mf.e_tot, parts)
+
+
 def build_cas(job, mf):
     c = job.cas
     s = job.mult - 1
@@ -256,6 +320,9 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         post, _ = build_mp2(job, mf, mol)
         post.kernel()
         e_tot = post.e_tot
+    elif m in ("MP3", "MP4"):
+        post = run_mpn(job, mf, mol)
+        e_tot = post.e_tot
     elif m == "CASSCF":
         post = build_cas(job, mf)
         post.kernel()
@@ -279,8 +346,50 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
     return Result(mol=mol, mf=mf, post=post, e_scf=e_scf, e_tot=e_tot, e_nl=e_nl)
 
 
-def gradient_scanner(job, res):
+class NumGradScanner(lib.GradScanner):
+    """Central-difference gradient of the full method (scanner protocol of PySCF)."""
+
+    STEP = 0.001  # bohr
+
+    def __init__(self, job, ctx, res):
+        self.job, self.ctx = job, ctx
+        self.mol = res.mol
+        self.base = res.mf
+        self.verbose = 0
+
+    @property
+    def converged(self):
+        return True
+
+    def _energy(self, coords):
+        return compute(self.job, self.ctx, coords=coords, tight=True).e_tot
+
+    def __call__(self, mol):
+        coords = np.array(mol.atom_coords())
+        shown = self.ctx.print_scf
+        self.ctx.print_scf = False
+        try:
+            e0 = self._energy(coords)
+            g = np.zeros_like(coords)
+            for i in range(coords.shape[0]):
+                for k in range(3):
+                    cp, cm = coords.copy(), coords.copy()
+                    cp[i, k] += self.STEP
+                    cm[i, k] -= self.STEP
+                    g[i, k] = (self._energy(cp) - self._energy(cm)) / (2 * self.STEP)
+        finally:
+            self.ctx.print_scf = shown
+        return e0, g
+
+
+def numerical_gradient(job, ctx, res):
+    return NumGradScanner(job, ctx, res)(res.mol)[1]
+
+
+def gradient_scanner(job, res, ctx=None):
     m = job.method
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD":
+        return NumGradScanner(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().as_scanner()
     if m == "MP2":

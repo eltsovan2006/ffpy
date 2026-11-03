@@ -48,9 +48,9 @@ RAW_GROUPS = {"DATA", "VEC"}
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF"), "reference wavefunction"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN"), "job type"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE",) + tuple(sorted(XC_MAP)), "DFT functional"),
-        "MPLEVL": K("int", 0, (0, 2), "MP2 when 2"),
+        "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT"), "CIS/TDHF/TDDFT excited states"),
         "TDDFT": K("str", "NONE", ("NONE", "EXCITE"), "TDDFT excited states"),
         "ICHARG": K("int", 0, None, "molecular charge"),
@@ -101,6 +101,10 @@ SCHEMA = {
         "NRAD": K("int", None, None, "radial points per atom (with NLEB)"),
         "NLEB": K("int", None, None, "Lebedev angular points (with NRAD)"),
         "B3LYP": K("str", "NWCHEM", ("NWCHEM", "GAMESS"), "VWN formula of DFTTYP=B3LYP: NWCHEM = 1 RPA (default), GAMESS = 5"),
+    },
+    "MP4": {
+        "SDTQ": K("bool", False, None, "MP4(SDTQ) instead of MP4(SDQ)"),
+        "TONLY": K("bool", False, None, "only the MP4(T) triples term"),
     },
     "MP2": {
         "NACORE": K("int", None, None, "frozen core orbitals; not set = chemical core"),
@@ -221,7 +225,7 @@ UNSUPPORTED_GROUPS = {
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
     "LIBE": "LIBE",
-    "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis", "MP4": "MP4",
+    "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
     "MOROKM": "Morokuma", "DFTD": "dispersion DFT", "SCRF": "SCRF", "CPHF": "CPHF",
 }

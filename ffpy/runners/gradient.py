@@ -1,13 +1,15 @@
 """RUNTYP=GRADIENT: energy plus analytic nuclear gradient."""
 
 from ffpy.errors import UnsupportedError
-from ffpy.methods import compute
+from ffpy.methods import compute, numerical_gradient
 from ffpy.runners.report import report
 from ffpy.writers import out
 
 
-def nuclear_gradient(job, res):
+def nuclear_gradient(job, res, ctx=None):
     m = job.method
+    if m in ("MP3", "MP4") or job.runtyp == "NUMGRAD":
+        return numerical_gradient(job, ctx, res)
     if m in ("HF", "DFT"):
         return res.mf.nuc_grad_method().kernel()
     if m == "MP2":
@@ -25,7 +27,7 @@ def run(job, ctx):
     ctx.log.section("SCF iterations")
     res = compute(job, ctx)
     report(job, ctx, res)
-    g = nuclear_gradient(job, res)
+    g = nuclear_gradient(job, res, ctx)
     if job.excited:
         ctx.log("")
         ctx.log("  gradient of excited state IROOT=%d (total energy %.10f)"

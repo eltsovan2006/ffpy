@@ -351,7 +351,7 @@ def test_strict_rejection_of_unsupported_physics():
     with pytest.raises(InputError, match="CITYP"):
         deck(" $CONTRL CITYP=GUGA $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="MPLEVL"):
-        deck(" $CONTRL MPLEVL=3 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
+        deck(" $CONTRL MPLEVL=5 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="COORD"):
         deck(" $CONTRL COORD=FOO $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n")
     with pytest.raises(InputError, match="NZVAR"):
@@ -426,3 +426,13 @@ Hydrogen 1.0 0 0 1.8
     # 3-21G oxygen (3 s + 2 p shells) plus one added d shell
     assert [sh[0] for sh in job.basis["O1"]] == [0, 0, 0, 1, 1, 2]
     assert job.atom_tags == ["O1", "H2"]
+
+
+def test_mp3_mp4_job():
+    base = " $BASIS GBASIS=STO NGAUSS=3 $END\n $DATA\nt\nC1\nHe 2.0 0 0 0\n $END\n"
+    job = build_job(parse_input(" $CONTRL MPLEVL=3 $END\n" + base))
+    assert job.method == "MP3"
+    job = build_job(parse_input(" $CONTRL MPLEVL=4 $END\n $MP4 SDTQ=.T. $END\n" + base))
+    assert job.method == "MP4" and job.mp4["sdtq"]
+    with pytest.raises(UnsupportedError, match="RHF"):
+        build_job(parse_input(" $CONTRL MPLEVL=4 SCFTYP=UHF MULT=1 $END\n" + base))

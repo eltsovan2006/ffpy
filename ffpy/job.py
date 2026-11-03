@@ -53,6 +53,7 @@ class Job:
     timlim_s: float
     grid: Optional[Tuple[int, int]]
     mp2_frozen: Optional[int]
+    mp4: dict
     excited: Optional[dict]       # {"kind": TDDFT|TDHF|CIS, nstate, iroot, triplet, tda}
     cas: Optional[dict]
     pcm: Optional[dict]
@@ -83,6 +84,8 @@ class Job:
             return "CASSCF"
         if self.mplevl == 2:
             return "MP2"
+        if self.mplevl in (3, 4):
+            return "MP%d" % self.mplevl
         if self.excited:
             return "TDDFT" if self.xc else "TDHF"
         return "DFT" if self.xc else "HF"
@@ -387,6 +390,15 @@ def build_job(deck):
             grid = (nrad, nleb)
 
     mp2_frozen = None
+    mp4 = {}
+    if mplevl in (3, 4):
+        if scftyp != "RHF":
+            raise UnsupportedError("MP%d is implemented only for SCFTYP=RHF" % mplevl)
+        if xc:
+            raise UnsupportedError("MPLEVL=%d cannot be combined with DFTTYP" % mplevl)
+        mp2_frozen = g("MP2", "NACORE", False)
+        if mplevl == 4:
+            mp4 = {"sdtq": g("MP4", "SDTQ", False), "tonly": g("MP4", "TONLY", False)}
     if mplevl == 2:
         if deck.has("MP2") and g("MP2", "RI", report_default=False):
             raise UnsupportedError("RI-MP2 ($MP2 RI=.TRUE.) is not supported")
@@ -499,7 +511,7 @@ def build_job(deck):
         maxit=contrl["MAXIT"], nconv_density=nconv, direct=g("SCF", "DIRSCF"),
         diis=g("SCF", "DIIS", False), soscf=g("SCF", "SOSCF", False),
         damp=g("SCF", "DAMP", False), shift=g("SCF", "SHIFT", False),
-        memory_mb=memory_mb, timlim_s=timlim, grid=grid, mp2_frozen=mp2_frozen,
+        memory_mb=memory_mb, timlim_s=timlim, grid=grid, mp2_frozen=mp2_frozen, mp4=mp4,
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,

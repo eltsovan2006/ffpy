@@ -19,9 +19,14 @@ def _run(module, job, ctx):
 def energy_hf(job, ctx): return _run("energy", job, ctx)
 def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
+def energy_mp3(job, ctx): return _run("energy", job, ctx)
+def energy_mp4(job, ctx): return _run("energy", job, ctx)
 def energy_casscf(job, ctx): return _run("energy", job, ctx)
 def energy_tdhf(job, ctx): return _run("energy", job, ctx)
 def energy_tddft(job, ctx): return _run("energy", job, ctx)
+
+def numgrad(job, ctx): return _run("gradient", job, ctx)
+def optimize_mp3(job, ctx): return _run("optimize", job, ctx)
 
 def gradient_hf(job, ctx): return _run("gradient", job, ctx)
 def gradient_dft(job, ctx): return _run("gradient", job, ctx)
@@ -45,6 +50,15 @@ HANDLERS = {
     ("HF", "ENERGY"): energy_hf,
     ("DFT", "ENERGY"): energy_dft,
     ("MP2", "ENERGY"): energy_mp2,
+    ("MP3", "ENERGY"): energy_mp3,
+    ("HF", "NUMGRAD"): numgrad,
+    ("DFT", "NUMGRAD"): numgrad,
+    ("MP2", "NUMGRAD"): numgrad,
+    ("MP3", "NUMGRAD"): numgrad,
+    ("MP4", "NUMGRAD"): numgrad,
+    ("MP3", "OPTIMIZE"): optimize_mp3,
+    ("MP4", "OPTIMIZE"): optimize_mp3,
+    ("MP4", "ENERGY"): energy_mp4,
     ("CASSCF", "ENERGY"): energy_casscf,
     ("TDHF", "ENERGY"): energy_tdhf,
     ("TDDFT", "ENERGY"): energy_tddft,

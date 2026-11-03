@@ -49,7 +49,7 @@ def run(job, ctx):
     log.section("SCF iterations (initial geometry)")
     res = compute(job, ctx)
     report(job, ctx, res, " at the initial geometry")
-    scanner = gradient_scanner(job, res)
+    scanner = gradient_scanner(job, res, ctx)
 
     params = {
         "convergence_gmax": job.opttol,
