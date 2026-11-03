@@ -193,7 +193,7 @@ IGNORED = {
     "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
-    "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE"},
+    "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE", "LMOMP2"},
     "STATPT": {"METHOD", "HESS", "NPRT", "NPUN", "IHREP", "IFOLOW", "STPT",
                "DXMAX", "TRMAX", "TRMIN", "IDUMP", "PURIFY", "PROJCT", "LET",
                "ITBMX", "GMIN", "GMAX", "NPRTR", "NPUNR", "KDIAG", "SCHM"},

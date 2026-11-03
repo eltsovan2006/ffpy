@@ -14,7 +14,7 @@ def nuclear_gradient(job, res):
         return res.post.nuc_grad_method().kernel()
     if m == "CASSCF":
         if job.cas["nstate"] > 1:
-            raise UnsupportedError("gradients of state-averaged CASSCF (NSTATE>1) are not supported")
+            raise UnsupportedError("state-specific gradients of state-averaged CASSCF (NSTATE>1, needs CP-MCSCF) are not supported")
         return res.post.nuc_grad_method().kernel()
     if m in ("TDDFT", "TDHF"):
         return res.post.nuc_grad_method().kernel(state=job.excited["iroot"])

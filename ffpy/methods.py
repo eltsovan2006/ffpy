@@ -95,6 +95,10 @@ def build_mol(job, ctx, coords=None):
         mol.build()
     except (KeyError, RuntimeError, ValueError) as e:
         raise InputError("cannot build the molecule with basis %s: %s" % (job.basis, e))
+    if mol.symmetry and not np.allclose(mol.atom_coords(), np.asarray(coords, float), atol=1e-9):
+        # PySCF rotates the molecule into its symmetry frame; adopt that frame for the whole run
+        # (geometry optimization steps then stay in a frame where the symmetry is exact)
+        job.coords = np.array(mol.atom_coords())
     return mol
 
 
@@ -283,7 +287,7 @@ def gradient_scanner(job, res):
         return res.post.nuc_grad_method().as_scanner()
     if m == "CASSCF":
         if job.cas["nstate"] > 1:
-            raise UnsupportedError("gradients of state-averaged CASSCF (NSTATE>1) are not supported")
+            raise UnsupportedError("state-specific gradients of state-averaged CASSCF (NSTATE>1, needs CP-MCSCF) are not supported")
         return res.post.nuc_grad_method().as_scanner()
     if m in ("TDDFT", "TDHF"):
         return res.post.nuc_grad_method().as_scanner(state=job.excited["iroot"])
