@@ -84,6 +84,7 @@ class Job:
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
+    drc: Optional[dict] = None                    # classical trajectory ($DRC)
     semi: Optional[str] = None                    # MNDO, AM1, PM3 or RM1 (GBASIS of a semiempirical run)
 
     @property
@@ -693,6 +694,23 @@ def build_job(deck):
         if scftyp not in ("RHF", "UHF", "ROHF"):
             raise UnsupportedError("RUNTYP=IRC is supported for HF/DFT references only")
         irc = {"stride": g("IRC", "STRIDE"), "npoint": g("IRC", "NPOINT"), "forward": g("IRC", "FORWRD")}
+    drc = None
+    if runtyp == "DRC":
+        for k in ("NNM", "VIBLVL", "VIBENG", "RCENG", "NFRGPR"):
+            if deck.explicit("DRC", k) and g("DRC", k):
+                raise UnsupportedError("$DRC %s needs normal modes of the starting point and is not supported; "
+                                       "give the initial motion with VEL and EKIN" % k)
+        vel = g("DRC", "VEL", report_default=False)
+        if vel is None:
+            raise UnsupportedError("RUNTYP=DRC needs the initial velocity direction in $DRC VEL")
+        natm = len(atoms)
+        if len(vel) != 3 * natm:
+            raise InputError("$DRC VEL needs 3*natoms = %d numbers, found %d" % (3 * natm, len(vel)))
+        if g("DRC", "DELTAT") <= 0 or g("DRC", "NSTEP") < 1:
+            raise InputError("$DRC DELTAT must be positive and NSTEP at least 1")
+        drc = {"nstep": g("DRC", "NSTEP"), "dt": g("DRC", "DELTAT"), "t0": g("DRC", "TOTIME"),
+               "ekin": g("DRC", "EKIN"), "vel": [float(x) for x in vel], "nvel": g("DRC", "NVEL"),
+               "engtol": g("DRC", "ENGTOL"), "nprtsm": max(1, g("DRC", "NPRTSM"))}
     trudge = None
     if runtyp == "TRUDGE":
         if not deck.has("TRUDGE") or not deck.explicit("TRUDGE", "IEX"):
@@ -772,4 +790,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi, drc=drc)

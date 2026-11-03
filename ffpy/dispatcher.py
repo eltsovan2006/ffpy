@@ -48,6 +48,7 @@ def optimize_casscf(job, ctx): return _run("optimize", job, ctx)
 def optimize_tdhf(job, ctx): return _run("optimize", job, ctx)
 def optimize_tddft(job, ctx): return _run("optimize", job, ctx)
 
+def drc_run(job, ctx): return _run("drc", job, ctx)
 def semi(job, ctx): return _run("semi", job, ctx)
 def hessian_hf(job, ctx): return _run("hessian", job, ctx)
 def hessian_dft(job, ctx): return _run("hessian", job, ctx)
@@ -55,6 +56,10 @@ def hessian_dft(job, ctx): return _run("hessian", job, ctx)
 
 HANDLERS = {
     ("SEMI", "ENERGY"): semi,
+    ("SEMI", "DRC"): drc_run,
+    ("HF", "DRC"): drc_run,
+    ("DFT", "DRC"): drc_run,
+    ("MP2", "DRC"): drc_run,
     ("SEMI", "GRADIENT"): semi,
     ("SEMI", "OPTIMIZE"): semi,
     ("HF", "ENERGY"): energy_hf,

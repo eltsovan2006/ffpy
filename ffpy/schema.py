@@ -43,12 +43,12 @@ SOLVENTS = {
     "DMF": 37.219,
 }
 
-RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS", "HESS"}
+RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS", "HESS", "HESS2"}
 
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB", "NONE"), "reference wavefunction (NONE: CI with orbitals from $VEC1)"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE", "TRUDGE", "IRC"), "job type"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE", "TRUDGE", "IRC", "DRC"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT", "GUGA"), "CIS/TDHF/TDDFT excited states or GUGA CI"),
@@ -153,6 +153,27 @@ SCHEMA = {
         "OPTMIZ": K("str", "BASIS", ("BASIS",), "what is optimized (only exponents of the basis)"),
         "NPAR": K("int", None, None, "number of parameters"),
         "IEX": K("floatlist", None, None, "indices of the exponents to optimize (unique exponents in basis order)"),
+    },
+    "DRC": {
+        "NSTEP": K("int", 1000, None, "number of time steps"),
+        "DELTAT": K("float", 0.1, None, "time step, fs"),
+        "TOTIME": K("float", 0.0, None, "time already covered by earlier segments, fs"),
+        "EKIN": K("float", 0.0, None, "initial kinetic energy, kcal/mol"),
+        "VEL": K("floatlist", None, None, "initial velocity (direction, or the velocity itself with NVEL), bohr/fs"),
+        "NVEL": K("bool", False, None, "take the kinetic energy from VEL instead of EKIN"),
+        "NMANAL": K("bool", False, None, "normal mode analysis of the trajectory (not printed by ffpy)"),
+        "C0": K("floatlist", None, None, "stationary point for the normal mode analysis (ignored)"),
+        "HESS2": K("str", "MIN", ("MIN", "TS"), "kind of the reference Hessian (ignored)"),
+        "ENGTOL": K("float", 5e-5, None, "energy conservation threshold, hartree"),
+        "NPRTSM": K("int", 1, None, "summary every N steps"),
+        "NPRT": K("int", 0, None, "orbital printing (ignored)"),
+        "NPUN": K("int", 0, None, "orbital punching (ignored)"),
+        "NNM": K("int", 0, None, "start along one normal mode (needs a Hessian; not supported)"),
+        "ENM": K("float", 0.0, None, "quanta in mode NNM (not supported)"),
+        "VIBLVL": K("bool", False, None, "partition energy over normal modes (not supported)"),
+        "VIBENG": K("floatlist", None, None, "energies per mode (not supported)"),
+        "RCENG": K("float", 0.0, None, "reaction coordinate energy (not supported)"),
+        "NFRGPR": K("int", 0, None, "atom pairs to monitor (not supported)"),
     },
     "IRC": {
         "PACE": K("str", "GS2", ("GS2",), "reaction path algorithm (only Gonzalez-Schlegel GS2)"),
@@ -311,7 +332,7 @@ IGNORED = {
 }
 
 # whole groups that only tune Firefly's parallel runtime / memory: accepted with a WARNING
-IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "ELFLDG", "ELDENS", "ELPOT", "HESS"}
+IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "ELFLDG", "ELDENS", "ELPOT", "HESS", "HESS2"}
 
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
@@ -320,6 +341,5 @@ UNSUPPORTED_GROUPS = {
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman",
     "GRAD": "reading a $GRAD group",
-    "DRC": "DRC", 
     "MOROKM": "Morokuma",
 }

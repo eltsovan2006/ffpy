@@ -72,3 +72,30 @@ aHSiH=110.0
     assert main([str(inp), "-o", str(tmp_path), "-q"]) == 0
     out = parse_out(str(tmp_path / "sih3.out"))
     assert out["energy"] == pytest.approx(-4.3587033972, abs=1e-6)
+
+
+def test_drc_conserves_energy_and_matches_firefly_exam27(tmp_path):
+    inp = tmp_path / "nh3.inp"
+    inp.write_text(""" $CONTRL SCFTYP=RHF RUNTYP=DRC $END
+ $BASIS  GBASIS=AM1 $END
+ $DRC NSTEP=10 DELTAT=0.1 EKIN=1.0
+   VEL(1)=0.0 0.0 -0.1128,
+          0.0 0.0 0.5213,
+          0.0 0.0 0.5213,
+          0.0 0.0 0.5213
+ $END
+ $DATA
+ammonia...DRC starting from the planar transition state
+C1
+NITROGEN    7.0   0.0000000000   0.0000000000   0.0000000000
+HYDROGEN    1.0  -0.4882960784   0.8457536168   0.0000000000
+HYDROGEN    1.0  -0.4882960784  -0.8457536168   0.0000000000
+HYDROGEN    1.0   0.9765921567   0.0000000000   0.0000000000
+ $END
+""")
+    assert main([str(inp), "-o", str(tmp_path), "-q"]) == 0
+    text = (tmp_path / "nh3.out").read_text()
+    totals = [float(l.split("TOTAL")[1]) for l in text.splitlines() if l.strip().startswith("TIME")]
+    assert len(totals) == 11 and max(totals) - min(totals) < 1e-6
+    out = parse_out(str(tmp_path / "nh3.out"))
+    assert out["energy"] == pytest.approx(-9.1287351998, abs=1e-6)
