@@ -84,6 +84,8 @@ SCHEMA = {
     "GUESS": {
         "GUESS": K("str", "HUCKEL", ("HUCKEL", "HCORE", "MOREAD"), "initial orbitals"),
         "NORB": K("int", None, None, "number of orbitals in $VEC (MOREAD)"),
+        "NORDER": K("int", 0, None, "1: reorder the orbitals with IORDER (GVB / open-shell starting orbitals)"),
+        "IORDER": K("floatlist", None, None, "IORDER(k)=n1,n2,...: old orbitals placed from position k on"),
     },
     "SCF": {
         "DIRSCF": K("bool", False, None, "direct SCF"),
@@ -285,7 +287,7 @@ IGNORED = {
     "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
     "IRC": {"TSENGY", "EVIB", "FREQ", "STABLZ", "ELBOW", "DELTA", "NEXTPT", "STOTAL", "SAB", "NPRT", "NPUN", "NRUN", "CNVRGE", "OPTTOL", "ITOPT", "ECORR"},
     "MCQDPT": {"EDSHFT", "THRGEN", "GENZRO", "THRERI", "THRCON", "THRENE", "THRWGT", "IFORB", "INORB", "IROT", "ISELCT", "AVECOE", "WSTATE", "KSTATE", "NSOLUT", "MAXCSF", "MAXERI", "LENGTH", "MXBASE", "MXTRFR", "MDI", "NSTOP"},
-    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS", "PURIFY", "NORDER", "IORDER"},
+    "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS", "PURIFY"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
     "MP2": {"MP2PRP", "CODE", "CUTOFF", "METHOD", "NBCORE", "LMOMP2"},

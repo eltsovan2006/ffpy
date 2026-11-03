@@ -132,3 +132,73 @@ def pair_orbitals(mol, mf, nco, npair):
     if orbsym is not None:
         mo = lib.tag_array(mo, orbsym=np.asarray(orbsym)[order + rest])
     return mo
+
+
+class CoupledSolver(direct_spin1.FCISolver):
+    """Energy functional of a general open-shell SCF with Roothaan coupling coefficients.
+
+    Orbitals are ordered by shells; shell[i] is the shell index of active orbital i (0 = the closed
+    shell), f[s] the fractional occupation (electrons per orbital = 2 f), alpha/beta the symmetric
+    shell-pair matrices:
+
+        E = sum_i 2 f_i h_ii + sum_ij ( alpha_ij J_ij + beta_ij K_ij )     (i, j over all ordered pairs)
+
+    The density matrices are fixed by these numbers, so PySCF's CASSCF supplies only the orbital
+    optimization (with internal rotations between shells)."""
+
+    def __init__(self, mol, shell, f, alpha, beta):
+        super().__init__(mol)
+        self.shell = np.asarray(shell, int)
+        self.f = np.asarray(f, float)
+        self.alpha = np.asarray(alpha, float)
+        self.beta = np.asarray(beta, float)
+        self.nroots = 1
+        self.converged = True
+        n = len(self.shell)
+        self._dm1 = np.diag(2.0 * self.f[self.shell])
+        a = self.alpha[np.ix_(self.shell, self.shell)]
+        b = self.beta[np.ix_(self.shell, self.shell)]
+        dm2 = np.zeros((n,) * 4)
+        for i in range(n):
+            for j in range(n):
+                dm2[i, i, j, j] += 2 * a[i, j]
+                dm2[i, j, j, i] += 2 * b[i, j]
+        self._dm2 = dm2
+
+    def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
+        from pyscf import ao2mo
+        eri = ao2mo.restore(1, h2, norb)
+        e = float(np.einsum("pq,pq", h1, self._dm1) + 0.5 * np.einsum("pqrs,pqrs", eri, self._dm2))
+        self.eci = e + ecore
+        return self.eci, np.zeros(1)
+
+    approx_kernel = kernel
+
+    def make_rdm1(self, fcivec, norb, nelec, link_index=None, **kwargs):
+        return self._dm1
+
+    def make_rdm12(self, fcivec, norb, nelec, link_index=None, reorder=True):
+        return self._dm1, self._dm2
+
+    def make_rdm1s(self, fcivec, norb, nelec, link_index=None, **kwargs):
+        return self._dm1 / 2, self._dm1 / 2
+
+    def spin_square(self, fcivec, norb, nelec):
+        return 0.0, 1.0
+
+
+def default_couplings(nseto, no, mult):
+    """F, ALPHA, BETA of the open-shell cases the GVB module knows without COUPLE=.T."""
+    if nseto == 1 and list(no) == [1] and mult == 2:
+        f = [1.0, 0.5]
+        a = [[2, 1], [1, 0]]
+        b = [[-1, -0.5], [-0.5, 0]]
+    elif nseto == 2 and list(no) == [1, 1] and mult in (1, 3):
+        f = [1.0, 0.5, 0.5]
+        k = 0.5 if mult == 1 else -0.5
+        a = [[2, 1, 1], [1, 0, 0.5], [1, 0.5, 0]]
+        b = [[-1, -0.5, -0.5], [-0.5, 0, k], [-0.5, k, 0]]
+    else:
+        raise UnsupportedError("SCFTYP=GVB with NSETO=%d NO=%s MULT=%d needs COUPLE=.TRUE. with "
+                               "F, ALPHA and BETA" % (nseto, list(no), mult))
+    return f, np.array(a, float), np.array(b, float)

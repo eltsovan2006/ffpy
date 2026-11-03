@@ -29,6 +29,7 @@ class Group:
         self.keys = {}      # KEY -> python value
         self.raw = {}       # KEY -> text as written
         self.lines = []     # raw groups only
+        self.starts = {}    # KEY -> first index of an array written as KEY(k)=... (IORDER)
         self._text = []
 
 
@@ -163,7 +164,9 @@ def _parse_keywords(group, deck):
         if key in group.keys:
             raise InputError("$%s: keyword %s given twice" % (group.name, key))
         value = parts if (len(parts) > 1 or schema[key].type == "floatlist") else parts[0]
-        if index is not None and int(index) != 1:
+        if index is not None and int(index) != 1 and key == "IORDER":
+            group.starts[key] = int(index)
+        elif index is not None and int(index) != 1:
             raise UnsupportedError("$%s %s(%s)=...: arrays must start at index 1"
                                    % (group.name, key, index))
         group.keys[key] = _typed(group.name, key, value, rawval)

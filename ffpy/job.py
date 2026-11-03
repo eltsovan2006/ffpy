@@ -79,6 +79,7 @@ class Job:
     trudge: Optional[dict] = None                 # exponent optimization
     irc: Optional[dict] = None                    # reaction path
     mrpt: bool = False                            # MCQDPT2 on top of CASSCF
+    iorder: Optional[tuple] = None                # (first position, old orbital numbers) from $GUESS IORDER
     vec_firefly: bool = False                     # $VEC is in Firefly (GAMESS) AO order
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
@@ -451,6 +452,11 @@ def build_job(deck):
     elif "VEC" in deck.groups:
         deck.notes.append(("warning", "$VEC is present but GUESS is not MOREAD; it is ignored"))
 
+    iorder = None
+    if deck.explicit("GUESS", "NORDER") and g("GUESS", "NORDER") == 1 and deck.explicit("GUESS", "IORDER"):
+        iorder = (deck.groups["GUESS"].starts.get("IORDER", 1),
+                  [int(x) for x in deck.groups["GUESS"].keys["IORDER"]])
+
     conv = g("SCF", "CONV", report_default=False)
     nconv = 10.0 ** -g("SCF", "NCONV") if conv is None else conv
 
@@ -560,15 +566,51 @@ def build_job(deck):
     if scftyp == "GVB":
         # one perfect-pairing geminal = full CI in two orbitals = CASSCF(2,2)
         nco, nseto, npair = g("SCF", "NCO"), g("SCF", "NSETO"), g("SCF", "NPAIR")
-        if nseto or npair < 1:
-            raise UnsupportedError("SCFTYP=GVB is supported only with NSETO=0 and NPAIR>=1 "
-                                   "(perfect-pairing geminals); got NSETO=%d NPAIR=%d" % (nseto, npair))
-        if mult != 1:
+        open_shells = None
+        if nseto and npair:
+            raise UnsupportedError("SCFTYP=GVB with open shells (NSETO) and geminal pairs (NPAIR) together "
+                                   "is not supported")
+        if nseto:
+            from ffpy.gvb import default_couplings
+            no = g("SCF", "NO", report_default=False)
+            if not no or len(no) != nseto:
+                raise InputError("$SCF: NO(1)=... must give %d numbers (orbitals of every open shell)" % nseto)
+            no = [int(x) for x in no]
+            if g("SCF", "COUPLE"):
+                f, al, be = (g("SCF", k, report_default=False) for k in ("F", "ALPHA", "BETA"))
+                nsh = nseto + 1
+                if f is None or al is None or be is None:
+                    raise InputError("$SCF COUPLE=.TRUE. needs F, ALPHA and BETA")
+                ntri = nsh * (nsh + 1) // 2
+                if len(f) != nsh or len(al) != ntri or len(be) != ntri:
+                    raise InputError("$SCF: F needs %d numbers, ALPHA and BETA %d" % (nsh, ntri))
+                A, B = np.zeros((nsh, nsh)), np.zeros((nsh, nsh))
+                k = 0
+                for i in range(nsh):
+                    for j in range(i + 1):
+                        A[i, j] = A[j, i] = al[k]
+                        B[i, j] = B[j, i] = be[k]
+                        k += 1
+                f = list(f)
+            else:
+                f, A, B = default_couplings(nseto, no, mult)
+            shell = [0] * nco + [s + 1 for s, n in enumerate(no) for _ in range(n)]
+            ne = 2 * nco + sum(2 * f[s + 1] * n for s, n in enumerate(no))
+            if abs(ne - nelec) > 1e-6:
+                raise InputError("$SCF: 2*NCO + sum(2*F*NO) = %g, but the molecule has %d electrons" % (ne, nelec))
+            open_shells = {"shell": shell, "f": f, "alpha": A, "beta": B}
+        elif npair < 1:
+            raise UnsupportedError("SCFTYP=GVB needs NPAIR>=1 or open shells (NSETO); got NSETO=0 NPAIR=0")
+        if mult != 1 and not open_shells:
             raise UnsupportedError("SCFTYP=GVB with MULT>1 is not supported")
         if xc or mplevl or excited:
             raise UnsupportedError("SCFTYP=GVB cannot be combined with DFTTYP/MPLEVL/TDDFT/CIS")
         cas = {"ncore": nco, "nact": 2 * npair, "nels": 2 * npair, "nstate": 1, "wstate": None,
                "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"), "istsym": 1}
+        if open_shells:
+            cas.update(ncore=0, nact=len(open_shells["shell"]), nels=nelec, istsym=0, open=open_shells)
+            if runtyp != "ENERGY":
+                raise UnsupportedError("GVB with open shells is supported only for RUNTYP=ENERGY")
         if npair > 1:
             cas["pp"] = npair
             cas["istsym"] = 0
@@ -576,7 +618,7 @@ def build_job(deck):
             if runtyp != "ENERGY":
                 raise UnsupportedError("GVB with NPAIR>1 is supported only for RUNTYP=ENERGY")
         scftyp = "MCSCF"
-        if 2 * nco + 2 * npair != nelec:
+        if not open_shells and 2 * nco + 2 * npair != nelec:
             raise InputError("$SCF: 2*NCO + 2*NPAIR = %d, but the molecule has %d electrons"
                              % (2 * nco + 2 * npair, nelec))
     elif scftyp == "MCSCF":
@@ -712,4 +754,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)

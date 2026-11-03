@@ -469,21 +469,40 @@ def run_mrmp2(job, mf, mc, mol):
     return MRPTResult(mc.e_tot, float(np.sum(hq[sel] ** 2 / den[sel])))
 
 
+def reorder_orbitals(job, C):
+    """Apply $GUESS NORDER=1 IORDER(k)=... to the starting orbitals (columns of C)."""
+    if not job.iorder:
+        return C
+    start, olds = job.iorder
+    perm = list(range(C.shape[1]))
+    for k, old in enumerate(olds):
+        perm[start - 1 + k] = old - 1
+    if sorted(perm) != list(range(C.shape[1])):
+        raise InputError("$GUESS IORDER does not describe a permutation of the orbitals")
+    out = C[:, perm]
+    orbsym = getattr(C, "orbsym", None)
+    return lib.tag_array(out, orbsym=np.asarray(orbsym)[perm]) if orbsym is not None else out
+
+
 def build_cas(job, mf):
     c = job.cas
     s = job.mult - 1
     nelecas = ((c["nels"] + s) // 2, (c["nels"] - s) // 2)
     mc = mcscf.CASSCF(mf, c["nact"], nelecas)
+    if c.get("open"):
+        from ffpy.gvb import CoupledSolver
+        o = c["open"]
+        mc.fcisolver = CoupledSolver(mf.mol, o["shell"], o["f"], o["alpha"], o["beta"])
+        mc.internal_rotation = True
     if c.get("pp"):
         from ffpy.gvb import PPSolver
         mc.fcisolver = PPSolver(mf.mol, c["pp"])
         mc.internal_rotation = True
-        mc.natorb = False
-        mc.max_cycle_macro = max(c["maxit"], 200)
-    mc.max_cycle_macro = max(c["maxit"], mc.max_cycle_macro) if c.get("pp") else c["maxit"]
-    mc.conv_tol = 1e-10 if c.get("pp") else 1e-9
-    mc.conv_tol_grad = 1e-6 if c.get("pp") else c["acurcy"]
-    mc.natorb = True
+        mc.max_cycle_macro = 200
+    mc.max_cycle_macro = max(c["maxit"], mc.max_cycle_macro) if (c.get("pp") or c.get("open")) else c["maxit"]
+    mc.conv_tol = 1e-10 if (c.get("pp") or c.get("open")) else 1e-9
+    mc.conv_tol_grad = 1e-6 if (c.get("pp") or c.get("open")) else c["acurcy"]
+    mc.natorb = not (c.get("pp") or c.get("open"))
     if c.get("istsym"):
         names = _irrep_table(job)[1]
         if not 1 <= c["istsym"] <= len(names):
@@ -621,7 +640,10 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         e_tot = e_scf + post.e_corr
     elif m == "CASSCF":
         post = build_cas(job, mf)
-        if job.cas.get("pp"):
+        if job.cas.get("open"):
+            post.natorb = False
+            post.kernel(reorder_orbitals(job, mf.mo_coeff))
+        elif job.cas.get("pp"):
             from ffpy.gvb import pair_orbitals
             post.kernel(pair_orbitals(mol, mf, job.cas["ncore"], job.cas["pp"]))
         elif job.guess == "MOREAD" and job.vec_firefly and job.cas["nstate"] == 1:

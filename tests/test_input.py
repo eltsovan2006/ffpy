@@ -607,3 +607,25 @@ def test_gvb_pp_runs_and_lies_between_rhf_and_cas(tmp_path):
     cas.kernel(pair_orbitals(mol, mf, 13, 2))
     assert cas.e_tot < mc.e_tot < mf.e_tot
     assert (np.abs(np.sin(mc.fcisolver.theta)) < 0.5).all()
+
+
+def test_open_shell_gvb_input_and_default_couplings():
+    from ffpy.gvb import default_couplings
+    f, a, b = default_couplings(2, [1, 1], 1)
+    assert list(f) == [1.0, 0.5, 0.5] and a[1, 2] == 0.5 and b[1, 2] == 0.5
+    assert default_couplings(2, [1, 1], 3)[2][1, 2] == -0.5
+    with pytest.raises(UnsupportedError, match="COUPLE"):
+        default_couplings(1, [3], 3)
+    base = " $BASIS GBASIS=STO NGAUSS=3 $END\n $DATA\nt\nC1\nSi 14.0 0 0 0\n $END\n"
+    txt = (" $CONTRL SCFTYP=GVB MULT=3 $END\n $SCF NCO=6 NSETO=1 NO=3 COUPLE=.TRUE. F(1)=1.0,0.3333333333333333\n"
+           " ALPHA(1)=2.0,0.6666666666667,0.1666666666667 BETA(1)=-1.0,-0.3333333333333,-0.1666666666667 $END\n")
+    job = build_job(parse_input(txt + base))
+    assert job.cas["open"]["shell"] == [0] * 6 + [1] * 3 and job.cas["ncore"] == 0
+    with pytest.raises(InputError, match="electrons"):
+        build_job(parse_input(txt.replace("NCO=6", "NCO=5") + base))
+
+
+def test_iorder_with_start_index():
+    txt = (" $CONTRL SCFTYP=RHF $END\n $GUESS GUESS=HUCKEL NORDER=1 IORDER(5)=7,5,6 $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
+           " $DATA\nt\nC1\nHe 2.0 0 0 0\n $END\n")
+    assert build_job(parse_input(txt)).iorder == (5, [7, 5, 6])
