@@ -1,4 +1,4 @@
-# Поддерживаемые группы и ключи ffpy 0.3.2
+# Поддерживаемые группы и ключи ffpy 0.4.0
 
 > Ключи и значения по умолчанию записаны по документации GAMESS (US) / Firefly.
 > Перед использованием в учебных расчётах каждую группу нужно сверить с
@@ -304,3 +304,23 @@ $ZMAT (internal coordinates), $EFRAG (EFP), $EFP (EFP), $FMO (FMO), $XMCQDPT (XM
 | 4 | geometry optimization did not converge in NSTEP steps |
 | 5 | time limit ($SYSTEM TIMLIM) exceeded |
 | 9 | internal error |
+
+## Новое в 0.4.0
+
+| Группа / ключ | Что делает |
+|---|---|
+| `$CONTRL MPLEVL=3,4` | MP3 / MP4, только `SCFTYP=RHF`; остов по умолчанию заморожен (`$MP2 NACORE`) |
+| `$MP4 SDTQ=.T.` / `TONLY=.T.` | MP4(SDTQ) вместо MP4(SDQ) / только вклад (T) |
+| `$CONTRL RUNTYP=NUMGRAD` | численный градиент любого метода (центральные разности) |
+| `$CONTRL SCFTYP=GVB` + `$SCF NCO= NPAIR=1` | GVB с одной парой, считается как CASSCF(2,2) в симметрии; `NSETO>0` и `NPAIR>1` не поддерживаются |
+| `$CONTRL CITYP=TDHF/TDDFT` + `$TDHF` | возбуждённые состояния; `ISTSYM` выбирает симметрию |
+| `$DRT FORS=.T.` (`NMCC, NDOC, NALP, NVAL, ISTSYM`), `$GUGDIA NSTATE`, `$GUGDM2 WSTATE` | CASSCF в виде FORS через `CISTEP=GUGA` |
+| `$DFTNL B=, C=` + `DFTNL=.T.` | несамосогласованный нелокальный член VV10 (DFT-NL) |
+| `$CONTRL ECP=SBK` | псевдопотенциал SBKJC |
+| `$CONTRL D5=.T.` | сферические d-функции |
+| базис в `$DATA` | оболочки S/P/D/L и библиотечные строки (`N21 3`, `SBK`) после атома |
+| `GBASIS=STO NGAUSS=2` | STO-2G для H–Ne по опубликованной таблице |
+| `ffpy --json`, `ffpy-mcp` | машиночитаемый вывод и MCP-сервер (см. README) |
+
+Принимаются без эффекта: группы `$P2P`, `$TRANS`, `$GUGEM`, `$MCQFIT`; ключи
+`NUMDER`, `LOCAL`, `LMOMP2`.

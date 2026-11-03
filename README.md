@@ -27,7 +27,7 @@ ffpy water.inp
 
 ### Вариант 1. Автоустановщик (рекомендуется)
 
-Скачайте `ffpy-0.3.2-setup.exe` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases) и следуйте мастеру установки:
+Скачайте `ffpy-0.4.0-setup.exe` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases) и следуйте мастеру установки:
 * Устанавливает программу в выбранную папку (по умолчанию `C:\ffpy`).
 * Автоматически добавляет путь в переменную `PATH`.
 * Создаёт ярлык `ffpy-gui` на Рабочем столе и в меню «Пуск».
@@ -35,7 +35,7 @@ ffpy water.inp
 
 ### Вариант 2. Портативная сборка (ZIP-архив)
 
-1. Распакуйте `ffpy-0.3.2-win64.zip` в любую папку, например `C:\ffpy`.
+1. Распакуйте `ffpy-0.4.0-win64.zip` в любую папку, например `C:\ffpy`.
 2. При необходимости добавьте команду `ffpy` в переменную `PATH`, запустив `add_to_path.ps1`:
    ```
    powershell -ExecutionPolicy Bypass -File C:\ffpy\add_to_path.ps1
@@ -54,11 +54,11 @@ conda-forge собирает PySCF 2.14 под win-64; эта сборка и у
 
 ### Установка из DMG-образа (рекомендуется)
 
-1. Скачайте `ffpy-0.3.2-macos-arm64.dmg` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases).
+1. Скачайте `ffpy-0.4.0-macos-arm64.dmg` со страницы [релиза](https://github.com/eltsovan2006/ffpy/releases).
 2. Откройте скачанный `.dmg` файл и перетащите `ffpy.app` в папку `Программы` (`Applications`).
 3. Для работы в терминале консольный бинарник находится внутри бандла: `/Applications/ffpy.app/Contents/MacOS/ffpy`.
 
-Также доступна портативная сборка в виде ZIP-архива `ffpy-0.3.2-macos-arm64.zip` (распакуйте в удобную папку и запускайте `ffpy` или `ffpy-gui`).
+Также доступна портативная сборка в виде ZIP-архива `ffpy-0.4.0-macos-arm64.zip` (распакуйте в удобную папку и запускайте `ffpy` или `ffpy-gui`).
 
 ### Первый запуск и обход предупреждения Gatekeeper
 
@@ -208,23 +208,33 @@ MCP-серверов): в настройках добавьте stdio-серве
 > В Windows-сборке (`ffpy-<версия>-win64.zip`) `ffpy-mcp` пока не входит;
 > используйте установку из исходников.
 
-## Что умеет 0.3.2
+## Что умеет 0.4.0
 
-* HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`);
-  MP2 (`MPLEVL=2`, по умолчанию с замороженным остовом); TDHF/CIS/TDDFT/TDA
-  (`$TDDFT NSTATE=`, `CITYP=CIS`); CASSCF (`SCFTYP=MCSCF` + `$DET`);
+* HF: RHF, UHF, ROHF; DFT (`DFTTYP=B3LYP, PBE0, PBE, BLYP, M06-2X, ...`),
+  DFT-NL (VV10, `$DFTNL`); MP2 (`MPLEVL=2`, по умолчанию с замороженным
+  остовом), **MP3 и MP4** (`MPLEVL=3/4`, SDQ/SDTQ/T, только RHF);
+  TDHF/CIS/TDDFT/TDA (`$TDDFT NSTATE=`, `CITYP=CIS/TDHF/TDDFT`, `$TDHF`,
+  `ISTSYM`); CASSCF (`SCFTYP=MCSCF` + `$DET` или `$DRT FORS`, `ISTSYM`);
+  GVB с одной парой (`NPAIR=1`, считается как CASSCF(2,2));
   растворитель IEF-PCM (`$PCM SOLVNT=WATER`).
-* `RUNTYP=ENERGY, GRADIENT, OPTIMIZE, HESSIAN`; частоты, ИК-интенсивности,
-  термохимия при нескольких температурах (`$FORCE TEMP(1)=...`),
-  `$STATPT HSSEND=.TRUE.`.
+* `RUNTYP=ENERGY, GRADIENT, OPTIMIZE, HESSIAN, NUMGRAD`; частоты,
+  ИК-интенсивности, термохимия при нескольких температурах
+  (`$FORCE TEMP(1)=...`), `$STATPT HSSEND=.TRUE.`. Для MP3/MP4 градиент
+  численный.
 * Базисы `GBASIS=STO, N21, N31, N311` с `NGAUSS/NDFUNC/NPFUNC/NFFUNC/DIFFSP/DIFFS`,
-  а также `CCD, CCT, CCQ, ACCD, ACCT, ...`.
-* Точечные группы в `$DATA` (Cs, Ci, Cn, Cnv, Cnh, Dn, Dnh, Dnd, S2n, T, Td,
-  Th, O, Oh): атомы размножаются по симметрии, расчёт идёт в C1.
+  `CCD, CCT, CCQ, ACCD, ACCT, ...`, `SBKJC`; базис прямо в `$DATA`
+  (оболочки S/P/D/L и библиотечные строки вроде `N21 3`); ECP `ECP=SBK`.
+* Z-матрица (`COORD=ZMT`, `$ZMAT`), точечные группы в `$DATA` (Cs, Ci, Cn,
+  Cnv, Cnh, Dn, Dnh, Dnd, S2n, T, Td, Th, O, Oh): атомы размножаются по
+  симметрии, расчёт идёт в C1 (при `ISTSYM` — в симметрии).
+* Интерфейсы: GUI (редактор, 3D-просмотр, пакеты и итоги), `ffpy --json`
+  и MCP-сервер `ffpy-mcp` (см. выше).
 
 Полный список ключей, значения по умолчанию и таблица «метод × RUNTYP» —
-в [docs/KEYWORDS.md](docs/KEYWORDS.md). Чего нет: XMCQDPT2, FMO,
-P2P-параллелизм, ECP, z-матрица, побитовое совпадение с Firefly.
+в [docs/KEYWORDS.md](docs/KEYWORDS.md). Чего нет: XMCQDPT2/MCQDPT, GVB с
+несколькими парами и открытыми оболочками, CI/GUGA (SOCI), `SCFTYP=NONE`,
+IRC/DRC, EFP, FMO, RI-MP2, ECP=READ, дисперсия D3, градиент
+state-averaged CASSCF по одному состоянию, побитовое совпадение с Firefly.
 
 ## Точность относительно Firefly
 
@@ -234,9 +244,14 @@ RHF/6-31G* даёт E = −76.0107465 Eh, r(OH) = 0.9473 Å, ∠HOH = 105.50°,
 частоты 1826.6 / 4070.5 / 4188.7 см⁻¹ — в пределах допусков от известных
 значений GAMESS для этой задачи.
 
-Эталонные числа в `tests/reference.json` пока сгенерированы самим ffpy
-(`"source": "ffpy-regression"`). Их нужно заменить числами настоящего
-Firefly, запущенного как чёрный ящик на тех же входах из `tests/inputs`.
+Часть эталонов в `tests/reference.json` — числа настоящего Firefly
+(`"source": "firefly"`), посчитанного как чёрный ящик на официальных
+тестах (около 30 случаев: HF, DFT, DFT-NL, MP2/MP3/MP4, CASSCF, TDHF/TDDFT,
+ECP=SBK). Энергии HF/MP2/MP3/MP4 и CASSCF совпадают до 1·10⁻⁷ Eh, DFT
+обычно до 4·10⁻⁶ Eh. Известные расхождения: IEF-PCM (разница энергии
+сольватации около 2·10⁻⁴ Eh, другая дискретизация полости), энергии
+возбуждения (10⁻⁵…10⁻⁴ Eh). Остальные эталоны пока посчитаны самим ffpy
+(`"source": "ffpy-regression"`).
 
 ## Разработка
 

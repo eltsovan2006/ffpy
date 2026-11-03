@@ -4,9 +4,9 @@ VSVersionInfo(
   kids=[
     StringFileInfo([StringTable('040904B0', [
       StringStruct('FileDescription', 'ffpy - Firefly/GAMESS-style inputs computed with PySCF'),
-      StringStruct('FileVersion', '0.3.2'),
+      StringStruct('FileVersion', '0.4.0'),
       StringStruct('ProductName', 'ffpy'),
-      StringStruct('ProductVersion', '0.3.2'),
+      StringStruct('ProductVersion', '0.4.0'),
       StringStruct('OriginalFilename', 'ffpy.exe')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]

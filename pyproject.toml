@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ffpy"
-version = "0.3.2"
+version = "0.4.0"
 description = "Firefly/GAMESS-style input front end for PySCF"
 readme = "README.md"
 license = { text = "Apache-2.0" }

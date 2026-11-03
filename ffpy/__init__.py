@@ -8,5 +8,5 @@ import os
 # NumPy/MKL is loaded.
 os.environ.setdefault("MKL_THREADING_LAYER", "SEQUENTIAL")
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 PROGRAM = "ffpy"
