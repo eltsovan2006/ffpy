@@ -61,7 +61,14 @@ def _density(base):
 def fd_hessian(job, ctx, res):
     """Hessian by central differences of analytic gradients, plus dipole derivatives from the same
     displaced calculations (used where PySCF has no analytic hessian: CASSCF/GVB, ROHF)."""
+    from dataclasses import replace
     from ffpy.methods import gradient_scanner
+    if job.cas and (job.cas.get("pp_sym") or job.cas.get("istsym")):
+        # displaced geometries have no point-group symmetry: redo the reference without it
+        if job.cas.get("istsym") and not job.cas.get("pp_sym"):
+            raise UnsupportedError("hessian of a symmetry-selected CASSCF state (ISTSYM) is not supported")
+        job = replace(job, cas=dict(job.cas, pp_sym=False, istsym=0))
+        res = compute(job, ctx, tight=True)
     coords0 = res.mol.atom_coords()
     natm = len(coords0)
     h = np.zeros((natm, natm, 3, 3))

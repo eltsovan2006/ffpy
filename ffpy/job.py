@@ -434,6 +434,7 @@ def build_job(deck):
         raise InputError("SCFTYP=RHF requires MULT=1; use UHF or ROHF for open shells")
 
     guess = g("GUESS", "GUESS")
+    iorder_given = deck.groups["GUESS"].keys.get("IORDER") if deck.has("GUESS") else None
     vec, vec_firefly = None, False
     if guess == "MOREAD":
         if "VEC" not in deck.groups:
@@ -568,8 +569,16 @@ def build_job(deck):
         nco, nseto, npair = g("SCF", "NCO"), g("SCF", "NSETO"), g("SCF", "NPAIR")
         open_shells = None
         if nseto and npair:
-            raise UnsupportedError("SCFTYP=GVB with open shells (NSETO) and geminal pairs (NPAIR) together "
-                                   "is not supported")
+            no = g("SCF", "NO", report_default=False)
+            if (not no or len(no) != nseto or any(int(x) != 1 for x in no) or mult != nseto + 1
+                    or g("SCF", "COUPLE") or iorder_given is None):
+                raise UnsupportedError("SCFTYP=GVB with open shells and NPAIR is supported only for singly "
+                                       "occupied high-spin open orbitals (NO=1,..., MULT=NSETO+1) with "
+                                       "$GUESS NORDER=1 IORDER=... giving the orbital order")
+            nseto_pp = nseto
+            nseto = 0
+        else:
+            nseto_pp = 0
         if nseto:
             from ffpy.gvb import default_couplings
             no = g("SCF", "NO", report_default=False)
@@ -601,7 +610,7 @@ def build_job(deck):
             open_shells = {"shell": shell, "f": f, "alpha": A, "beta": B}
         elif npair < 1:
             raise UnsupportedError("SCFTYP=GVB needs NPAIR>=1 or open shells (NSETO); got NSETO=0 NPAIR=0")
-        if mult != 1 and not open_shells:
+        if mult != 1 and not open_shells and not nseto_pp:
             raise UnsupportedError("SCFTYP=GVB with MULT>1 is not supported")
         if xc or mplevl or excited:
             raise UnsupportedError("SCFTYP=GVB cannot be combined with DFTTYP/MPLEVL/TDDFT/CIS")
@@ -610,12 +619,14 @@ def build_job(deck):
         if open_shells:
             cas.update(ncore=0, nact=len(open_shells["shell"]), nels=nelec, istsym=0, open=open_shells)
 
-        if npair > 1:
+        if npair > 1 or nseto_pp:
             cas["pp"] = npair
+            cas["nopen"] = nseto_pp
+            cas["nact"] = cas["nels"] = 2 * npair + nseto_pp
             cas["istsym"] = 0
             cas["pp_sym"] = nops > 1        # keep the symmetry of the point group (Firefly does)
         scftyp = "MCSCF"
-        if not open_shells and 2 * nco + 2 * npair != nelec:
+        if not open_shells and 2 * nco + 2 * npair + nseto_pp != nelec:
             raise InputError("$SCF: 2*NCO + 2*NPAIR = %d, but the molecule has %d electrons"
                              % (2 * nco + 2 * npair, nelec))
     elif scftyp == "MCSCF":

@@ -195,7 +195,7 @@ def test_symmetry_in_data():
 
 
 def test_dispatcher_rejects():
-    job = build_job(deck(" $CONTRL SCFTYP=ROHF ICHARG=1 MULT=2 RUNTYP=HESSIAN $END\n"
+    job = build_job(deck(" $CONTRL SCFTYP=ROHF DFTTYP=B3LYP ICHARG=1 MULT=2 RUNTYP=HESSIAN $END\n"
                          " $BASIS GBASIS=STO NGAUSS=3 $END\n"))
     with pytest.raises(UnsupportedError):
         select(job)
@@ -444,8 +444,6 @@ def test_gvb_one_pair_is_cas22():
     assert job.method == "CASSCF" and (job.cas["nact"], job.cas["nels"], job.cas["ncore"]) == (2, 2, 4)
     pp = build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=3 NPAIR=2 $END\n" + base))
     assert pp.cas["pp"] == 2 and pp.cas["nact"] == 4
-    with pytest.raises(UnsupportedError, match="ENERGY"):
-        build_job(parse_input(" $CONTRL SCFTYP=GVB RUNTYP=GRADIENT $END\n $SCF NCO=3 NPAIR=2 $END\n" + base))
     with pytest.raises(UnsupportedError, match="NSETO"):
         build_job(parse_input(" $CONTRL SCFTYP=GVB $END\n $SCF NCO=3 NSETO=1 NO=1 $END\n" + base))
 

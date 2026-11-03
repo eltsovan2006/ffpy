@@ -484,6 +484,49 @@ def reorder_orbitals(job, C):
     return lib.tag_array(out, orbsym=np.asarray(orbsym)[perm]) if orbsym is not None else out
 
 
+def best_open_pair(job, mf, ctx):
+    """Open orbitals plus one geminal: try the SOMOs as the open shell and the pair taken from the
+    highest doubly occupied and lowest virtual orbitals; the lowest converged energy is kept (the
+    wavefunction has several solutions and Firefly's orbital order cannot be transferred)."""
+    import itertools
+    c = job.cas
+    nopen, npair = c["nopen"], c["pp"]
+    if npair != 1:
+        raise UnsupportedError("open shells together with more than one geminal are not supported")
+    nmo = mf.mo_coeff.shape[1]
+    occ = np.asarray(mf.mo_occ)
+    somo = [i for i in range(nmo) if occ[i] == 1]
+    dbl = [i for i in range(nmo) if occ[i] == 2]
+    virt = [i for i in range(nmo) if occ[i] == 0]
+    if len(somo) != nopen:
+        raise UnsupportedError("the ROHF reference has %d singly occupied orbitals, NSETO=%d" % (len(somo), nopen))
+    best = None
+    ncore = c["ncore"]
+    for po, pv in itertools.product(dbl[-3:], virt[:3]):
+        order = [i for i in dbl if i != po]
+        if len(order) != ncore:
+            order = order[:ncore] if len(order) > ncore else order
+        order = order + somo + [po, pv]
+        if len(set(order)) != len(order):
+            continue
+        rest = [i for i in range(nmo) if i not in order]
+        perm = order + rest
+        C = mf.mo_coeff[:, perm]
+        orbsym = getattr(mf.mo_coeff, "orbsym", None)
+        if orbsym is not None:
+            C = lib.tag_array(C, orbsym=np.asarray(orbsym)[perm])
+        mc = build_cas(job, mf)
+        try:
+            mc.kernel(C)
+        except Exception:
+            continue
+        if mc.converged and (best is None or mc.e_tot < best.e_tot):
+            best = mc
+    if best is None:
+        raise SCFNotConverged("no orbital assignment of the open shell and geminal converged")
+    return best
+
+
 def build_cas(job, mf):
     c = job.cas
     s = job.mult - 1
@@ -496,7 +539,7 @@ def build_cas(job, mf):
         mc.internal_rotation = True
     if c.get("pp"):
         from ffpy.gvb import PPSolver
-        mc.fcisolver = PPSolver(mf.mol, c["pp"])
+        mc.fcisolver = PPSolver(mf.mol, c["pp"], c.get("nopen", 0))
         mc.internal_rotation = True
         mc.max_cycle_macro = 200
     mc.max_cycle_macro = max(c["maxit"], mc.max_cycle_macro) if (c.get("pp") or c.get("open")) else c["maxit"]
@@ -643,6 +686,8 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         if job.cas.get("open"):
             post.natorb = False
             post.kernel(reorder_orbitals(job, mf.mo_coeff))
+        elif job.cas.get("pp") and job.cas.get("nopen"):
+            post = best_open_pair(job, mf, ctx)
         elif job.cas.get("pp"):
             from ffpy.gvb import pair_orbitals
             post.kernel(pair_orbitals(mol, mf, job.cas["ncore"], job.cas["pp"]))

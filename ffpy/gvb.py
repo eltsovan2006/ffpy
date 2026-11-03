@@ -15,40 +15,56 @@ from ffpy.errors import UnsupportedError
 
 
 class PPSolver(direct_spin1.FCISolver):
-    """Perfect-pairing wavefunction in the active space [a1 b1 a2 b2 ...]."""
+    """Perfect-pairing wavefunction in the active space [o1 .. ok  a1 b1 a2 b2 ...]: k singly
+    occupied high-spin open orbitals times NPAIR geminals."""
 
-    def __init__(self, mol, npair, theta0=None):
+    def __init__(self, mol, npair, nopen=0, theta0=None):
         super().__init__(mol)
         self.npair = npair
+        self.nopen = nopen
         self.theta = np.full(npair, 0.15) if theta0 is None else np.array(theta0, float)
         self.converged = True
         self.nroots = 1
 
     def _structure(self, norb):
-        strings = cistring.make_strings(range(norb), self.npair)
-        idx, sign_a = [], []
-        for k, s in enumerate(strings):
-            bits = [(int(s) >> q) & 1 for q in range(norb)]
-            ok = all(bits[2 * p] + bits[2 * p + 1] == 1 for p in range(self.npair))
-            if ok:
-                idx.append(k)
-                sign_a.append([bits[2 * p + 1] for p in range(self.npair)])
-        return np.array(idx), np.array(sign_a)
+        na = self.npair + self.nopen
+        sa = cistring.make_strings(range(norb), na)
+        sb = cistring.make_strings(range(norb), self.npair)
+        open_mask = (1 << self.nopen) - 1
+        rows, cols, choice = [], [], []
+        for ia, s in enumerate(sa):
+            if int(s) & open_mask != open_mask:
+                continue
+            ch = []
+            for p in range(self.npair):
+                a = (int(s) >> (self.nopen + 2 * p)) & 1
+                b = (int(s) >> (self.nopen + 2 * p + 1)) & 1
+                if a + b != 1:
+                    break
+                ch.append(b)
+            else:
+                # the beta string with the same choice per pair
+                bits = sum(1 << (self.nopen + 2 * p + c) for p, c in enumerate(ch))
+                ib = int(np.flatnonzero(sb == bits)[0])
+                rows.append(ia)
+                cols.append(ib)
+                choice.append(ch)
+        return np.array(rows), np.array(cols), np.array(choice).reshape(len(rows), self.npair)
 
     def vector(self, theta, norb):
-        idx, choice = self._structure(norb)
-        n = cistring.num_strings(norb, self.npair)
-        psi = np.zeros((n, n))
-        coef = np.prod(np.where(choice == 0, np.cos(theta), -np.sin(theta)), axis=1)
-        psi[idx, idx] = coef
+        rows, cols, choice = self._structure(norb)
+        psi = np.zeros((cistring.num_strings(norb, self.npair + self.nopen),
+                        cistring.num_strings(norb, self.npair)))
+        psi[rows, cols] = np.prod(np.where(choice == 0, np.cos(theta), -np.sin(theta)), axis=1)
         return psi
 
     def kernel(self, h1, h2, norb, nelec, ci0=None, ecore=0, **kwargs):
-        h2e = direct_spin1.absorb_h1e(h1, h2, norb, (self.npair, self.npair), 0.5)
+        nel = (self.npair + self.nopen, self.npair)
+        h2e = direct_spin1.absorb_h1e(h1, h2, norb, nel, 0.5)
 
         def energy(theta):
             psi = self.vector(theta, norb)
-            hpsi = direct_spin1.contract_2e(h2e, psi, norb, (self.npair, self.npair))
+            hpsi = direct_spin1.contract_2e(h2e, psi, norb, nel)
             return float(np.sum(psi * hpsi))
 
         res = minimize(energy, self.theta, method="BFGS", options={"gtol": 1e-10})
@@ -60,7 +76,8 @@ class PPSolver(direct_spin1.FCISolver):
     approx_kernel = kernel
 
     def spin_square(self, fcivec, norb, nelec):
-        return 0.0, 1.0
+        s = 0.5 * self.nopen
+        return s * (s + 1), 2 * s + 1
 
 
 def _plane_parity(mol, C):
