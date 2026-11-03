@@ -84,6 +84,7 @@ class Job:
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
+    semi: Optional[str] = None                    # MNDO, AM1, PM3 or RM1 (GBASIS of a semiempirical run)
 
     @property
     def symbols(self):
@@ -92,6 +93,8 @@ class Job:
     @property
     def method(self):
         """Key used by the dispatcher."""
+        if self.semi:
+            return "SEMI"
         if self.scftyp == "MCSCF":
             return "CASSCF"
         if self.ci:
@@ -107,6 +110,8 @@ class Job:
         return "DFT" if self.xc else "HF"
 
     def describe(self):
+        if self.semi:
+            return "%s/%s" % (self.scftyp, self.semi)
         ref = self.scftyp
         if self.xc:
             ref = {"RHF": "RKS", "UHF": "UKS", "ROHF": "ROKS"}[self.scftyp] + "/" + self.dfttyp
@@ -381,6 +386,7 @@ def build_job(deck):
                                              custom=custom)
 
     atom_tags = None
+    semi = None
     if custom:
         atom_tags = ["%s%d" % (ELEMENTS[a[1]], c[0]) for a, c in zip(atoms, custom)]
         basis = BasisDict({t: c[1] for t, c in zip(atom_tags, custom)}, "CUSTOM")
@@ -388,18 +394,22 @@ def build_job(deck):
         if not deck.has("BASIS") or not deck.explicit("BASIS", "GBASIS"):
             raise InputError("$BASIS GBASIS=... is required (or give basis functions in $DATA)")
         b = deck.groups["BASIS"].keys
-        canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
-                               b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
-        if deck.explicit("BASIS", "POLAR"):
-            native = "DUNNING" if b["GBASIS"].upper() in ("DH", "DZV") else (
-                "POPN311" if b["GBASIS"].upper() in ("N311", "MC") else "POPLE")
-            if (b.get("NDFUNC", 0) or b.get("NPFUNC", 0)) and b["POLAR"] != native:
-                raise UnsupportedError("POLAR=%s with GBASIS=%s is not supported (only POLAR=%s)"
-                                       % (b["POLAR"], b["GBASIS"], native))
-        if canonical in ("sto-4g", "sto-5g"):
-            raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
-        elements = {ELEMENTS[z] for _, z, _ in atoms}
-        basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
+        if str(b["GBASIS"]).upper() in ("MNDO", "AM1", "PM3", "RM1"):
+            semi = str(b["GBASIS"]).upper()
+            basis = semi
+        else:
+            canonical = basis_name(b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0), b.get("NPFUNC", 0),
+                                   b.get("NFFUNC", 0), b.get("DIFFSP", False), b.get("DIFFS", False))
+            if deck.explicit("BASIS", "POLAR"):
+                native = "DUNNING" if b["GBASIS"].upper() in ("DH", "DZV") else (
+                    "POPN311" if b["GBASIS"].upper() in ("N311", "MC") else "POPLE")
+                if (b.get("NDFUNC", 0) or b.get("NPFUNC", 0)) and b["POLAR"] != native:
+                    raise UnsupportedError("POLAR=%s with GBASIS=%s is not supported (only POLAR=%s)"
+                                           % (b["POLAR"], b["GBASIS"], native))
+            if canonical in ("sto-4g", "sto-5g"):
+                raise UnsupportedError("basis %s is not supported by PySCF" % canonical)
+            elements = {ELEMENTS[z] for _, z, _ in atoms}
+            basis = make_element_basis(canonical, elements, b["GBASIS"], b.get("NGAUSS"), b.get("NDFUNC", 0))
 
     dftnl = None
     if g("CONTRL", "DFTNL", report_default=False):
@@ -762,4 +772,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi)

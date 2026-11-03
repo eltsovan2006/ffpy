@@ -49,6 +49,16 @@ def job_summary(log, job, mol):
                                        else "PySCF default (%d MB)" % mol.max_memory))
 
 
+def job_summary_semi(log, job):
+    log.section("job")
+    log("  title            : %s" % job.title)
+    log("  method           : %s" % job.describe())
+    log("  RUNTYP           : %s" % job.runtyp)
+    log("  charge / mult    : %d / %d" % (job.charge, job.mult))
+    log("  point group      : %s in $DATA (%d operations); calculation runs in C1"
+        % (job.point_group, job.nsym_ops))
+
+
 def geometry(log, labels, charges, coords, title="molecular geometry"):
     log.section(title)
     log("  %-8s %6s %15s %15s %15s   %15s %15s %15s"

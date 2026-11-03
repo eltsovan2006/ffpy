@@ -256,8 +256,11 @@ def _run(args, path, stem, log, pyscf_fh, t0):
     log("  handler: %s" % handler.__name__)
 
     ctx = Context(job, log, t0=t0, pyscf_fh=pyscf_fh, gamess=args.gamess)
-    mol = build_mol(job, ctx)
-    out.job_summary(log, job, mol)
+    if job.semi:
+        out.job_summary_semi(log, job)
+    else:
+        mol = build_mol(job, ctx)
+        out.job_summary(log, job, mol)
     out.geometry(log, job.labels, job.charges, job.coords, "input geometry")
     out.distances(log, job.labels, job.coords)
     if args.gamess:
@@ -273,6 +276,15 @@ def _run(args, path, stem, log, pyscf_fh, t0):
 
     from ffpy.writers import dat, molden, xyz
     log.section("output files")
+    if job.semi:
+        if ctx.trajectory:
+            xyz.write(stem + ".xyz", job.symbols, ctx.trajectory)
+            log("  %s.xyz      optimization trajectory (%d frames)"
+                % (os.path.basename(stem), len(ctx.trajectory)))
+        log.section("final result")
+        log("  %-34s %20.10f" % ("FINAL ENERGY (HARTREE)", res.e_tot))
+        log("  %-34s %20.5f" % ("FINAL HEAT OF FORMATION (KCAL/MOL)", res.heat))
+        return ctx.status, ctx.status_msg
     molden.write(stem + ".molden", res, job.method, freq=ctx.freq,
                  trajectory=ctx.trajectory, symbols=job.symbols)
     log("  %s.molden   orbitals" % os.path.basename(stem))

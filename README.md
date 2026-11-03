@@ -219,7 +219,8 @@ MCP-серверов): в настройках добавьте stdio-серве
   для ROHF — RMP/ROHF-MBPT2), **MP3 и MP4** (`MPLEVL=3/4`, SDQ/SDTQ/T, только RHF);
   TDHF/CIS/TDDFT/TDA (`$TDDFT NSTATE=`, `CITYP=CIS/TDHF/TDDFT`, `$TDHF`,
   `ISTSYM`); CASSCF (`SCFTYP=MCSCF` + `$DET` или `$DRT FORS`, `ISTSYM`);
-  GVB с одной парой (`NPAIR=1`, считается как CASSCF(2,2));
+  GVB: идеальное спаривание с несколькими парами (`NPAIR`), открытые оболочки и связи Рутаан (`NSETO`, `COUPLE`), `$GUESS IORDER`;
+  полуэмпирика NDDO — `GBASIS=MNDO/AM1/PM3/RM1` (s,p-элементы; ENERGY, GRADIENT, OPTIMIZE; RHF/UHF; теплота образования в `.out`);
   растворитель IEF-PCM (`$PCM SOLVNT=WATER`).
 * `RUNTYP=ENERGY, GRADIENT, OPTIMIZE, HESSIAN, NUMGRAD`; частоты,
   ИК-интенсивности, термохимия при нескольких температурах

@@ -114,6 +114,8 @@ def app(tmp_path_factory):
     QSettings.setDefaultFormat(QSettings.IniFormat)
     QSettings.setPath(QSettings.IniFormat, QSettings.UserScope, str(tmp_path_factory.mktemp("settings")))
     a = QApplication.instance() or QApplication([])
+    from ffpy.gui import i18n
+    i18n._LANG = "ru"
     yield a
 
 
