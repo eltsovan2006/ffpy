@@ -154,7 +154,12 @@ def test_basis_map_errors():
 
 
 def test_xc_map():
-    assert xc_for("B3LYP") == "b3lyp5"
+    # Firefly manual: plain B3LYP defaults to B3LYP1 (VWN formula 1 RPA); $DFT B3LYP=GAMESS selects formula 5
+    assert xc_for("B3LYP") == "b3lypg"
+    assert xc_for("B3LYP", "NWCHEM") == "b3lypg"
+    assert xc_for("B3LYP", "GAMESS") == "b3lyp5"
+    assert xc_for("B3LYP1") == "b3lypg"
+    assert xc_for("B3LYP5") == "b3lyp5"
     assert xc_for("PBE0") == "pbe0"
     with pytest.raises(InputError):
         xc_for("NOPE")

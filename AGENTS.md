@@ -91,8 +91,8 @@ not imitate the Firefly header.
 - `ISPHER=-1` default -> Cartesian d/f (`mol.cart=True`), as GAMESS; this is
   what makes RHF/6-31G* water match GAMESS (-76.0107465).
 - MP2 freezes the chemical core by default (GAMESS behaviour), `$MP2 NACORE`.
-- `B3LYP` -> `b3lyp5` (VWN5, GAMESS/Firefly style); `B3LYP1`/`B3LYPV1R` -> `b3lypg`.
-  Assumption from memory — must be checked against Firefly.
+- `B3LYP`/`B3LYP1`/`B3LYPV1R` -> `b3lypg` (VWN1 RPA; Firefly default per manual, confirmed by exam35/36/37);
+  `B3LYP5` or `$DFT B3LYP=GAMESS` -> `b3lyp5` (VWN5).
 - SCF convergence: `NCONV` (density, 1e-5) -> `conv_tol_grad=10^-NCONV`,
   `conv_tol=min(1e-9, that^2)`; `tight=True` for hessian/FD runs.
 - Frequencies: PySCF `atom_mass_list(isotope_avg=False)` returns *integer

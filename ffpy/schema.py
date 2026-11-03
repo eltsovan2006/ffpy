@@ -93,6 +93,7 @@ SCHEMA = {
     "DFT": {
         "NRAD": K("int", None, None, "radial points per atom (with NLEB)"),
         "NLEB": K("int", None, None, "Lebedev angular points (with NRAD)"),
+        "B3LYP": K("str", "NWCHEM", ("NWCHEM", "GAMESS"), "VWN formula of DFTTYP=B3LYP: NWCHEM = 1 RPA (default), GAMESS = 5"),
     },
     "MP2": {
         "NACORE": K("int", None, None, "frozen core orbitals; not set = chemical core"),

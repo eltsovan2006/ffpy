@@ -217,7 +217,7 @@ def build_job(deck):
         raise UnsupportedError("$STATPT IFREEZ: coordinate freezing is not supported by ffpy")
 
     scftyp, runtyp = contrl["SCFTYP"], contrl["RUNTYP"]
-    xc = None if dfttyp == "NONE" else xc_for(dfttyp)
+    xc = None if dfttyp == "NONE" else xc_for(dfttyp, g("DFT", "B3LYP", report_default=False))
 
     title, pgroup, atoms, nops = _parse_data(deck.groups["DATA"].lines, contrl["UNITS"], coord=coord)
 

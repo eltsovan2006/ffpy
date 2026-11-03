@@ -70,9 +70,10 @@
   (6D/10F). Для cc-pVXZ обычно ставят `ISPHER=1`.
 * MP2 по умолчанию с замороженным химическим остовом (как в GAMESS);
   `$MP2 NACORE=0` — все электроны.
-* `DFTTYP=B3LYP` → `b3lyp5` (VWN5, как в GAMESS/Firefly);
-  `B3LYP1` / `B3LYPV1R` → `b3lypg` (VWN1-RPA, как в Gaussian). Таблицу нужно
-  проверить на одной молекуле против настоящего Firefly.
+* `DFTTYP=B3LYP` → `b3lypg` (VWN1-RPA, как в Firefly по умолчанию),
+  `B3LYP1` / `B3LYPV1R` → `b3lypg`; `B3LYP5` или `$DFT B3LYP=GAMESS` →
+  `b3lyp5` (VWN5, как в GAMESS (US)). Подтверждено расчётами Firefly
+  (exam35, exam36, exam37: совпадение лучше 4·10⁻⁶ Eh).
 * DFT-сетка — по умолчанию PySCF (`grids.level=3`); `$DFT NRAD=, NLEB=`
   задают радиальную и угловую сетку. Поэтому энергии DFT расходятся с
   Firefly примерно в 4-м знаке.
@@ -261,7 +262,7 @@ Accepted with a WARNING, no effect: EPSINF, ICAV, ICOMP, IDISP, IDP, RSOLV
 | REVPBE | `revpbe,pbe` |
 | PBE0 | `pbe0` |
 | PBE1PBE | `pbe0` |
-| B3LYP | `b3lyp5` |
+| B3LYP | `b3lypg` (`$DFT B3LYP=GAMESS` → `b3lyp5`) |
 | B3LYP5 | `b3lyp5` |
 | B3LYP1 | `b3lypg` |
 | B3LYPV1R | `b3lypg` |
