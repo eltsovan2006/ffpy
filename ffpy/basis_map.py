@@ -95,29 +95,27 @@ class BasisDict(dict):
 
 # d polarization exponents that Firefly adds for GBASIS=N21 NGAUSS=3 NDFUNC=1 on heavy atoms
 # which PySCF's 3-21G* lacks (read from a Firefly run; only elements actually seen are listed)
-# STO-2G is not shipped with PySCF. Unit-zeta least-squares fits of the Slater functions
-# (1s; 2s and 2p sharing exponents), obtained with the Hehre-Stewart-Pople procedure and checked
-# by reproducing the published STO-3G/H STO-2G numbers; scaled by the STO-3G molecular zetas.
-_STO2G_1S = ([0.8518185619823503, 0.15162328426962016], [0.4301285328254816, 0.6789134933079246])
-_STO2G_2SP = ([0.38426410316066784, 0.09745773505350928],
-              [0.04944777653285292, 0.9638005400057365], [0.5115174801401234, 0.6128447583597149])
-_STO3G_1S_EXP = 2.227660584      # unit-zeta first exponents of the published STO-3G fits
-_STO3G_2SP_EXP = 0.9942027296
+# STO-2G, H-Ne: published tables (Hehre, Stewart, Pople 1969; as distributed by the Basis Set Exchange).
+# PySCF does not ship STO-2G.
+STO2G = {
+    "H": [[0, [1.309756377, 0.4301284983], [0.2331359749, 0.6789135305]]],
+    "He": [[0, [2.432879285, 0.4301284983], [0.4330512863, 0.6789135305]]],
+    "Li": [[0, [6.163845031, 0.4301284983], [1.097161308, 0.6789135305]], [0, [0.245916322, 0.0494717692], [0.06237087296, 0.9637824081]], [1, [0.245916322, 0.5115407076], [0.06237087296, 0.6128198961]]],
+    "Be": [[0, [11.53566907, 0.4301284983], [2.053343279, 0.6789135305]], [0, [0.5081630247, 0.0494717692], [0.1288835617, 0.9637824081]], [1, [0.5081630247, 0.5115407076], [0.1288835617, 0.6128198961]]],
+    "B": [[0, [18.6568731, 0.4301284983], [3.320914006, 0.6789135305]], [0, [0.8645495695, 0.0494717692], [0.2192726003, 0.9637824081]], [1, [0.8645495695, 0.5115407076], [0.2192726003, 0.6128198961]]],
+    "C": [[0, [27.38503303, 0.4301284983], [4.874522075, 0.6789135305]], [0, [1.136748198, 0.0494717692], [0.2883093603, 0.9637824081]], [1, [1.136748198, 0.5115407076], [0.2883093603, 0.6128198961]]],
+    "N": [[0, [37.89647534, 0.4301284983], [6.745553507, 0.6789135305]], [0, [1.461088772, 0.0494717692], [0.3705706944, 0.9637824081]], [1, [1.461088772, 0.5115407076], [0.3705706944, 0.6128198961]]],
+    "O": [[0, [49.98097117, 0.4301284983], [8.896587673, 0.6789135305]], [0, [1.945236531, 0.0494717692], [0.4933633506, 0.9637824081]], [1, [1.945236531, 0.5115407076], [0.4933633506, 0.6128198961]]],
+    "F": [[0, [63.73520195, 0.4301284983], [11.34483382, 0.6789135305]], [0, [2.498548256, 0.0494717692], [0.6336978147, 0.9637824081]], [1, [2.498548256, 0.5115407076], [0.6336978147, 0.6128198961]]],
+    "Ne": [[0, [79.15916767, 0.4301284983], [14.09029194, 0.6789135305]], [0, [3.187075533, 0.0494717692], [0.8083265136, 0.9637824081]], [1, [3.187075533, 0.5115407076], [0.8083265136, 0.6128198961]]],
+}
 
 
 def sto2g_shells(element):
-    """STO-2G shells for H-Ne in PySCF format, zetas taken from PySCF's STO-3G."""
-    from pyscf import gto
-    ref = gto.basis.load("sto-3g", element)
-    if element not in ("H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"):
+    """STO-2G shells in PySCF format (H-Ne)."""
+    if element not in STO2G:
         raise UnsupportedError("basis STO-2G is available for H-Ne only, not %s" % element)
-    z1 = ref[0][1][0] / _STO3G_1S_EXP
-    out = [[0] + [[e * z1, c] for e, c in zip(*_STO2G_1S)]]
-    if len(ref) > 1:
-        z2 = ref[1][1][0] / _STO3G_2SP_EXP
-        out.append([0] + [[e * z2, c] for e, c in zip(_STO2G_2SP[0], _STO2G_2SP[1])])
-        out.append([1] + [[e * z2, c] for e, c in zip(_STO2G_2SP[0], _STO2G_2SP[2])])
-    return out
+    return copy.deepcopy(STO2G[element])
 
 
 GAMESS_321G_D = {"Sb": 0.211}

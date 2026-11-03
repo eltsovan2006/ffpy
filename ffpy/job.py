@@ -427,18 +427,30 @@ def build_job(deck):
 
     cas = None
     if scftyp == "MCSCF":
-        if not deck.has("DET"):
-            raise InputError("SCFTYP=MCSCF requires a $DET group (NCORE, NACT, NELS)")
-        for k in ("NCORE", "NACT", "NELS"):
-            if not deck.explicit("DET", k):
-                raise InputError("$DET %s is required" % k)
         if not g("MCSCF", "FORS"):
             raise UnsupportedError("$MCSCF FORS=.FALSE. is not supported")
-        d = deck.groups["DET"].keys
-        cas = {"ncore": d["NCORE"], "nact": d["NACT"], "nels": d["NELS"],
-               "nstate": g("DET", "NSTATE"), "wstate": g("DET", "WSTATE", False),
-               "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY")}
-        g("MCSCF", "CISTEP")
+        if g("MCSCF", "CISTEP") == "GUGA" or (deck.has("DRT") and not deck.has("DET")):
+            # full-CI-in-the-active-space (FORS) described with $DRT, solved like $DET
+            if not deck.has("DRT") or not deck.explicit("DRT", "FORS") or not g("DRT", "FORS"):
+                raise UnsupportedError("CISTEP=GUGA is supported only with $DRT FORS=.TRUE.")
+            if g("DRT", "NALP") and g("DRT", "NALP") != mult - 1:
+                raise InputError("$DRT NALP=%d does not match MULT=%d" % (g("DRT", "NALP"), mult))
+            nact = g("DRT", "NDOC") + g("DRT", "NALP") + g("DRT", "NVAL")
+            cas = {"ncore": g("DRT", "NMCC"), "nact": nact, "nels": 2 * g("DRT", "NDOC") + g("DRT", "NALP"),
+                   "nstate": g("GUGDIA", "NSTATE", False), "wstate": g("GUGDM2", "WSTATE", False),
+                   "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"),
+                   "istsym": g("DRT", "ISTSYM", False) if deck.explicit("DRT", "ISTSYM") else 0}
+        else:
+            if not deck.has("DET"):
+                raise InputError("SCFTYP=MCSCF requires a $DET group (NCORE, NACT, NELS)")
+            for k in ("NCORE", "NACT", "NELS"):
+                if not deck.explicit("DET", k):
+                    raise InputError("$DET %s is required" % k)
+            d = deck.groups["DET"].keys
+            cas = {"ncore": d["NCORE"], "nact": d["NACT"], "nels": d["NELS"],
+                   "nstate": g("DET", "NSTATE"), "wstate": g("DET", "WSTATE", False),
+                   "maxit": g("MCSCF", "MAXIT"), "acurcy": g("MCSCF", "ACURCY"),
+                   "istsym": g("DET", "ISTSYM", False) if deck.explicit("DET", "ISTSYM") else 0}
         if 2 * cas["ncore"] + cas["nels"] != nelec:
             raise InputError("$DET: 2*NCORE + NELS = %d, but the molecule has %d electrons"
                              % (2 * cas["ncore"] + cas["nels"], nelec))

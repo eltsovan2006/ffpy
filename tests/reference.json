@@ -9,6 +9,30 @@
     "mulliken": 0.01
   },
   "cases": {
+    "exam01": {
+      "source": "firefly",
+      "energy": -37.2380397693
+    },
+    "exam02": {
+      "source": "firefly",
+      "energy": -37.2810867272
+    },
+    "exam03": {
+      "source": "firefly",
+      "energy": -37.2778767104
+    },
+    "exam06": {
+      "source": "firefly",
+      "energy": -37.2581791677
+    },
+    "exam07": {
+      "source": "firefly",
+      "energy": -414.0945320912
+    },
+    "exam18": {
+      "source": "firefly",
+      "energy": -12.6956517412
+    },
     "exam52": {
       "source": "firefly",
       "energy": -408.253629225662,

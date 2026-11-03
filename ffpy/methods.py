@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import numpy as np
-from pyscf import dft, gto, mcscf, mp, scf, tdscf
+from pyscf import dft, fci, gto, mcscf, mp, scf, tdscf
 from pyscf.data.elements import chemcore
 
 from ffpy.errors import InputError, SCFNotConverged, TimeLimitExceeded, UnsupportedError
@@ -81,7 +81,7 @@ def build_mol(job, ctx, coords=None):
     mol.spin = job.mult - 1
     mol.cart = job.cart
     mol.symmetry = False
-    if job.excited and job.excited.get("istsym"):
+    if (job.excited and job.excited.get("istsym")) or (job.cas and job.cas.get("istsym")):
         mol.symmetry = _irrep_table(job)[0]
     if job.memory_mb:
         mol.max_memory = job.memory_mb
@@ -198,6 +198,12 @@ def build_cas(job, mf):
     mc.conv_tol = 1e-9
     mc.conv_tol_grad = c["acurcy"]
     mc.natorb = True
+    if c.get("istsym"):
+        names = _irrep_table(job)[1]
+        if not 1 <= c["istsym"] <= len(names):
+            raise InputError("ISTSYM=%d: point group %s has %d irreps" % (c["istsym"], job.point_group, len(names)))
+        mc.fcisolver = fci.direct_spin1_symm.FCI(mf.mol)
+        mc.fcisolver.wfnsym = names[c["istsym"] - 1]
     if c["nstate"] > 1:
         w = c["wstate"] or [1.0 / c["nstate"]] * c["nstate"]
         w = list(np.asarray(w) / np.sum(w))

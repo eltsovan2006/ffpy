@@ -138,7 +138,23 @@ SCHEMA = {
         "IROOT": K("int", 1, None, "state for gradient/optimization"),
         "MULT": K("int", 1, (1, 3), "excited-state multiplicity (closed shell)"),
     },
+    "DRT": {
+        "GROUP": K("str", "C1", None, "point group"),
+        "FORS": K("bool", False, None, "full optimized reaction space CAS (only .TRUE.)"),
+        "NMCC": K("int", 0, None, "doubly occupied core orbitals"),
+        "NDOC": K("int", 0, None, "doubly occupied active orbitals"),
+        "NALP": K("int", 0, None, "singly occupied (alpha) active orbitals"),
+        "NVAL": K("int", 0, None, "empty (virtual) active orbitals"),
+        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
+    },
+    "GUGDIA": {
+        "NSTATE": K("int", 1, None, "CI roots; >1 = state-averaged MCSCF"),
+    },
+    "GUGDM2": {
+        "WSTATE": K("floatlist", None, None, "state-averaging weights; not set = equal"),
+    },
     "DET": {
+        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
         "NCORE": K("int", None, None, "doubly occupied core orbitals (required)"),
         "NACT": K("int", None, None, "active orbitals (required)"),
         "NELS": K("int", None, None, "active electrons (required)"),
@@ -146,7 +162,8 @@ SCHEMA = {
         "WSTATE": K("floatlist", None, None, "state-averaging weights; not set = equal"),
     },
     "MCSCF": {
-        "CISTEP": K("str", "ALDET", ("ALDET",), "CI solver"),
+        "CISTEP": K("str", "ALDET", ("ALDET", "GUGA"), "CI solver (GUGA is run as the same full CI in the active space)"),
+        "ISTATE": K("int", 1, None, "state followed in geometry optimization"),
         "FORS": K("bool", True, None, "full optimized reaction space (only .TRUE.)"),
         "MAXIT": K("int", 100, None, "max macro-iterations"),
         "ACURCY": K("float", 1e-5, None, "orbital gradient convergence"),
@@ -183,15 +200,18 @@ IGNORED = {
     "FORCE": {"NVIB", "VIBSIZ", "PURIFY", "PRTIFC"},
     "TDDFT": {"NRAD", "NLEB", "PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
     "TDHF": {"PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
-    "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS", "GROUP", "ISTSYM", "ISPIN"},
-    "MCSCF": {"SOSCF", "FULLNR", "FOCAS", "QUAD", "JACOBI"},
+    "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS", "GROUP", "ISPIN"},
+    "DRT": {"MXNINT", "FOCI", "SDCI", "NEXT", "NFZC", "NINT", "IEXCIT", "ITOL", "NAOS", "NBOS"},
+    "GUGDIA": {"ITERMX", "CVGTOL", "PRTTOL", "MEMMAX", "NHGSS", "NSTGSS"},
+    "GUGDM2": {"CUTOFF", "NSTATE"},
+    "MCSCF": {"SOSCF", "FULLNR", "FOCAS", "QUAD", "JACOBI", "NPFLG"},
     "PCM": {"ICOMP", "ICAV", "IDISP", "RSOLV", "EPSINF", "IDP"},
     "ELMOM": {"IEMOM", "WHERE"},
     "ZMAT": {"NONVDW", "AUTOFV", "DLCTOL", "IFRZAT", "SIJ", "IJS", "FVALUE", "IXZMAT", "IRZMAT", "IFZMAT"},
 }
 
 # whole groups that only tune Firefly's parallel runtime / memory: accepted with a WARNING
-IGNORED_GROUPS = {"P2P", "TRANS"}
+IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT"}
 
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
@@ -200,7 +220,7 @@ UNSUPPORTED_GROUPS = {
     "CCINP": "coupled cluster",
     "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
     "GRAD": "reading a $GRAD group", "ELPOT": "electrostatic potential",
-    "LIBE": "LIBE", "DRT": "GUGA",
+    "LIBE": "LIBE",
     "RIMP2": "RI-MP2", "AUXBAS": "auxiliary basis", "MP4": "MP4",
     "IRC": "IRC", "DRC": "DRC", "TRUDGE": "TRUDGE", "SURF": "surface scan",
     "MOROKM": "Morokuma", "DFTD": "dispersion DFT", "SCRF": "SCRF", "CPHF": "CPHF",
