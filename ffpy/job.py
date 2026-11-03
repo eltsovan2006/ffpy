@@ -77,6 +77,7 @@ class Job:
     scrf: Optional[dict] = None                   # Onsager reaction field
     surface: Optional[list] = None                # rigid scan coordinates ($SURF)
     trudge: Optional[dict] = None                 # exponent optimization
+    irc: Optional[dict] = None                    # reaction path
     vec1: Optional[np.ndarray] = None             # Firefly-ordered orbitals for SCFTYP=NONE
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
@@ -591,6 +592,15 @@ def build_job(deck):
     elif deck.has("DET") or deck.has("MCSCF"):
         deck.notes.append(("warning", "$DET/$MCSCF given but SCFTYP is not MCSCF; ignored"))
 
+    irc = None
+    if runtyp == "IRC":
+        if not g("IRC", "SADDLE"):
+            raise UnsupportedError("RUNTYP=IRC is supported only from a saddle point ($IRC SADDLE=.TRUE.)")
+        if g("IRC", "STRIDE") <= 0 or g("IRC", "NPOINT") < 1:
+            raise InputError("$IRC STRIDE must be positive and NPOINT at least 1")
+        if scftyp not in ("RHF", "UHF", "ROHF"):
+            raise UnsupportedError("RUNTYP=IRC is supported for HF/DFT references only")
+        irc = {"stride": g("IRC", "STRIDE"), "npoint": g("IRC", "NPOINT"), "forward": g("IRC", "FORWRD")}
     trudge = None
     if runtyp == "TRUDGE":
         if not deck.has("TRUDGE") or not deck.explicit("TRUDGE", "IEX"):
@@ -670,4 +680,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc)

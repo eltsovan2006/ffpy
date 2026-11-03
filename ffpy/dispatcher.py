@@ -21,6 +21,7 @@ def energy_dft(job, ctx): return _run("energy", job, ctx)
 def energy_mp2(job, ctx): return _run("energy", job, ctx)
 def surface_scan(job, ctx): return _run("surface", job, ctx)
 def trudge_opt(job, ctx): return _run("trudge", job, ctx)
+def irc_path(job, ctx): return _run("irc", job, ctx)
 def energy_ci(job, ctx): return _run("energy", job, ctx)
 def gradient_ci(job, ctx): return _run("gradient", job, ctx)
 def energy_dh(job, ctx): return _run("energy", job, ctx)
@@ -58,6 +59,8 @@ HANDLERS = {
     ("MP3", "ENERGY"): energy_mp3,
     ("DH", "ENERGY"): energy_dh,
     ("HF", "TRUDGE"): trudge_opt,
+    ("HF", "IRC"): irc_path,
+    ("DFT", "IRC"): irc_path,
     ("DFT", "TRUDGE"): trudge_opt,
     ("HF", "SURFACE"): surface_scan,
     ("DFT", "SURFACE"): surface_scan,

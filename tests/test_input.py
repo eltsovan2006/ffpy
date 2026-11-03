@@ -527,3 +527,13 @@ def test_trudge_input_and_two_number_l_shell():
     assert exps == [0.5, 0.25]                       # the s and p parts of the L shell share an exponent
     new = _replace(job.basis, 0.5, 0.4)
     assert [p[0] for sh in new["He1"] for p in sh[1:]] == [0.4, 0.4, 0.25]
+
+
+def test_irc_input():
+    txt = (" $CONTRL RUNTYP=IRC $END\n $BASIS GBASIS=STO NGAUSS=3 $END\n"
+           " $IRC PACE=GS2 SADDLE=.TRUE. FORWRD=.FALSE. NPOINT=3 TSENGY=.TRUE. $END\n"
+           " $DATA\nt\nC1\nH 1.0 0 0 0\nH 1.0 0 0 0.8\n $END\n $HESS\nENERGY IS -1.0\n 1  1 1.0E+00\n $END\n")
+    job = build_job(parse_input(txt))
+    assert job.irc == {"stride": 0.3, "npoint": 3, "forward": False}
+    with pytest.raises(UnsupportedError, match="saddle"):
+        build_job(parse_input(txt.replace("SADDLE=.TRUE.", "SADDLE=.FALSE.")))

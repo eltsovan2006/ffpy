@@ -43,12 +43,12 @@ SOLVENTS = {
     "DMF": 37.219,
 }
 
-RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS"}
+RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS", "HESS"}
 
 SCHEMA = {
     "CONTRL": {
         "SCFTYP": K("str", "RHF", ("RHF", "UHF", "ROHF", "MCSCF", "GVB", "NONE"), "reference wavefunction (NONE: CI with orbitals from $VEC1)"),
-        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE", "TRUDGE"), "job type"),
+        "RUNTYP": K("str", "ENERGY", ("ENERGY", "GRADIENT", "OPTIMIZE", "HESSIAN", "NUMGRAD", "TRANSITN", "SURFACE", "TRUDGE", "IRC"), "job type"),
         "DFTTYP": K("str", "NONE", ("NONE", "DPBEP86") + tuple(sorted(XC_MAP)), "DFT functional"),
         "MPLEVL": K("int", 0, (0, 2, 3, 4), "MP2/MP3/MP4 (MP3 and MP4 are RHF only)"),
         "CITYP": K("str", "NONE", ("NONE", "CIS", "TDHF", "TDDFT", "GUGA"), "CIS/TDHF/TDDFT excited states or GUGA CI"),
@@ -146,6 +146,13 @@ SCHEMA = {
         "OPTMIZ": K("str", "BASIS", ("BASIS",), "what is optimized (only exponents of the basis)"),
         "NPAR": K("int", None, None, "number of parameters"),
         "IEX": K("floatlist", None, None, "indices of the exponents to optimize (unique exponents in basis order)"),
+    },
+    "IRC": {
+        "PACE": K("str", "GS2", ("GS2",), "reaction path algorithm (only Gonzalez-Schlegel GS2)"),
+        "STRIDE": K("float", 0.30, None, "step along the path, bohr*sqrt(amu)"),
+        "NPOINT": K("int", 1, None, "number of path points"),
+        "SADDLE": K("bool", False, None, "start from a saddle point (required)"),
+        "FORWRD": K("bool", True, None, "follow the forward direction of the imaginary mode"),
     },
     "SCRF": {
         "DIELEC": K("float", 78.39, None, "solvent dielectric constant"),
@@ -267,6 +274,7 @@ IGNORED = {
                "NUMDER", "LOCAL"},
     "SYSTEM": {"MEMDDI", "KDIAG", "NOJAC", "PARALL", "MKLNP", "NP", "CORE", "BALNCS", "XDLB"},
     "SMP": {"HTTNP", "MKLNP", "NP", "CALL64"},
+    "IRC": {"TSENGY", "EVIB", "FREQ", "STABLZ", "ELBOW", "DELTA", "NEXTPT", "STOTAL", "SAB", "NPRT", "NPUN", "NRUN", "CNVRGE", "OPTTOL", "ITOPT", "ECORR"},
     "GUESS": {"PRTMO", "PUNMO", "MIX", "TOLZ", "TOLE", "ASIS", "PURIFY", "NORDER", "IORDER"},
     "SCF": {"FDIFF", "NPUNCH", "EXTRAP", "RSTRCT", "DIRTHR", "NPREO"},
     "DFT": {"METHOD", "DC", "IDCVER"},
@@ -291,15 +299,15 @@ IGNORED = {
 }
 
 # whole groups that only tune Firefly's parallel runtime / memory: accepted with a WARNING
-IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "ELFLDG", "ELDENS", "ELPOT"}
+IGNORED_GROUPS = {"P2P", "TRANS", "GUGEM", "MCQFIT", "CPHF", "LIBE", "ELMOM", "ELFLDG", "ELDENS", "ELPOT", "HESS"}
 
 UNSUPPORTED_GROUPS = {
     "EFRAG": "EFP", "EFP": "EFP",
     "FMO": "FMO", "XMCQDPT": "XMCQDPT2", "MCQDPT": "MCQDPT",
     "ECP": "effective core potentials",
     "CCINP": "coupled cluster",
-    "EOMINP": "EOM-CC", "RAMAN": "Raman", "HESS": "reading a $HESS group",
+    "EOMINP": "EOM-CC", "RAMAN": "Raman",
     "GRAD": "reading a $GRAD group",
-    "IRC": "IRC", "DRC": "DRC", 
+    "DRC": "DRC", 
     "MOROKM": "Morokuma",
 }
