@@ -737,6 +737,16 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.LeftToolBarArea, self.rail_toolbar)
         self.rail = self.rail_widget
 
+    def _sync_toolbar_buttons(self):
+        """Spectrum/Properties buttons belong to the 3D page, Files/Results to the others."""
+        if not (hasattr(self, "btn_toggle_spectrum") and hasattr(self, "btn_toggle_results")):
+            return
+        is_3d = self.stack.currentIndex() == 2
+        self.btn_toggle_spectrum.setVisible(is_3d)
+        self.btn_toggle_props.setVisible(is_3d)
+        self.btn_toggle_files.setVisible(not is_3d)
+        self.btn_toggle_results.setVisible(not is_3d)
+
     def set_mode(self, index):
         if self.stack.currentIndex() == index:
             return
@@ -767,11 +777,7 @@ class MainWindow(QMainWindow):
         is_3d = (index == 2)
         self.pos_label.setVisible(is_editor)
         self.check_label.setVisible(is_editor)
-        if hasattr(self, "btn_toggle_spectrum") and hasattr(self, "btn_toggle_props"):
-            self.btn_toggle_spectrum.setVisible(is_3d)
-            self.btn_toggle_props.setVisible(is_3d)
-            self.btn_toggle_files.setVisible(not is_3d)
-            self.btn_toggle_results.setVisible(not is_3d)
+        self._sync_toolbar_buttons()
 
         if not is_editor:
             self.files_dock.hide()
@@ -1218,6 +1224,9 @@ class MainWindow(QMainWindow):
         self.results_dock.visibilityChanged.connect(self.btn_toggle_results.setChecked)
         self.results_dock.visibilityChanged.connect(lambda _: self._update_editor_centering())
         tb.addWidget(self.btn_toggle_results)
+
+        self.stack.currentChanged.connect(lambda _: self._sync_toolbar_buttons())
+        self._sync_toolbar_buttons()
 
         # Keep threads spinbox off-toolbar for ask_threads / tests
         self.threads_spin = QSpinBox()

@@ -884,3 +884,16 @@ def test_every_gui_string_has_an_english_translation():
         assert i18n.tr("Сохранить") == "Save" and i18n.tr("нет в словаре") == "нет в словаре"
     finally:
         i18n._LANG = "ru"
+
+
+def test_toolbar_buttons_follow_stack_page(app, no_modal):
+    from ffpy.gui.app import MainWindow
+    w = MainWindow()
+    # the 3D page owns Spectrum/Properties, the others own Files/Results, however the page changed
+    w.stack.setCurrentIndex(2)
+    assert not w.btn_toggle_spectrum.isHidden() and not w.btn_toggle_props.isHidden()
+    assert w.btn_toggle_files.isHidden() and w.btn_toggle_results.isHidden()
+    w.stack.setCurrentIndex(0)
+    assert w.btn_toggle_spectrum.isHidden() and w.btn_toggle_props.isHidden()
+    assert not w.btn_toggle_files.isHidden() and not w.btn_toggle_results.isHidden()
+    w.close()
