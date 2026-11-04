@@ -56,6 +56,7 @@ _IRREPS = {
     "CS": ("Cs", ["A'", 'A"']),
     "CI": ("Ci", ["Ag", "Au"]),
     "C2": ("C2", ["A", "B"]),
+    "CN 2": ("C2", ["A", "B"]),
     "CNV 2": ("C2v", ["A1", "A2", "B1", "B2"]),
     "CNH 2": ("C2h", ["Ag", "Au", "Bu", "Bg"]),
     "DN 2": ("D2", ["A", "B1", "B2", "B3"]),
@@ -649,6 +650,10 @@ def firefly_vec_to_pyscf(job, mol, C):
 
     s, p and Cartesian d are handled. GAMESS lists d as XX YY ZZ XY XZ YZ with every function
     normalized like XX, which makes the XY-type overlap one third of XX; PySCF orders XX XY XZ YY YZ ZZ.
+    Two details differ between the files Firefly and its relatives write, so the candidates are
+    compared by how orthonormal the orbitals come out: the order of the images of a symmetry-unique
+    atom (smaller coordinates first, or larger first) and whether the d functions are normalized
+    like XX (xy-type with overlap 1/3) or all to unity.
     """
     if mol.nao != C.shape[0]:
         raise InputError("$VEC has %d AOs per orbital, the basis has %d" % (C.shape[0], mol.nao))
@@ -657,39 +662,115 @@ def firefly_vec_to_pyscf(job, mol, C):
         raise UnsupportedError("a Firefly $VEC with spherical d or f functions is not supported")
     coords = mol.atom_coords()
     z = [mol.atom_charge(i) for i in range(mol.natm)]
-    order, i = [], 0
-    while i < mol.natm:
-        j = i
-        while j < mol.natm and z[j] == z[i]:
-            j += 1
-        # Firefly lists the images of a symmetry-unique atom with the smaller coordinates first
-        order += sorted(range(i, j), key=lambda k: tuple(np.round(coords[k], 6))) if job.nsym_ops > 1 \
-            else range(i, j)
-        i = j
-    out = np.zeros_like(C)
-    ovl = np.diag(mol.intor("int1e_ovlp"))
+    ovl_full = mol.intor("int1e_ovlp")
+    ovl = np.diag(ovl_full)
     loc = mol.ao_loc_nr()
-    src = 0  # GAMESS position, atoms in Firefly order
-    for a in order:
-        for ib in range(mol.nbas):
-            if mol.bas_atom(ib) != a:
-                continue
-            l = mol.bas_angular(ib)
-            n = (l + 1) * (l + 2) // 2 if mol.cart else 2 * l + 1
-            for k in range(n):
-                row = loc[ib] + k
-                if l == 2:
-                    g, rel = _GAMESS_CART_D[k]
-                    out[row] = C[src + g] * np.sqrt(rel / ovl[row])
-                else:
-                    out[row] = C[src + k]
-            src += n
-    return out
+    has_d = any(mol.bas_angular(i) == 2 for i in range(mol.nbas))
+
+    def gamess_shells(a):
+        """Shells of atom a in GAMESS order: an s shell is followed by the p shell with the same
+        exponents (an L shell), the other p shells and the d shells come after the s shells."""
+        ibs = [ib for ib in range(mol.nbas) if mol.bas_atom(ib) == a]
+        ss = [ib for ib in ibs if mol.bas_angular(ib) == 0]
+        ps = [ib for ib in ibs if mol.bas_angular(ib) == 1]
+        seq, used = [], set()
+        for sb in ss:
+            seq.append(sb)
+            es = mol.bas_exp(sb)
+            for pb in ps:
+                ep = mol.bas_exp(pb)
+                if pb not in used and len(ep) == len(es) and np.allclose(ep, es):
+                    seq.append(pb)
+                    used.add(pb)
+                    break
+        seq += [pb for pb in ps if pb not in used]
+        seq += [ib for ib in ibs if mol.bas_angular(ib) >= 2]
+        return seq
+
+    def default_order(descending):
+        order, i = [], 0
+        while i < mol.natm:
+            j = i
+            while j < mol.natm and z[j] == z[i]:
+                j += 1
+            # Firefly lists the images of a symmetry-unique atom in coordinate order
+            order += sorted(range(i, j), key=lambda k: tuple(np.round(coords[k], 6)), reverse=descending) \
+                if job.nsym_ops > 1 else range(i, j)
+            i = j
+        return order
+
+    def convert(descending, unit_d, order=None):
+        if order is None:
+            order = default_order(descending)
+        out = np.zeros_like(C)
+        src = 0  # GAMESS position, atoms in Firefly order
+        for a in order:
+            for ib in gamess_shells(a):
+                l = mol.bas_angular(ib)
+                n = (l + 1) * (l + 2) // 2 if mol.cart else 2 * l + 1
+                for k in range(n):
+                    row = loc[ib] + k
+                    if l == 2:
+                        g, rel = _GAMESS_CART_D[k]
+                        out[row] = C[src + g] * np.sqrt((1.0 if unit_d else rel) / ovl[row])
+                    else:
+                        out[row] = C[src + k]
+                src += n
+        return out
+
+    def deviation(c):
+        m = c.T @ ovl_full @ c
+        return float(np.abs(m - np.eye(m.shape[0])).max())
+
+    def purify(c):
+        """Orbitals punched with 8 digits are orthonormal only to about 1e-5: symmetric orthonormalization."""
+        m = c.T @ ovl_full @ c
+        if np.abs(m - np.eye(m.shape[0])).max() > 1e-3:
+            return c
+        w, u = np.linalg.eigh(m)
+        return c @ (u * w ** -0.5) @ u.T
+
+    first = convert(False, False)
+    if not (job.nsym_ops > 1 or has_d) or deviation(first) < 2e-3:
+        return purify(first)
+    best, best_dev = first, deviation(first)
+    for descending in ((False, True) if job.nsym_ops > 1 else (False,)):
+        for unit_d in ((False, True) if has_d else (False,)):
+            cand = convert(descending, unit_d)
+            dev = deviation(cand)
+            if dev < best_dev:
+                best, best_dev = cand, dev
+    if best_dev > 2e-3 and job.nsym_ops > 1:
+        # the order of the images is not simply by coordinates: try every order inside each run of
+        # identical elements (as long as that is a small number of candidates)
+        import itertools
+        runs, i = [], 0
+        while i < mol.natm:
+            j = i
+            while j < mol.natm and z[j] == z[i]:
+                j += 1
+            runs.append(list(range(i, j)))
+            i = j
+        count = 1
+        for r in runs:
+            for k in range(2, len(r) + 1):
+                count *= k
+        if count <= 30000:
+            for perms in itertools.product(*[list(itertools.permutations(r)) for r in runs]):
+                order = [a for p in perms for a in p]
+                for unit_d in ((False, True) if has_d else (False,)):
+                    cand = convert(False, unit_d, order)
+                    dev = deviation(cand)
+                    if dev < best_dev:
+                        best, best_dev = cand, dev
+                        if best_dev < 1e-3:
+                            return purify(best)
+    return purify(best)
 
 
-def mf_from_vec1(job, mol):
-    """A frozen 'SCF' object whose orbitals are the ones read from $VEC1 (SCFTYP=NONE)."""
-    C = firefly_vec_to_pyscf(job, mol, job.vec1)
+def mf_from_vec1(job, mol, vec=None):
+    """A frozen 'SCF' object whose orbitals are the ones read from $VEC1 (SCFTYP=NONE), or from vec."""
+    C = firefly_vec_to_pyscf(job, mol, job.vec1 if vec is None else vec)
     mf = scf.RHF(mol) if job.mult == 1 else scf.ROHF(mol)
     mf.verbose = 0
     na, nb = (mol.nelectron + job.mult - 1) // 2, (mol.nelectron - job.mult + 1) // 2

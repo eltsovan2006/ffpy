@@ -85,6 +85,9 @@ def test_case(name, tmp_path):
         assert len(out["freqs"]) == len(ref["freqs"])
         for f, r in zip(out["freqs"], ref["freqs"]):
             assert f == pytest.approx(r, abs=TOL["freq"])
+    for key in ("tdm", "tdv"):
+        if key in ref:
+            assert out[key] == pytest.approx(ref[key], abs=2e-5)
     for atom, q in ref.get("mulliken", {}).items():
         assert out["mulliken"][atom] == pytest.approx(q, abs=TOL["mulliken"])
 

@@ -85,6 +85,7 @@ class Job:
     ecp: Optional[str] = None                     # PySCF ECP name (SBKJC)
     atom_tags: Optional[List[str]] = None   # per-atom names when $DATA carries its own basis
     drc: Optional[dict] = None                    # classical trajectory ($DRC)
+    vec2: Optional[np.ndarray] = None             # second orbital set ($VEC2) for non-orthogonal transition moments
     ospt: str = "RMP"                              # open-shell MP2 flavour: RMP or ZAPT
     semi: Optional[str] = None                    # MNDO, AM1, PM3 or RM1 (GBASIS of a semiempirical run)
 
@@ -168,6 +169,12 @@ def _read_shells(rest, i, z):
             name = _LIBRARY_KEYS[kind] if kind == "SBK" else _LIBRARY_KEYS[kind] % nprim
             if name in ("sto-4g", "sto-5g"):
                 raise UnsupportedError("basis %s is not supported by PySCF" % name)
+            if kind == "N31" and nprim == 6 and ELEMENTS[z] == "Si":
+                import copy
+                from ffpy.basis_map import GORDON_SI_631G_SP
+                shells.extend(copy.deepcopy(GORDON_SI_631G_SP))      # Firefly's Si 6-31G is Gordon's
+                i += 1
+                continue
             try:
                 from pyscf import gto
                 shells.extend(gto.basis.load(name, ELEMENTS[z]))
@@ -440,6 +447,7 @@ def build_job(deck):
         raise InputError("MULT=%d is impossible with %d electrons (ICHARG=%d)"
                          % (mult, nelec, charge))
     none_scf = scftyp == "NONE"
+    vec2 = None
     if none_scf:
         scftyp = "RHF" if mult == 1 else "ROHF"
     if scftyp == "RHF" and mult != 1:
@@ -555,8 +563,11 @@ def build_job(deck):
         cname = "CIDRT" if deck.has("CIDRT") else ("CIDRT1" if deck.has("CIDRT1") else None)
         if cname is None:
             raise InputError("CITYP=GUGA requires a $CIDRT group")
-        if g(cname, "SOCI") or g(cname, "NEXT"):
-            raise UnsupportedError("$%s SOCI/NEXT (second-order CI) is not supported" % cname)
+        soci, foci, nnext = g(cname, "SOCI"), g(cname, "FOCI"), g(cname, "NEXT")
+        if soci and foci:
+            raise InputError("$%s: SOCI and FOCI cannot be combined" % cname)
+        if nnext and not (soci or foci):
+            raise UnsupportedError("$%s NEXT needs SOCI=.TRUE. or FOCI=.TRUE." % cname)
         if xc or mplevl or False:
             raise UnsupportedError("CITYP=GUGA cannot be combined with DFTTYP/MPLEVL")
         nfzc, ndoc, nalp, nval = (g(cname, k) for k in ("NFZC", "NDOC", "NALP", "NVAL"))
@@ -568,15 +579,24 @@ def build_job(deck):
         nstate = g("GUGDIA", "NSTATE", False)
         iroots = g("TRANST", "IROOTS", False)
         ci = {"nfzc": nfzc, "ndoc": ndoc, "nalp": nalp, "nval": nval,
-              "iexcit": None if g(cname, "FORS") else g(cname, "IEXCIT"),
+              "iexcit": None if (g(cname, "FORS") or soci or foci) and not deck.explicit(cname, "IEXCIT")
+              else g(cname, "IEXCIT"),
+              "ext_level": 2 if soci else (1 if foci else 0), "next": nnext,
               "group": g(cname, "GROUP").upper(), "istsym": g(cname, "ISTSYM"),
               "nstate": nstate, "iroot": g("GUGDM", "IROOT", False),
               "iroots": [int(x) for x in iroots] if iroots else None, "vec1": none_scf}
         ci["nstate"] = max([nstate, ci["iroot"]] + (ci["iroots"] or []))
         if none_scf:
-            if "VEC1" not in deck.groups:
-                raise InputError("SCFTYP=NONE requires a $VEC1 group with the orbitals")
-            vec1 = _parse_vec(deck.groups["VEC1"].lines, None)[0]
+            src = "VEC1" if "VEC1" in deck.groups else ("VEC" if "VEC" in deck.groups else None)
+            if src is None:
+                raise InputError("SCFTYP=NONE requires a $VEC1 (or $VEC) group with the orbitals")
+            vec1 = _parse_vec(deck.groups[src].lines, None)[0]
+        if g("TRANST", "NUMVEC", report_default=False) == 2:
+            if runtyp != "TRANSITN" or not none_scf or "VEC2" not in deck.groups:
+                raise InputError("$TRANST NUMVEC=2 needs RUNTYP=TRANSITN, SCFTYP=NONE and the groups $VEC1 and $VEC2")
+            if not ci["iroots"] or len(ci["iroots"]) != 2:
+                raise InputError("$TRANST NUMVEC=2 needs IROOTS(1)=k1,k2 (state k1 of $VEC1, state k2 of $VEC2)")
+            vec2 = _parse_vec(deck.groups["VEC2"].lines, None)[0]
     cas = None
     mrpt = False
     if scftyp == "GVB":
@@ -794,4 +814,4 @@ def build_job(deck):
         excited=excited, cas=cas, pcm=pcm, nstep=nstep, opttol=opttol, hssend=hssend,
         temps=temps, exetyp=contrl["EXETYP"], projct=projct,
         coord=coord, nzvar=nzvar, dlc=dlc, auto=auto,
-        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi, drc=drc, ospt=ospt)
+        defaults=list(deck.defaults_used), nsym_ops=nops, atom_tags=atom_tags, dftnl=dftnl, ecp=ecp, dh=dh, disp=disp, auxbas=auxbas, ci=ci, iorder=iorder, vec_firefly=vec_firefly, vec1=vec1, scrf=scrf, surface=surface, trudge=trudge, irc=irc, mrpt=mrpt, semi=semi, drc=drc, ospt=ospt, vec2=vec2)

@@ -43,7 +43,7 @@ SOLVENTS = {
     "DMF": 37.219,
 }
 
-RAW_GROUPS = {"DATA", "VEC", "VEC1", "AUXBAS", "HESS", "HESS2"}
+RAW_GROUPS = {"DATA", "VEC", "VEC1", "VEC2", "AUXBAS", "HESS", "HESS2"}
 
 SCHEMA = {
     "CONTRL": {
@@ -113,9 +113,10 @@ SCHEMA = {
         "NALP": K("int", 0, None, "singly occupied (alpha) orbitals"),
         "NVAL": K("int", 0, None, "virtual orbitals in the CI"),
         "FORS": K("bool", False, None, "full CI in the window instead of IEXCIT"),
-        "SOCI": K("bool", False, None, "second-order CI (not supported)"),
-        "NEXT": K("int", 0, None, "external orbitals (not supported)"),
-        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
+        "SOCI": K("bool", False, None, "second-order CI: CAS plus all singles and doubles into the external orbitals"),
+        "FOCI": K("bool", False, None, "first-order CI: CAS plus all singles into the external orbitals"),
+        "NEXT": K("int", 0, None, "external orbitals (-1: all remaining orbitals)"),
+        "ISTSYM": K("int", 0, None, "irrep index of the CI states (0: symmetry of the reference, from the singly occupied orbitals)"),
     },
     "CIDRT1": {
         "GROUP": K("str", "C1", None, "point group used by the CI (C1 = no symmetry)"),
@@ -125,9 +126,10 @@ SCHEMA = {
         "NALP": K("int", 0, None, "singly occupied (alpha) orbitals"),
         "NVAL": K("int", 0, None, "virtual orbitals in the CI"),
         "FORS": K("bool", False, None, "full CI in the window instead of IEXCIT"),
-        "SOCI": K("bool", False, None, "second-order CI (not supported)"),
-        "NEXT": K("int", 0, None, "external orbitals (not supported)"),
-        "ISTSYM": K("int", 1, None, "irrep index of the CI states"),
+        "SOCI": K("bool", False, None, "second-order CI: CAS plus all singles and doubles into the external orbitals"),
+        "FOCI": K("bool", False, None, "first-order CI: CAS plus all singles into the external orbitals"),
+        "NEXT": K("int", 0, None, "external orbitals (-1: all remaining orbitals)"),
+        "ISTSYM": K("int", 0, None, "irrep index of the CI states (0: symmetry of the reference, from the singly occupied orbitals)"),
     },
     "GUGDM": {
         "NFLGDM": K("floatlist", None, None, "density flags (ignored)"),
@@ -135,6 +137,8 @@ SCHEMA = {
     },
     "TRANST": {
         "IROOTS": K("floatlist", None, None, "CI states between which transition moments are computed"),
+        "NUMVEC": K("int", 1, (1, 2), "number of orbital sets ($VEC1, $VEC2) for non-orthogonal transition moments"),
+        "NUMCI": K("int", 1, None, "number of CI vector sets (follows NUMVEC)"),
     },
     "SURF": {
         "IVEC1": K("floatlist", None, None, "atom pair (from, to) defining scan coordinate 1"),
@@ -319,11 +323,11 @@ IGNORED = {
     "TDDFT": {"NRAD", "NLEB", "PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
     "TDHF": {"PRTTOL", "RDTDVC", "ALTER", "MAXIT", "TOL"},
     "DET": {"PURES", "ITERMX", "CVGTOL", "NHGSS", "NSTGSS", "GROUP", "ISPIN"},
-    "CIDRT": {"MXNINT", "FOCI", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
-    "CIDRT1": {"MXNINT", "FOCI", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
-    "TRANST": {"NFZC", "NOCC", "NUMVEC", "NUMCI", "METHOD", "OPERAT"},
+    "CIDRT": {"MXNINT", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
+    "CIDRT1": {"MXNINT", "SDCI", "NINT", "ITOL", "NAOS", "NBOS", "NFZV", "NOCC"},
+    "TRANST": {"NFZC", "NOCC", "METHOD", "OPERAT"},
     "DRT": {"MXNINT", "FOCI", "SDCI", "NEXT", "NFZC", "NINT", "IEXCIT", "ITOL", "NAOS", "NBOS"},
-    "GUGDIA": {"ITERMX", "CVGTOL", "PRTTOL", "MEMMAX", "NHGSS", "NSTGSS"},
+    "GUGDIA": {"NWORD", "ITERMX", "CVGTOL", "PRTTOL", "MEMMAX", "NHGSS", "NSTGSS"},
     "GUGDM2": {"CUTOFF", "NSTATE"},
     "MCSCF": {"SOSCF", "FULLNR", "FOCAS", "QUAD", "JACOBI", "NPFLG"},
     "PCM": {"ICOMP", "ICAV", "IDISP", "RSOLV", "EPSINF", "IDP"},

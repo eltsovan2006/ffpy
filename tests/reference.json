@@ -103,9 +103,21 @@
       "source": "firefly",
       "energy": -38.3130036870
     },
+    "bench03": {
+      "source": "firefly",
+      "energy": -580.1097061806
+    },
+    "bench06": {
+      "source": "firefly",
+      "energy": -149.1291611039,
+      "tdm": 0.568226,
+      "tdv": 0.167424
+    },
     "exam14": {
       "source": "firefly",
-      "energy": -75.0101113548
+      "energy": -75.0101113548,
+      "tdm": 0.392614,
+      "tdv": 0.368205
     },
     "exam06": {
       "source": "firefly",

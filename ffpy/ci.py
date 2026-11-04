@@ -14,7 +14,7 @@ from pyscf.fci import cistring, direct_spin1, spin_op
 from ffpy.errors import InputError, UnsupportedError
 
 _ABELIAN = {"C1", "CS", "CI", "C2", "C2V", "C2H", "D2", "D2H"}
-_PENALTY = 100.0
+_PENALTY = 1.0
 
 
 class CIResult:
@@ -50,9 +50,11 @@ def _orbital_irreps(job, mol, mo):
 def run_ci(job, mf, mol):
     ci = job.ci
     nfzc, ndoc, nalp, nval = ci["nfzc"], ci["ndoc"], ci["nalp"], ci["nval"]
-    norb = ndoc + nalp + nval
+    nact = ndoc + nalp + nval
     nelec = (ndoc + nalp, ndoc)
     mo = mf.mo_coeff
+    next = ci.get("next", 0)
+    norb = nact + (mo.shape[1] - nfzc - nact if next < 0 else next)
     if mo.shape[1] < nfzc + norb:
         raise InputError("$CIDRT: %d orbitals requested but only %d are available" % (nfzc + norb, mo.shape[1]))
     cc, ca = mo[:, :nfzc], mo[:, nfzc:nfzc + norb]
@@ -73,6 +75,10 @@ def run_ci(job, mf, mol):
         return np.array([bin(int(s) & ~ref).count("1") for s in strings])
 
     mask = np.ones((len(sa), len(sb)), bool)
+    if norb > nact:
+        def ext(strings):
+            return np.array([bin(int(x) >> nact).count("1") for x in strings])
+        mask &= (ext(sa)[:, None] + ext(sb)[None, :]) <= ci["ext_level"]
     if ci["iexcit"] is not None:
         mask &= (level(sa, ref_a)[:, None] + level(sb, ref_b)[None, :]) <= ci["iexcit"]
 
@@ -91,8 +97,15 @@ def run_ci(job, mf, mol):
                 out[k] = r
             return out
         det_irrep = string_irrep(sa)[:, None] ^ string_irrep(sb)[None, :]
-        sym = ff_names[ci["istsym"] - 1]
-        mask &= det_irrep == pnames.index(sym)
+        if ci["istsym"] > 0:
+            sym = ff_names[ci["istsym"] - 1]
+            target = pnames.index(sym)
+        else:
+            target = 0
+            for p in range(ndoc, ndoc + nalp):
+                target ^= codes[p]
+            sym = pnames[target]
+        mask &= det_irrep == target
 
     s0 = (nalp) / 2.0
     ss_target = s0 * (s0 + 1)
@@ -175,3 +188,64 @@ def transition_dipoles(job, res, mol, mo):
             dm = 0.5 * (dm + dm.T)
             out[(i + 1, j + 1)] = np.array([float(np.sum(dm * mu[k])) for k in range(3)])
     return out
+
+
+def _bits(s, norb):
+    return [p for p in range(norb) if (int(s) >> p) & 1]
+
+
+def _dets_and_cofactors(smat, ops, occ_a, occ_b):
+    """Determinants of the overlap blocks M(I,J) = smat[occ_a[I], occ_b[J]] and the sums
+    sum_pq O_pq cof(M)_pq for every operator O (a list of matrices in the same MO basis)."""
+    na, nb = occ_a.shape[0], occ_b.shape[0]
+    n = occ_a.shape[1]
+    det = np.zeros((na, nb))
+    tr = np.zeros((len(ops), na, nb))
+    for i in range(na):
+        rows = occ_a[i][None, :, None]
+        cols = occ_b[:, None, :]
+        m = smat[rows, cols]                                   # (nb, n, n)
+        det[i] = np.linalg.det(m) if n else 1.0
+        if n == 0:
+            continue
+        cof = np.zeros_like(m)
+        for r in range(n):
+            ri = [x for x in range(n) if x != r]
+            for c in range(n):
+                ci = [x for x in range(n) if x != c]
+                sub = m[:, ri][:, :, ci]
+                cof[:, r, c] = (-1.0) ** (r + c) * (np.linalg.det(sub) if n > 1 else 1.0)
+        for k, o in enumerate(ops):
+            ob = o[rows, cols]
+            tr[k, i] = np.einsum("jrc,jrc->j", ob, cof)
+    return det, tr
+
+
+def nonorthogonal_moments(mol, mo_a, res_a, root_a, mo_b, res_b, root_b, nfzc, origin):
+    """Transition moments <A|O|B> of one-electron operators between CI states expanded in two
+    (non-orthogonal) orbital sets, by Loewdin's cofactor expansion.  Returns (length (3,), velocity (3,))
+    in atomic units; the velocity is <A|nabla|B>."""
+    norb = res_a.norb
+    nelec = res_a.nelec
+    k = nfzc + norb
+    ca, cb = mo_a[:, :k], mo_b[:, :k]
+    s = ca.T @ mol.intor("int1e_ovlp") @ cb
+    with mol.with_common_orig(origin):
+        r_ao = mol.intor("int1e_r", comp=3)
+    nab = -mol.intor("int1e_ipovlp", comp=3)
+    ops = [ca.T @ m @ cb for m in r_ao] + [ca.T @ m @ cb for m in nab]
+    core = list(range(nfzc))
+    out = []
+    parts = []
+    for nel in nelec:
+        strs = cistring.make_strings(range(norb), nel)
+        occ = np.array([core + [nfzc + p for p in _bits(x, norb)] for x in strs], int).reshape(len(strs), -1)
+        parts.append(_dets_and_cofactors(s, ops, occ, occ))
+    (da, ta), (db, tb) = parts
+    ca_, cb_ = res_a.vecs[root_a - 1], res_b.vecs[root_b - 1]
+    vals = []
+    for kk in range(6):
+        v = (np.einsum("ab,AB,aA,bB->", ca_, cb_, ta[kk], db)
+             + np.einsum("ab,AB,aA,bB->", ca_, cb_, da, tb[kk]))
+        vals.append(float(v))
+    return np.array(vals[:3]), np.array(vals[3:])

@@ -30,6 +30,8 @@ def parse_text(text):
     res["energy"] = _last_float(r"FINAL ENERGY \(HARTREE\)\s+(-?\d+\.\d+)", text)
     res["mp2"] = _last_float(r"TOTAL MP2 ENERGY\s+(-?\d+\.\d+)", text)
     res["scf"] = _last_float(r"TOTAL R?U?O?(?:HF|KS) ENERGY\s+(-?\d+\.\d+)", text)
+    res["tdm"] = _last_float(r"TRANSITION DIPOLE =\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+E\*BOHR", text)
+    res["tdv"] = _last_float(r"DIPOLE VELOCITY <D/DQ> =\s+\S+\s+\S+\s+\S+\s+(\d+\.\d+)\s+E/BOHR", text)
     res["dipole"] = None
     for i, l in enumerate(lines[:-1]):
         if "|D|  (DEBYE)" in l:

@@ -49,6 +49,7 @@ def optimize_tdhf(job, ctx): return _run("optimize", job, ctx)
 def optimize_tddft(job, ctx): return _run("optimize", job, ctx)
 
 def drc_run(job, ctx): return _run("drc", job, ctx)
+def transitn(job, ctx): return _run("transitn", job, ctx)
 def semi(job, ctx): return _run("semi", job, ctx)
 def hessian_hf(job, ctx): return _run("hessian", job, ctx)
 def hessian_dft(job, ctx): return _run("hessian", job, ctx)
@@ -80,7 +81,7 @@ HANDLERS = {
     ("CASSCF", "SURFACE"): surface_scan,
     ("CI", "SURFACE"): surface_scan,
     ("CI", "ENERGY"): energy_ci,
-    ("CI", "TRANSITN"): energy_ci,
+    ("CI", "TRANSITN"): transitn,
     ("CI", "GRADIENT"): gradient_ci,
     ("CI", "NUMGRAD"): numgrad,
     ("HF", "NUMGRAD"): numgrad,
