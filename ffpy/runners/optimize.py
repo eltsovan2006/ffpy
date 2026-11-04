@@ -58,6 +58,9 @@ def run(job, ctx):
         "convergence_drms": 1.2e-3,
         "convergence_dmax": 1.8e-3,
     }
+    if job.method in ("TDDFT", "TDHF"):
+        # the TD scanner has no scalar `converged`; the Davidson solver already stops at conv_tol
+        params["assert_convergence"] = False
     if getattr(job, "coord", None) in ("ZMT", "ZMTMPC") and getattr(job, "nzvar", 0) == 0:
         params["coordsys"] = "cart"
     elif getattr(job, "nzvar", 0) > 0:

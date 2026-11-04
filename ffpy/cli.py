@@ -103,7 +103,7 @@ def main(argv=None):
         epilog=USAGE_EXAMPLE)
     ap.add_argument("input", nargs="?", help="input file (.inp)")
     ap.add_argument("-o", "--outdir", help="directory for output files (default: next to the input)")
-    ap.add_argument("-n", "--nproc", type=int, default=0, help="number of threads (default: min(8, cores))")
+    ap.add_argument("-n", "--nproc", type=int, default=0, help="number of threads (default: automatic by basis size, 4 up to all cores)")
     ap.add_argument("--gamess", action="store_true", help="add GAMESS-like blocks to the .out")
     ap.add_argument("--docx", action="store_true", help="generate a report in Microsoft Word format (.docx)")
     ap.add_argument("--check", action="store_true", help="only read and validate the input")
@@ -237,6 +237,9 @@ def _run(args, path, stem, log, pyscf_fh, t0):
     # core) CPUs using every logical core is even slightly slower.
     nthreads = args.nproc or min(DEFAULT_MAX_THREADS, os.cpu_count() or 1)
     lib.num_threads(nthreads)
+    if not args.nproc:
+        from ffpy import methods
+        methods.AUTO_THREADS = True
     out.header(log, path, lib.num_threads())
     out.echo_input(log, text)
 

@@ -71,6 +71,19 @@ def _irrep_table(job):
     return _IRREPS[key]
 
 
+AUTO_THREADS = False      # set by the CLI when -n is not given: thread count follows the basis size
+
+
+def _auto_threads(nao):
+    """Small systems gain nothing from many threads (and hybrid P+E core CPUs lose a little);
+    large ones use every logical core."""
+    import os
+    from pyscf import lib
+    ncpu = os.cpu_count() or 1
+    n = 4 if nao < 80 else 8 if nao < 200 else ncpu
+    lib.num_threads(max(1, min(n, ncpu)))
+
+
 def build_mol(job, ctx, coords=None):
     coords = job.coords if coords is None else coords
     mol = gto.Mole()
@@ -101,6 +114,8 @@ def build_mol(job, ctx, coords=None):
         # PySCF rotates the molecule into its symmetry frame; adopt that frame for the whole run
         # (geometry optimization steps then stay in a frame where the symmetry is exact)
         job.coords = np.array(mol.atom_coords())
+    if AUTO_THREADS:
+        _auto_threads(mol.nao_nr())
     return mol
 
 
@@ -621,6 +636,7 @@ def build_td(job, mf):
     td = tdscf.TDA(mf) if ex["tda"] else tdscf.TDDFT(mf)
     td.nstates = ex["nstate"]
     td.conv_tol = 1e-9
+    td.max_cycle = 300
     if ex.get("istsym"):
         names = _irrep_table(job)[1]
         if not 1 <= ex["istsym"] <= len(names):
