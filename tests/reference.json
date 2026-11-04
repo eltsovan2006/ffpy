@@ -459,6 +459,24 @@
       "energy": -6642.1898264568,
       "tol": 3e-05,
       "note": "heavy-atom total energy; relative agreement 2e-9"
+    },
+    "exam64": {
+      "source": "firefly",
+      "energy": -154.9037037205,
+      "tol": 5e-05,
+      "note": "CIS S1 geometry optimization; ground-state energy at the final geometry, endpoint agrees to the optimizer tolerance"
+    },
+    "exam65": {
+      "source": "firefly",
+      "energy": -154.9005942077,
+      "tol": 5e-05,
+      "note": "TD geometry optimization; ground-state energy at the final geometry, endpoint agrees to the optimizer tolerance"
+    },
+    "exam66": {
+      "source": "firefly",
+      "energy": -155.7747805967,
+      "tol": 0.0001,
+      "note": "TD geometry optimization; ground-state energy at the final geometry, endpoint agrees to the optimizer tolerance"
     }
   }
 }
