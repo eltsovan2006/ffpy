@@ -332,7 +332,10 @@ def run_zapt2(job, mf, mol):
 
 def build_mp2(job, mf, mol):
     nfrz = job.mp2_frozen if job.mp2_frozen is not None else chemcore(mol)
-    pt = mp.MP2(mf, frozen=nfrz if nfrz else None)
+    if job.auxbas and job.scftyp == "RHF":
+        pt = _ri_mp2(job, mf, mol, nfrz)
+    else:
+        pt = mp.MP2(mf, frozen=nfrz if nfrz else None)
     pt.verbose = mol.verbose
     return pt, nfrz
 
@@ -806,7 +809,7 @@ def compute(job, ctx, coords=None, dm0=None, strict=True, tight=False):
         e_tot = post.e_tot
     elif m == "MP2":
         post, _ = build_mp2(job, mf, mol)
-        post.kernel()
+        post.kernel(with_t2=False) if job.auxbas and job.scftyp == "RHF" else post.kernel()
         e_tot = post.e_tot
     elif m in ("MP3", "MP4"):
         post = run_mpn(job, mf, mol)

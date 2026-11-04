@@ -72,6 +72,7 @@ def test_case(name, tmp_path):
     else:
         tol_e = TOL["energy_hf_mp2"]
 
+    tol_e = ref.get("tol", tol_e)
     assert out["energy"] == pytest.approx(ref["energy"], abs=tol_e)
     for key, val in ref.get("bonds", {}).items():
         a, b = key.split("-")

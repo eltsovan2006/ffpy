@@ -441,6 +441,24 @@
     "bench13": {
       "source": "firefly",
       "energy": -348.2222996674
+    },
+    "bench07": {
+      "source": "firefly",
+      "energy": -2635.2370718631,
+      "tol": 3e-05,
+      "note": "heavy-atom total energy; relative agreement 2e-9"
+    },
+    "bench08": {
+      "source": "firefly",
+      "energy": -6188.4610434479,
+      "tol": 3e-05,
+      "note": "heavy-atom total energy; relative agreement 3e-9"
+    },
+    "bench12": {
+      "source": "firefly",
+      "energy": -6642.1898264568,
+      "tol": 3e-05,
+      "note": "heavy-atom total energy; relative agreement 2e-9"
     }
   }
 }
