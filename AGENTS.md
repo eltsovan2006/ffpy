@@ -69,6 +69,7 @@ not imitate the Firefly header.
   build_mp2/build_cas/build_td`, `compute()` (full method at a geometry ->
   `Result`), `gradient_scanner()`, `Context` (log, time limit, soft-fail
   status, trajectory, freq).
+- `nddo.py`/`nddo_params.py` — own MNDO/AM1/PM3/RM1 (runner `runners/semi.py`, FD gradients); `runners/drc.py` classical trajectories; `runners/transitn.py` + `ci.nonorthogonal_moments` for TRANSITN NUMVEC=2; `ci.py` also does SOCI/FOCI; `methods.firefly_vec_to_pyscf` maps Firefly `$VEC` to PySCF AOs (adaptive shell/image/normalisation choice judged by orthonormality).
 - `runners/` — `energy`, `gradient`, `optimize` (geomeTRIC), `hessian`,
   `report` (energies, orbitals, Mulliken+Löwdin, dipole, excited states).
 - `writers/` — `out.py` (text blocks), `molden.py` (PySCF molden + `[FREQ]`,
