@@ -44,7 +44,11 @@
     "exam17": {
       "source": "firefly",
       "energy": -38.333472478,
-      "freqs": [1224.19, 3563.44, 3896.23]
+      "freqs": [
+        1224.19,
+        3563.44,
+        3896.23
+      ]
     },
     "exam34": {
       "source": "firefly",
@@ -61,7 +65,14 @@
     "exam21": {
       "source": "firefly",
       "energy": -39.2510351248,
-      "freqs": [-4805.54, -1793.0, -1317.42, 988.81, 2913.52, 3216.42]
+      "freqs": [
+        -4805.54,
+        -1793.0,
+        -1317.42,
+        988.81,
+        2913.52,
+        3216.42
+      ]
     },
     "bench02": {
       "source": "firefly",
@@ -77,7 +88,7 @@
     },
     "exam12": {
       "source": "firefly",
-      "energy": -73.6046483150
+      "energy": -73.604648315
     },
     "exam13": {
       "source": "firefly",
@@ -101,7 +112,7 @@
     },
     "exam05": {
       "source": "firefly",
-      "energy": -38.3130036870
+      "energy": -38.313003687
     },
     "bench03": {
       "source": "firefly",
@@ -184,7 +195,7 @@
     },
     "exam59": {
       "source": "firefly",
-      "energy": -155.7942484170,
+      "energy": -155.794248417,
       "dft": true
     },
     "bench01": {
@@ -367,6 +378,69 @@
       "angles": {
         "H2-O1-H3": 105.4998
       }
+    },
+    "exam08": {
+      "source": "firefly",
+      "energy": -75.7060362075
+    },
+    "exam22": {
+      "source": "firefly",
+      "energy": -94.2315757669
+    },
+    "exam26": {
+      "source": "firefly",
+      "energy": -415.2660357302
+    },
+    "exam35": {
+      "source": "firefly",
+      "energy": -94.5516630301,
+      "dft": true
+    },
+    "exam36": {
+      "source": "firefly",
+      "energy": -94.5487025937,
+      "dft": true
+    },
+    "exam37": {
+      "source": "firefly",
+      "energy": -94.321990307,
+      "dft": true
+    },
+    "exam48": {
+      "source": "firefly",
+      "energy": -407.8656241614
+    },
+    "exam55": {
+      "source": "firefly",
+      "energy": -154.9277076503
+    },
+    "exam57": {
+      "source": "firefly",
+      "energy": -154.9277076503
+    },
+    "exam60": {
+      "source": "firefly",
+      "energy": -155.794248417,
+      "dft": true
+    },
+    "exam61": {
+      "source": "firefly",
+      "energy": -155.794248417,
+      "dft": true
+    },
+    "exam62": {
+      "source": "firefly",
+      "energy": -155.794248417,
+      "dft": true
+    },
+    "exam63": {
+      "source": "firefly",
+      "energy": -155.7942484099,
+      "dft": true
+    },
+    "bench13": {
+      "source": "firefly",
+      "energy": -348.2222996674
     }
   }
 }
