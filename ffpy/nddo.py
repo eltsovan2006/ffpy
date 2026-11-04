@@ -387,6 +387,41 @@ class NDDO:
         self.nbf = int(self.off[-1])
 
     # --- integrals ---------------------------------------------------------------------------
+    _pair_cache = {}
+
+    def _pair_terms(self, a, b, xi, xj):
+        """Two-centre integrals, core attraction, resonance block and core repulsion of one atom pair.
+        Finite-difference gradients move one atom at a time, so most pairs repeat: they are memoized."""
+        key = (a.z, a.uss, b.z, b.uss, xi.tobytes(), xj.tobytes())
+        hit = NDDO._pair_cache.get(key)
+        if hit is not None:
+            return hit
+        vec = xi - xj
+        r = np.linalg.norm(vec)
+        u = vec / r
+        wl, ri = local_integrals(a, b, r)
+        R = orbital_rotation(u)
+        wm = np.einsum("ai,bj,ck,dl,abcd->ijkl", R, R, R, R, wl, optimize=True)
+        na, nb = a.norb, b.norb
+        wm = wm[:na, :na, :nb, :nb]
+        # electron on i attracts core j, and the reverse
+        vi = -b.tore * wm[:, :, 0, 0]
+        vj = -a.tore * wm[0, 0, :, :]
+        # resonance integrals: overlap with b along +z' = direction j <- i seen from i
+        Rs = orbital_rotation(-u)       # local z from i towards j
+        sl = overlap_block(a, b, r)
+        Ra = Rs[:na, :na] if na == 4 else Rs[:1, :1]
+        Rb = Rs[:nb, :nb] if nb == 4 else Rs[:1, :1]
+        S = Ra.T @ sl @ Rb
+        bi = np.array([a.bs] + [a.bp] * (na - 1))
+        bj = np.array([b.bs] + [b.bp] * (nb - 1))
+        Hij = 0.5 * (bi[:, None] + bj[None, :]) * S
+        out = (wm, vi, vj, Hij, self._core_core(a, b, r, ri[1]))
+        if len(NDDO._pair_cache) > 50000:
+            NDDO._pair_cache.clear()
+        NDDO._pair_cache[key] = out
+        return out
+
     def build(self):
         n = len(self.atoms)
         H = np.zeros((self.nbf, self.nbf))
@@ -399,39 +434,14 @@ class NDDO:
         for i in range(n):
             for j in range(i):
                 a, b = self.atoms[i], self.atoms[j]
-                vec = self.xyz[i] - self.xyz[j]
-                r = np.linalg.norm(vec)
-                u = vec / r
-                wl, ri = local_integrals(a, b, r)
-                if a.norb == 1 and b.norb == 1:
-                    pass
-                R = orbital_rotation(u)
-                # restrict to the actual orbitals
-                ra = R[:, :]
-                wm = np.einsum("ai,bj,ck,dl,abcd->ijkl", R, R, R, R, wl, optimize=True)
-                na, nb = a.norb, b.norb
-                wm = wm[:na, :na, :nb, :nb]
+                wm, vi, vj, Hij, ecc = self._pair_terms(a, b, self.xyz[i], self.xyz[j])
                 self.w2[(i, j)] = wm
-                # electron on i attracts core j, and the reverse
-                vi = -b.tore * wm[:, :, 0, 0]
-                vj = -a.tore * wm[0, 0, :, :]
                 si, sj = slice(self.off[i], self.off[i + 1]), slice(self.off[j], self.off[j + 1])
                 H[si, si] += vi
                 H[sj, sj] += vj
-                # resonance integrals: overlap with b along +z' = direction j <- i seen from i
-                Rs = orbital_rotation(-u)       # local z from i towards j
-                sl = overlap_block(a, b, r)
-                # local order (s,z,x,y) -> molecular via rotation of each atom's p functions
-                S = np.zeros((na, nb))
-                Ra = Rs[:na, :na] if na == 4 else Rs[:1, :1]
-                Rb = Rs[:nb, :nb] if nb == 4 else Rs[:1, :1]
-                S = Ra.T @ sl @ Rb
-                bi = np.array([a.bs] + [a.bp] * (na - 1))
-                bj = np.array([b.bs] + [b.bp] * (nb - 1))
-                Hij = 0.5 * (bi[:, None] + bj[None, :]) * S
                 H[si, sj] += Hij
                 H[sj, si] += Hij.T
-                enuc += self._core_core(a, b, r, ri[1])
+                enuc += ecc
         self.H = H
         self.enuc = enuc
         self.eisol = sum(a.eisol for a in self.atoms)
